@@ -1,0 +1,14 @@
+Gem::Specification.new do |spec|
+  spec.name        = "office_docs"
+  spec.version     = "0.1.0"
+  spec.date        = "2012-05-29"
+  spec.summary     = "Manipulate Microsoft Office Open XML files"
+  spec.description = "Generate and modify Word .docx and Excel .xlsx files"
+  spec.authors     = ["Mike Welham"]
+  spec.email       = "mikew@devicemagic.com"
+  spec.files       = ["lib/office_docs.rb"]
+  spec.homepage    = "https://github.com/mwelham/office_docs"
+  spec.add_dependency("nokogiri", ">= 1.5.2")
+  spec.add_dependency("rmagick", ">= 2.13.1")
+  spec.add_dependency("rubyzip", ">= 0.9.8")
+end
