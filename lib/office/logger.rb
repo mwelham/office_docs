@@ -4,13 +4,22 @@ module Office
       puts "WARNING: #{message}"
     end
     
+    def self.debug_dump(message)
+      puts message
+    end
+
+    def self.debug_dump_xml(title, xml_doc)
+      puts title
+      xml_doc.to_xml(:indent => 2).to_s.each_line { |l| puts "  #{l}" }
+    end
+
     def self.debug_dump_table(title, headers, rows, footer = nil)
       column_widths = calc_column_widths(headers, rows)
       total_width = column_widths.inject(column_widths.length + 1) { | width, column_width | width + column_width }
       
       separator = ""
       total_width.times { separator << '-' }
-        
+
       puts title
       puts separator
       puts build_table_row(headers, column_widths)
