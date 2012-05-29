@@ -27,6 +27,7 @@ module Office
       rows.each { |r| puts build_table_row(r, column_widths)}
       puts separator
       puts footer unless footer.nil? or footer.empty?
+      puts
     end
     
     private

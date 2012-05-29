@@ -10,6 +10,11 @@ module Office
 
       @filename = filename
       parse_parts
+      map_relationships
+    end
+
+    def get_part(name)
+      @parts_by_name[name]
     end
 
     def parse_parts
@@ -57,15 +62,35 @@ module Office
       end
     end
 
+    def map_relationships
+      @parts_by_name.values.each { |p| p.map_relationships(self) if p.instance_of? RelationshipsPart }
+      Logger.warn "package '#{@filename}' is missing package-level relationships" if @relationships.nil?
+    end
+
+    def set_relationships(relationships_part)
+      raise "multiple package-level relationship parts for package '#{@filename}'" unless @relationships.nil?
+      @relationships = relationships_part
+    end
+
+    def get_relationship_target(type)
+      raise "package '#{@filename}' is missing package-level relationships" if @relationships.nil?
+      @relationships.get_relationship_target(type)
+    end
+
     def debug_dump
       rows = @parts_by_name.values.collect { |p| ["#{p.class.name}", "#{p.name}", "#{p.content_type}"] }
       Logger.debug_dump_table("#{self.class.name} Parts", ["Class", "Name", "Content Type"], rows)
+
+      @relationships.debug_dump unless @relationships.nil?
+      @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
     end
   end
 
   class WordDocument < Package
     def initialize(filename)
       super(filename)
+      doc_part = get_relationship_target("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument")
+      raise PackageError.new("Word document package '#{@filename}' has no document part") if doc_part.nil?
     end
   end
 end
