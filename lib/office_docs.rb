@@ -1,4 +1,4 @@
-require 'office/packages'
+require 'office/word'
 
 module Office
 end

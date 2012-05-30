@@ -21,12 +21,12 @@ module Office
       total_width.times { separator << '-' }
 
       puts title
-      puts separator
-      puts build_table_row(headers, column_widths)
-      puts separator
-      rows.each { |r| puts build_table_row(r, column_widths)}
-      puts separator
-      puts footer unless footer.nil? or footer.empty?
+      puts "  " + separator
+      puts "  " + build_table_row(headers, column_widths)
+      puts "  " + separator
+      rows.each { |r| puts "  " + build_table_row(r, column_widths)}
+      puts "  " + separator
+      puts "  " + footer unless footer.nil? or footer.empty?
       puts
     end
     

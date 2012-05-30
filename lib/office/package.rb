@@ -85,12 +85,4 @@ module Office
       @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
     end
   end
-
-  class WordDocument < Package
-    def initialize(filename)
-      super(filename)
-      doc_part = get_relationship_target("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument")
-      raise PackageError.new("Word document package '#{@filename}' has no document part") if doc_part.nil?
-    end
-  end
 end

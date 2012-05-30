@@ -1,5 +1,6 @@
 require 'nokogiri' # docs at http://nokogiri.org
 require 'RMagick'  # docs at http://studio.imagemagick.org/RMagick/doc
+require 'office/constants'
 require 'office/errors'
 require 'office/logger'
 
@@ -59,7 +60,7 @@ module Office
     end
 
     def self.parse(part_name, io, default_content_type)
-      XmlPart.new(part_name, io, default_content_type || "application/xml")
+      XmlPart.new(part_name, io, default_content_type || XML_CONTENT_TYPE)
     end
 
     def self.zip_extensions
@@ -143,7 +144,7 @@ module Office
     end
 
     def self.parse(part_name, io, default_content_type)
-      RelationshipsPart.new(part_name, io, default_content_type || "application/vnd.openxmlformats-package.relationships+xml")
+      RelationshipsPart.new(part_name, io, default_content_type || RELATIONSHIP_CONTENT_TYPE)
     end
 
     def self.zip_extensions
