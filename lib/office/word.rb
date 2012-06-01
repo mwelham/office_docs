@@ -13,6 +13,14 @@ module Office
       @main_doc = MainDocument.new(self, main_doc_part)
     end
 
+    def plain_text
+      @main_doc.plain_text
+    end
+    
+    def replace_all(source, replacement)
+      @main_doc.replace_all(source, replacement)
+    end
+
     def debug_dump
       super
       @main_doc.debug_dump
@@ -43,12 +51,16 @@ module Office
     def plain_text
       text = ""
       @paragraphs.each do |p| 
-        p.runs.each { |r| r.text_ranges.each { |t| text << t.text } }
+        p.runs.each { |r| text << r.text }
         text << "\n"
       end
       text
     end
-    
+
+    def replace_all(source, replacement)
+      @paragraphs.each { |p| p.replace_all(source, replacement) }
+    end
+
     def debug_dump
       p_count = 0
       r_count = 0
@@ -57,7 +69,7 @@ module Office
         p_count += 1
         p.runs.each do |r|
           r_count += 1
-          r.text_ranges.each { |t| t_chars += t.text.length unless t.text.nil? }
+          t_chars += r.text_length
         end
       end
       Logger.debug_dump "Main Document Stats"
@@ -83,26 +95,109 @@ module Office
       @runs = []
       p_node.xpath("w:r").each { |r| @runs << Run.new(r) }
     end
+
+    def replace_all(source, replacement)
+      return if source.nil? or source.empty?
+      replacement = "" if replacement.nil?
+      
+      text = @runs.inject("") { |t, run| t + run.text }
+      until (i = text.index(source, i.nil? ? 0 : i)).nil?
+        replace_in_runs(i, source.length, replacement)
+        text = replace_in_text(text, i, source.length, replacement)
+        i += replacement.length
+      end
+    end
+    
+    def replace_in_runs(index, length, replacement)
+      total_length = 0
+      ends = @runs.map { |r| total_length += r.text_length }
+      first_index = ends.index { |e| e > index }
+
+      first_run = @runs[first_index]
+      index_in_run = index - (first_index == 0 ? 0 : ends[first_index - 1])
+      if ends[first_index] >= index + length
+        first_run.text = replace_in_text(first_run.text, index_in_run, length, replacement)
+      else
+        length_in_run = first_run.text.length - index_in_run
+        first_run.text = replace_in_text(first_run.text, index_in_run, length_in_run, replacement[0,length_in_run])
+
+        last_index = ends.index { |e| e >= index + length }
+        remaining_text = length - length_in_run - clear_runs((first_index + 1), (last_index - 1))
+
+        last_run = last_index.nil? ? @runs.last : @runs[last_index]
+        last_run.text = replace_in_text(last_run.text, 0, remaining_text, replacement[length_in_run..-1])
+      end
+    end
+    
+    def replace_in_text(original, index, length, replacement)
+      return original if length == 0
+      result = index == 0 ? "" : original[0, index]
+      result += replacement unless replacement.nil?
+      result += original[(index + length)..-1] unless index + length == original.length
+      result
+    end
+    
+    def clear_runs(first, last)
+      return 0 unless first <= last
+      chars_cleared = 0
+      @runs[first..last].each do |r|
+        chars_cleared += r.text_length
+        r.clear_text
+      end
+      chars_cleared
+    end
   end
   
   class Run
     attr_accessor :node
-    attr_accessor :text_ranges
+    attr_accessor :text_range
     
     def initialize(r_node)
       @node = r_node
-      @text_ranges = []
-      r_node.xpath("w:t").each { |t| @text_ranges << TextRange.new(t) }
+      t_node = r_node.at_xpath("w:t")
+      @text_range = TextRange.new(t_node) unless t_node.nil?
+    end
+
+    def text
+      @text_range.nil? ? nil : @text_range.text
+    end
+    
+    def text=(text)
+      if text.nil?
+        @text_range.node.remove unless @text_range.nil?
+        @text_range = nil
+      elsif @text_range.nil?
+        t_node = Nokogiri::XML::Node.new("w:t", @node.document)
+        t_node.content = text
+        @node.add_child(t_node)
+        @text_range = TextRange.new(t_node)
+      else
+        @text_range.text = text
+      end
+    end
+    
+    def text_length
+      @text_range.nil? || @text_range.text.nil? ? 0 : @text_range.text.length
+    end
+    
+    def clear_text
+      @text_range.text = "" unless @text_range.nil?
     end
   end
-  
+
   class TextRange
     attr_accessor :node
-    attr_accessor :text
     
     def initialize(t_node)
       @node = t_node
-      @text = t_node.text
+    end
+    
+    def text
+      @node.text
+    end
+    
+    def text=(text)
+      @node.content = text
     end
   end
 end
