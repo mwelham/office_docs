@@ -17,6 +17,24 @@ module Office
       @parts_by_name[name]
     end
 
+    def save(filename)
+      if File.exists? filename
+        backup_file = filename + ".bak"
+        File.rename(filename, backup_file)
+      end
+
+      begin
+        Zip::ZipOutputStream.open(filename) do |zip|
+          @parts_by_name.values.each { |p| p.save(zip) }
+        end
+        File.delete(backup_file) unless backup_file.nil?
+      rescue => e
+        File.delete(filename) if File.exists? filename
+        File.rename(backup_file, filename) unless backup_file.nil?
+        raise e
+      end
+    end
+
     def parse_parts
       @parts_by_name = {}
       @default_content_types = {}

@@ -9,6 +9,15 @@ module Office
     attr_accessor :name
     attr_accessor :content_type
 
+    def save(zip_output)
+      zip_output.put_next_entry @name[1..-1] # strip off leading '/'
+      zip_output << get_zip_content
+    end
+
+    def get_zip_content
+      raise PackageError.new("incomplete implementation - get_zip_content for #{self.class.name}")
+    end
+    
     def has_relationships?
       !@relationships.nil?
     end
@@ -57,6 +66,10 @@ module Office
       @name = part_name
       @xml = Nokogiri::XML::Document.parse(xml_io)
       @content_type = content_type
+    end
+
+    def get_zip_content
+      @xml.to_s
     end
 
     def self.parse(part_name, io, default_content_type)
@@ -161,6 +174,10 @@ module Office
       @content_type = @image.mime_type
     end
 
+    def get_zip_content
+      @image.to_blob
+    end
+
     def self.parse(part_name, io, default_content_type)
       ImagePart.new(part_name, Magick::Image::from_blob(io.read))
     end
@@ -185,6 +202,10 @@ module Office
       @content_type = content_type
     end
 
+    def get_zip_content
+      @content
+    end
+    
     def self.parse(part_name, io, default_content_type)
       UnknownPart.new(part_name, io, default_content_type)
     end

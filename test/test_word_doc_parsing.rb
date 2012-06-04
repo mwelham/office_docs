@@ -19,6 +19,20 @@ class WordDocParsingTest < Test::Unit::TestCase
     #stress_test_replace(SIMPLE_TEST_DOC_PATH)
   end
 
+  def test_save_simple_doc
+    file = Tempfile.new('test_save_simple_doc')
+    file.close
+    filename = file.path
+    #filename = "/Users/mwelham/Temp/test_save_simple_doc.docx"
+    
+    doc = load_simple_doc
+    doc.save(filename)
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+    
+    file.delete
+  end
+  
   private
 
   def load_simple_doc
