@@ -17,6 +17,10 @@ module Office
       @parts_by_name[name]
     end
 
+    def get_part_names
+      @parts_by_name.keys
+    end
+    
     def save(filename)
       if File.exists? filename
         backup_file = filename + ".bak"
@@ -75,7 +79,7 @@ module Office
         when "Override"
           @overriden_content_types[child["PartName"].downcase] = child["ContentType"]
         else
-          Logger.warn "Unrecognized element '#{child.name}' in content types XML part"
+          Logger.warn "Unrecognized element '#{child.name}' in content types XML part" unless child.text? and child.blank?
         end
       end
     end
@@ -101,6 +105,34 @@ module Office
 
       @relationships.debug_dump unless @relationships.nil?
       @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
+    end
+  end
+  
+  class PackageComparer
+    def self.are_equal?(path_1, path_2)
+      package_1 = Package.new(path_1)
+      package_2 = Package.new(path_2)
+      
+      part_names_1 = package_1.get_part_names
+      part_names_2 = package_2.get_part_names
+      
+      return false unless (part_names_1 - part_names_2).empty?
+      return false unless (part_names_2 - part_names_1).empty?
+      
+      part_names_1.each do |name|
+        return false unless are_parts_equal?(package_1.get_part(name), package_2.get_part(name))
+      end
+      true
+    end
+    
+    def self.are_parts_equal?(part_1, part_2)
+      return false unless part_1.class == part_2.class
+      return false unless part_1.name == part_2.name
+      return false unless part_1.content_type == part_2.content_type
+
+      content_1 = part_1.get_comparison_content.to_s
+      content_2 = part_2.get_comparison_content.to_s
+      content_1 == content_2
     end
   end
 end

@@ -17,6 +17,10 @@ module Office
     def get_zip_content
       raise PackageError.new("incomplete implementation - get_zip_content for #{self.class.name}")
     end
+
+    def get_comparison_content
+      get_zip_content
+    end
     
     def has_relationships?
       !@relationships.nil?
@@ -69,7 +73,7 @@ module Office
     end
 
     def get_zip_content
-      @xml.to_s
+      @xml.to_xml(:indent => 0, :indent_text => nil).to_s
     end
 
     def self.parse(part_name, io, default_content_type)
@@ -116,7 +120,7 @@ module Office
           id = child["Id"]
           @relationships_by_id[id] = Relationship.new(id, child["Type"], child["Target"].downcase)
         else
-          Logger.warn "Unrecognized element '#{child.name}' in relationships XML part"
+          Logger.warn "Unrecognized element '#{child.name}' in relationships XML part" unless child.text? and child.blank?
         end
       end
     end
@@ -166,20 +170,26 @@ module Office
   end
 
   class ImagePart < Part
+    attr_accessor :raw_blob
     attr_accessor :image # Magick::Image::Image
 
-    def initialize(part_name, image_list)
+    def initialize(part_name, blob)
+      @raw_blob = blob
       @name = part_name
-      @image = image_list.first
+      @image = Magick::Image::from_blob(blob).first
       @content_type = @image.mime_type
     end
 
+    def get_comparison_content
+      @image.signature
+    end
+
     def get_zip_content
-      @image.to_blob
+      @raw_blob
     end
 
     def self.parse(part_name, io, default_content_type)
-      ImagePart.new(part_name, Magick::Image::from_blob(io.read))
+      ImagePart.new(part_name, io.read)
     end
 
     def self.zip_extensions
@@ -205,7 +215,7 @@ module Office
     def get_zip_content
       @content
     end
-    
+
     def self.parse(part_name, io, default_content_type)
       UnknownPart.new(part_name, io, default_content_type)
     end
