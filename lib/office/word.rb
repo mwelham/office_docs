@@ -5,6 +5,8 @@ require 'office/logger'
 
 module Office
   class WordDocument < Package
+    attr_accessor :main_doc
+    
     def initialize(filename)
       super(filename)
 
@@ -13,6 +15,30 @@ module Office
       @main_doc = MainDocument.new(self, main_doc_part)
     end
 
+    def self.blank_document
+      WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'blank.docx'))
+    end
+    
+    def add_heading(text)
+      p = @main_doc.add_paragraph
+      p.add_style("Heading1")
+      p.add_run(text)
+      p
+    end
+    
+    def add_sub_heading(text)
+      p = @main_doc.add_paragraph
+      p.add_style("Heading2")
+      p.add_run(text)
+      p
+    end
+    
+    def add_paragraph(text)
+      p = @main_doc.add_paragraph
+      p.add_run(text)
+      p
+    end
+    
     def plain_text
       @main_doc.plain_text
     end
@@ -46,6 +72,13 @@ module Office
 
       @paragraphs = []
       body_node.xpath("w:p").each { |p| @paragraphs << Paragraph.new(p) }
+    end
+
+    def add_paragraph
+      p = @body_node.document.create_element("p")
+      p_node = @paragraphs.empty? ? @body_node.add_child(p) : @paragraphs.last.node.add_next_sibling(p)
+      @paragraphs << Paragraph.new(p_node)
+      @paragraphs.last
     end
     
     def plain_text
@@ -94,6 +127,25 @@ module Office
       @node = p_node
       @runs = []
       p_node.xpath("w:r").each { |r| @runs << Run.new(r) }
+    end
+
+    # TODO Wrap styles up in a class
+    def add_style(style)
+      pPr_node = @node.add_child(@node.document.create_element("pPr"))
+      pStyle_node = pPr_node.add_child(@node.document.create_element("pStyle"))
+      pStyle_node["w:val"] = style
+      # TODO return style object
+    end
+
+    def add_run(text)
+      r_node = @node.add_child(@node.document.create_element("r"))
+      t_node = r_node.add_child(@node.document.create_element("t"))
+      t_node["xml:space"] = "preserve"
+      t_node.content = text
+
+      r = Run.new(r_node)
+      @runs << r
+      r
     end
 
     def replace_all(source, replacement)

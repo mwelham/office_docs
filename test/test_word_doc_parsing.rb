@@ -7,7 +7,6 @@ class WordDocParsingTest < Test::Unit::TestCase
 
   def test_parse_simple_doc
     doc = load_simple_doc
-    #doc.debug_dump
   end
 
   def test_replace
@@ -47,7 +46,22 @@ class WordDocParsingTest < Test::Unit::TestCase
     
     file.delete
   end
-  
+
+  def test_blank_document
+    assert_equal Office::WordDocument.blank_document.plain_text, ""
+  end
+
+  def test_build_document
+    doc = Office::WordDocument.blank_document
+    doc.add_heading "Heading"
+    doc.add_paragraph "intro"
+    doc.add_sub_heading "Sub-heading"
+    doc.add_paragraph "body"
+    doc.add_paragraph ""
+    doc.add_paragraph "end"
+    assert_equal doc.plain_text, "Heading\nintro\nSub-heading\nbody\n\nend\n"
+  end
+
   private
 
   def load_simple_doc
