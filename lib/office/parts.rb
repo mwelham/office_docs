@@ -36,6 +36,10 @@ module Office
       @relationships
     end
 
+    def get_relationship_by_id(id)
+      @relationships.get_relationship_by_id(id)
+    end
+
     def get_relationship_target(type)
       @relationships.get_relationship_target(type)
     end
@@ -149,6 +153,10 @@ module Office
       package.get_part(path_components.join("/"))
     end
 
+    def get_relationship_by_id(id)
+      @relationships_by_id[id]
+    end
+    
     def get_relationship_target(type)
       @relationships_by_id.values.each { |r| return r.target_part if r.type == type }
       nil

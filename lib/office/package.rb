@@ -5,6 +5,8 @@ require 'office/logger'
 
 module Office
   class Package
+    attr_accessor :filename
+
     def initialize(filename)
       raise PackageError.new("cannot access '#{filename}' as a package file") unless File.file?(filename)
 

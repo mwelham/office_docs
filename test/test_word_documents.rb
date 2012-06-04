@@ -2,7 +2,7 @@ require 'test/unit'
 require 'date'
 require 'office_docs'
 
-class WordDocParsingTest < Test::Unit::TestCase
+class WordDocumentsTest < Test::Unit::TestCase
   SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__), 'content', 'simple_test.docx')
 
   def test_parse_simple_doc
