@@ -65,6 +65,10 @@ module Office
       @sheet_data = SheetData.new(data_node, self, workbook)
     end
 
+    def add_row(data)
+      @sheet_data.add_row(data)
+    end
+    
     def to_csv(separator = ',')
       @sheet_data.to_csv(separator)
     end
@@ -83,6 +87,12 @@ module Office
 
       @rows = []
       node.xpath("xmlns:row").each { |r| @rows << Row.new(r, workbook.shared_strings) }
+    end
+
+    def add_row(data)
+      row_node = Row.create_node(@node.document, @rows.length + 1, data, workbook.shared_strings)
+      @node.add_child(row_node)
+      @rows << Row.new(row_node, workbook.shared_strings)
     end
 
     def to_csv(separator)
@@ -134,7 +144,22 @@ module Office
       @cells = []
       node.xpath("xmlns:c").each { |c| @cells << Cell.new(c, string_table) }
     end
-    
+
+    def self.create_node(document, number, data, string_table)
+      row_node = document.create_element("row")
+      row_node["r"] = number.to_s unless number.nil?
+      
+      unless data.nil? or data.length == 0
+        row_node["spans"] = "1:#{data.length}"
+        0.upto(data.length - 1) do |i| 
+          c_node = Cell.create_node(document, number, i, data[i], string_table)
+          row_node.add_child(c_node)
+        end
+      end
+
+      row_node
+    end
+
     def to_ary
       ary = []
       @cells.each do |c|
@@ -167,6 +192,26 @@ module Office
         @shared_string.add_cell(self)
       end
     end
+    
+    def self.create_node(document, row_number, index, value, string_table)
+      cell_node = document.create_element("c")
+      cell_node["r"] = "#{column_name(index)}#{row_number}"
+      
+      value_node = document.create_element("v")
+      cell_node.add_child(value_node)
+
+      unless value.nil? or value.to_s.empty?
+        if value.is_a? Numeric
+          value_node.content = value
+        else
+          cell_node["t"] = "s"
+          value_node.content = string_table.id_for_text(value.to_s)
+        end
+      end
+      
+      cell_node
+    end
+    
     
     def is_string?
       data_type == "s"
@@ -204,28 +249,47 @@ module Office
     
     def initialize(part)
       @node = part.xml.at_xpath("/xmlns:sst")
+      # TODO Keep these up-to-date
       @count_attr = @node.attribute("count")
       @unique_count_attr = @node.attribute("uniqueCount")
 
       @strings_by_id = {}
       @strings_by_text = {}
-      node.xpath("xmlns:si").each do |si|
-        string = SharedString.new(si, @strings_by_id.length)
-        @strings_by_id[string.id] = string
-        @strings_by_text[string.text] = string
-      end
+      node.xpath("xmlns:si").each { |si| parse_si_node(si) }
     end
 
+    def parse_si_node(si)
+      string = SharedString.new(si, @strings_by_id.length)
+      @strings_by_id[string.id] = string
+      @strings_by_text[string.text] = string
+      string.id
+    end
+    
     def get_string_by_id(id)
       @strings_by_id[id]
     end
 
+    def id_for_text(text)
+      return @strings_by_text[text].id if @strings_by_text.has_key? text
+      
+      si = node.document.create_element("si")
+      t = node.document.create_element("t")
+      t.content = text
+      si.add_child(t)
+      @node.add_child(si)
+      
+      parse_si_node(si)
+    end
+    
     def debug_dump
       rows = @strings_by_id.values.collect do |s|
         cells = s.cells.collect { |c| c.location }
         ["#{s.id}", "#{s.text}", "#{cells.join(', ')}"]
       end
-      footer = "count = #{@count_attr.value}, unique count = #{@unique_count_attr.value}"
+      
+      footer = ","
+      footer << "  count = #{@count_attr.value}" unless @count_attr.nil?
+      footer << "  unique count = #{@unique_count_attr.value}" unless @unique_count_attr.nil?
       Logger.debug_dump_table("Excel Workbook Shared Strings", ["ID", "Text", "Cells"], rows, footer)
     end
   end
