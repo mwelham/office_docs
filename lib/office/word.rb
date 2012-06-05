@@ -38,7 +38,11 @@ module Office
       p.add_run(text)
       p
     end
-    
+
+    def add_image
+      # TODO WordDocument.add_image
+    end
+
     def plain_text
       @main_doc.plain_text
     end
