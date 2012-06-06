@@ -16,7 +16,9 @@ module Office
     end
 
     def self.blank_document
-      WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'blank.docx'))
+      doc = WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'blank.docx'))
+      doc.filename = nil
+      doc
     end
     
     def add_heading(text)

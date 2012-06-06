@@ -20,7 +20,9 @@ module Office
     end
 
     def self.blank_workbook
-      ExcelWorkbook.new(File.join(File.dirname(__FILE__), 'content', 'blank.xlsx'))
+      book = ExcelWorkbook.new(File.join(File.dirname(__FILE__), 'content', 'blank.xlsx'))
+      book.filename = nil
+      book
     end
 
     def parse_shared_strings
