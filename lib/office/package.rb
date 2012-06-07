@@ -15,6 +15,19 @@ module Office
       map_relationships
     end
 
+    def to_data
+      original_filename = @filename
+      file = Tempfile.new('OfficePackage')
+      file.close
+      begin
+        save(file.path)
+        File.open(file.path) { |f| return f.read }
+      ensure
+        @filename = original_filename
+        file.delete
+      end
+    end
+
     def get_part(name)
       @parts_by_name[name]
     end

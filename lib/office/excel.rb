@@ -25,6 +25,19 @@ module Office
       book
     end
 
+    def self.from_data(data)
+      file = Tempfile.new('OfficeExcelWorkbook')
+      file.write(data)
+      file.close
+      begin
+        book = ExcelWorkbook.new(file.path)
+        book.filename = nil
+        return book
+      ensure
+        file.delete
+      end
+    end
+
     def parse_shared_strings
       shared_strings_part = @workbook_part.get_relationship_target(EXCEL_SHARED_STRINGS_TYPE)
       @shared_strings = SharedStringTable.new(shared_strings_part) unless shared_strings_part.nil?

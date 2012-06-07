@@ -20,21 +20,34 @@ module Office
       doc.filename = nil
       doc
     end
-    
+
+    def self.from_data(data)
+      file = Tempfile.new('OfficeWordDocument')
+      file.write(data)
+      file.close
+      begin
+        doc = WordDocument.new(file.path)
+        doc.filename = nil
+        return doc
+      ensure
+        file.delete
+      end
+    end
+
     def add_heading(text)
       p = @main_doc.add_paragraph
       p.add_style("Heading1")
       p.add_run(text)
       p
     end
-    
+
     def add_sub_heading(text)
       p = @main_doc.add_paragraph
       p.add_style("Heading2")
       p.add_run(text)
       p
     end
-    
+
     def add_paragraph(text)
       p = @main_doc.add_paragraph
       p.add_run(text)
@@ -48,7 +61,7 @@ module Office
     def plain_text
       @main_doc.plain_text
     end
-    
+
     def replace_all(source, replacement)
       @main_doc.replace_all(source, replacement)
     end

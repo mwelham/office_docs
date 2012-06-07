@@ -64,4 +64,21 @@ class ExcelWorkbooksTest < Test::Unit::TestCase
     
     file.delete
   end
+
+  def test_from_data
+    book_1 = nil
+    File.open(SIMPLE_TEST_WORKBOOK_PATH) { |f| book_1 = Office::ExcelWorkbook.from_data(f.read) }
+    book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+  end
+
+  def test_to_data
+    data = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH).to_data
+    assert !data.nil?
+    assert data.length > 0
+
+    book_1 = Office::ExcelWorkbook.from_data(data)
+    book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+  end
 end

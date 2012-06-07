@@ -62,6 +62,23 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert_equal doc.plain_text, "Heading\nintro\nSub-heading\nbody\n\nend\n"
   end
 
+  def test_from_data
+    doc_1 = nil
+    File.open(SIMPLE_TEST_DOC_PATH) { |f| doc_1 = Office::WordDocument.from_data(f.read) }
+    doc_2 = load_simple_doc
+    assert_equal doc_1.plain_text, doc_2.plain_text
+  end
+
+  def test_to_data
+    data = load_simple_doc.to_data
+    assert !data.nil?
+    assert data.length > 0
+
+    doc_1 = Office::WordDocument.from_data(data)
+    doc_2 = load_simple_doc
+    assert_equal doc_1.plain_text, doc_2.plain_text
+  end
+
   private
 
   def load_simple_doc

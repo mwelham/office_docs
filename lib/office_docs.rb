@@ -1,3 +1,4 @@
+require 'office/constants'
 require 'office/word'
 require 'office/excel'
 
