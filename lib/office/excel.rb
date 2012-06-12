@@ -27,6 +27,7 @@ module Office
 
     def self.from_data(data)
       file = Tempfile.new('OfficeExcelWorkbook')
+      file.binmode
       file.write(data)
       file.close
       begin
