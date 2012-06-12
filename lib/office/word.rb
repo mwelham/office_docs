@@ -172,7 +172,7 @@ module Office
       return if source.nil? or source.empty?
       replacement = "" if replacement.nil?
       
-      text = @runs.inject("") { |t, run| t + run.text }
+      text = @runs.inject("") { |t, run| t + (run.text || "") }
       until (i = text.index(source, i.nil? ? 0 : i)).nil?
         replace_in_runs(i, source.length, replacement)
         text = replace_in_text(text, i, source.length, replacement)

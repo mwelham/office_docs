@@ -84,6 +84,7 @@ class WordDocumentsTest < Test::Unit::TestCase
     doc = Office::WordDocument.new(COMPLEX_TEST_DOC_PATH)
     assert doc.plain_text.include?("Presiding Peasant: Dennis")
     assert doc.plain_text.include?("Assessment Depot: Swampy Castle (might be sinking)")
+    replace_and_check(doc, "Swampy Castle (might be sinking)", "Farcical Aquatic Ceremony")
   end
 
   private
