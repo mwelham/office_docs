@@ -4,6 +4,7 @@ require 'office_docs'
 
 class WordDocumentsTest < Test::Unit::TestCase
   SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__), 'content', 'simple_test.docx')
+  COMPLEX_TEST_DOC_PATH = File.join(File.dirname(__FILE__), 'content', 'complex_test.docx')
 
   def test_parse_simple_doc
     doc = load_simple_doc
@@ -77,6 +78,12 @@ class WordDocumentsTest < Test::Unit::TestCase
     doc_1 = Office::WordDocument.from_data(data)
     doc_2 = load_simple_doc
     assert_equal doc_1.plain_text, doc_2.plain_text
+  end
+
+  def test_complex_parsing
+    doc = Office::WordDocument.new(COMPLEX_TEST_DOC_PATH)
+    assert doc.plain_text.include?("Presiding Peasant: Dennis")
+    assert doc.plain_text.include?("Assessment Depot: Swampy Castle (might be sinking)")
   end
 
   private

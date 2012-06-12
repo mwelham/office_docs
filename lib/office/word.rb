@@ -103,7 +103,7 @@ module Office
     def plain_text
       text = ""
       @paragraphs.each do |p| 
-        p.runs.each { |r| text << r.text }
+        p.runs.each { |r| text << r.text unless r.text.nil? }
         text << "\n"
       end
       text
