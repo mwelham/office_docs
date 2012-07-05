@@ -35,7 +35,16 @@ module Office
     def get_part_names
       @parts_by_name.keys
     end
-    
+
+    def add_part(name, content_io, content_type)
+      PackageError.new("part name cannot be empty") if name.nil? or name.empty?
+      PackageError.new("package already contains a part with name '#{name}'") if @parts_by_name.has_key? name
+      add_content_type_override(name, content_type) unless content_type.nil? or content_type.empty?
+      part = Part.from_entry(name, content_io)
+      @parts_by_name[name] = part
+      part
+    end
+
     def save(filename)
       if File.exists? filename
         backup_file = filename + ".bak"
@@ -75,15 +84,23 @@ module Office
 
     def parse_zip_entry(zip_entry)
       extension = zip_entry.name.split('.').last.downcase
-      part = Part.from_zip_entry(zip_entry.name, zip_entry.get_input_stream, @default_content_types[extension])
+      part = Part.from_entry(zip_entry.name, zip_entry.get_input_stream, @default_content_types[extension])
       part.content_type = @overriden_content_types[part.name] || part.content_type
       @parts_by_name[part.name] = part
       part
     end
 
+    def add_content_type_override(name, content_type)
+      node = @content_types_part.xml.create_element('Override')
+      node["PartName"] = name
+      node["ContentType"] = content_type
+      @content_types_part.xml.root.add_child(node)
+      @overriden_content_types[name.downcase] = content_type
+    end
+
     def parse_content_types(zip_entry)
-      part = parse_zip_entry(zip_entry)
-      type_node = part.xml.root
+      @content_types_part = parse_zip_entry(zip_entry)
+      type_node = @content_types_part.xml.root
       raise PackageError.new("package '#{@filename}' has unexpected root node '#{type_node.name}") unless type_node.name == "Types"
       
       @default_content_types = {}

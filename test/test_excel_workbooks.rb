@@ -81,4 +81,47 @@ class ExcelWorkbooksTest < Test::Unit::TestCase
     book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
     assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
   end
+
+  def test_sheet_creation
+    book = Office::ExcelWorkbook.blank_workbook
+    assert_equal book.sheets.count, 1
+
+    book.add_sheet('Alpha')
+    assert_equal book.sheets.count, 2
+    book.add_sheet('Bravo')
+    assert_equal book.sheets.count, 3
+    book.add_sheet('Charlie')
+    assert_equal book.sheets.count, 4
+
+    assert_equal book.sheets[1].name, 'Alpha'
+    assert_equal book.sheets[2].name, 'Bravo'
+    assert_equal book.sheets[3].name, 'Charlie'
+
+    file = Tempfile.new('test_sheet_creation')
+    file.close
+    filename = file.path
+    book.save(filename)
+
+    saved_book = Office::ExcelWorkbook.new(filename)
+    assert_equal saved_book.sheets.count, 4
+    assert_equal saved_book.sheets[1].name, 'Alpha'
+    assert_equal saved_book.sheets[2].name, 'Bravo'
+    assert_equal saved_book.sheets[3].name, 'Charlie'
+  end
+  
+  def test_create_for_external_use
+    book = Office::ExcelWorkbook.blank_workbook
+
+    alpha = book.add_sheet('Alpha')
+    alpha.add_row(['alpha', 'bravo', 'charlie'])
+    alpha.add_row(['1', '2', '3'])
+
+    book.add_sheet('Bravo')
+
+    charlie = book.add_sheet('Charlie')
+    charlie.add_row(['alpha', 'bravo', 'charlie'])
+    charlie.add_row([1, 2, 3])
+
+    book.save('/Users/mwelham/Temp/Phonetics.xlsx')
+  end
 end

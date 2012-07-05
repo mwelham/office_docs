@@ -44,9 +44,13 @@ module Office
       @relationships.get_relationship_target(type)
     end
 
+    def add_relationship(part, type)
+      @relationships.add_relationship(part, type)
+    end
+
     @@subclasses = []
 
-    def self.from_zip_entry(entry_name, entry_io, default_content_type = nil)
+    def self.from_entry(entry_name, entry_io, default_content_type = nil)
       part_name = (entry_name[0] == "/" ? "" : "/") + entry_name.downcase
       extension = part_name.split('.').last
       part_class = @@subclasses.find { |sc| sc.zip_extensions.include? extension } || UnknownPart
@@ -95,16 +99,25 @@ module Office
     attr_accessor :target_name
     attr_accessor :target_part
 
-    def initialize(id, type, target_name)
+    def initialize(id, type, target_name, target_part = nil)
       @id = id
       @type = type
       @target_name = target_name
+      @target_part = target_part
     end
 
     def resolve_target_part(package, owner_name)
       full_name = @target_name[0] == "/" ? @target_name : owner_name[0, owner_name.rindex("/") + 1] + @target_name
       @target_part = package.get_part(full_name)
       Logger.warn "Failed to resolve relationship target '#{@target_name}' for '#{owner_name}'" if @target_part.nil?
+    end
+
+    def self.create_node(document, relationship_id, type, target)
+      sheet_node = document.create_element("Relationship")
+      sheet_node["Id"] = relationship_id
+      sheet_node["Type"] = type
+      sheet_node["Target"] = target
+      sheet_node
     end
   end
 
@@ -122,6 +135,7 @@ module Office
       root.children.each do |child|
         if "Relationship" == child.name
           id = child["Id"]
+          raise PackageError.new("relationship part '#{@name}' has duplicate relationship ID '#{id}") if @relationships_by_id.has_key? id
           @relationships_by_id[id] = Relationship.new(id, child["Type"], child["Target"].downcase)
         else
           Logger.warn "Unrecognized element '#{child.name}' in relationships XML part" unless child.text? and child.blank?
@@ -160,6 +174,34 @@ module Office
     def get_relationship_target(type)
       @relationships_by_id.values.each { |r| return r.target_part if r.type == type }
       nil
+    end
+
+    def add_relationship(part, type)
+      relationship_id = next_free_relationship_id
+      target = relative_path_from_owner(part.name)
+      @xml.root.add_child(Relationship.create_node(@xml, relationship_id, type, target))
+      @relationships_by_id[relationship_id] = Relationship.new(relationship_id, type, target, part)
+      relationship_id
+    end
+
+    def next_free_relationship_id
+      number = @relationships_by_id.size
+      @relationships_by_id.keys.each do |k|
+        matches = k.scan(/\ArId(\d+)\z/)
+        number = [number, (matches.nil? || matches.empty? ? 0 : matches[0][0].to_i + 1)].max
+      end
+      "rId#{number}"
+    end
+
+    def relative_path_from_owner(part_name)
+      owner_components = @owner_name.downcase.split('/')
+      target_components = part_name.downcase.split('/')
+      return part_name unless owner_components.first == target_components.first
+      owner_components.each do |c|
+        break unless target_components.first == c
+        target_components.shift
+      end
+      target_components.join('/')
     end
 
     def debug_dump

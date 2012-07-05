@@ -52,6 +52,26 @@ module Office
       @sheets_node.xpath("xmlns:sheet").each { |s| @sheets << Sheet.new(s, self) }
     end
 
+    def add_sheet(name)
+      raise PackageError.new("New sheet name cannot be empty") if name.nil? or name.empty?
+      sheet_id = 1
+      @sheets.each do |s|
+        raise PackageError.new("Spreadsheet already contains a sheet named '#{name}'") if name == s.name
+        matches = s.worksheet_part.name.scan(/.*\/sheet(\d+)\.xml\z/i)
+        sheet_id = [sheet_id, s.id + 1, (matches.nil? || matches.empty? ? 0 : matches[0][0].to_i + 1)].max
+      end
+
+      sheet_part = nil
+      File.open(File.join(File.dirname(__FILE__), 'content', 'empty_sheet.xml')) do |file|
+        sheet_part = add_part("/xl/worksheets/sheet#{sheet_id}.xml", file, XLSX_SHEET_CONTENT_TYPE)
+      end
+      relationship_id = @workbook_part.add_relationship(sheet_part, EXCEL_WORKSHEET_TYPE)
+
+      node = Sheet.add_node(@sheets_node, name, sheet_id, relationship_id)
+      @sheets << Sheet.new(node, self)
+      @sheets.last
+    end
+
     def debug_dump
       super
       @shared_strings.debug_dump unless @shared_strings.nil?
@@ -73,10 +93,10 @@ module Office
     def initialize(sheet_node, workbook)
       @workbook_node = sheet_node
       @name = sheet_node["name"]
-      @id = sheet_node["sheetId"]
+      @id = sheet_node["sheetId"].to_i
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["id"]).target_part
       
-      data_node = worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
+      data_node = @worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
       raise PackageError.new("Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data") if data_node.nil?
       @sheet_data = SheetData.new(data_node, self, workbook)
     end
@@ -87,6 +107,15 @@ module Office
     
     def to_csv(separator = ',')
       @sheet_data.to_csv(separator)
+    end
+    
+    def self.add_node(parent_node, name, sheet_id, relationship_id)
+      sheet_node = parent_node.document.create_element("sheet")
+      parent_node.add_child(sheet_node)
+      sheet_node["name"] = name
+      sheet_node["sheetId"] = sheet_id.to_s
+      sheet_node["r:id"] = relationship_id
+      sheet_node
     end
   end
   
