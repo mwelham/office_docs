@@ -109,19 +109,29 @@ class ExcelWorkbooksTest < Test::Unit::TestCase
     assert_equal saved_book.sheets[3].name, 'Charlie'
   end
   
-  def test_create_for_external_use
+  def test_sheet_removal
     book = Office::ExcelWorkbook.blank_workbook
+    assert_equal book.sheets.count, 1
+    sheet_1 = book.sheets.first
+    initial_part_count = book.get_part_names.count
 
-    alpha = book.add_sheet('Alpha')
-    alpha.add_row(['alpha', 'bravo', 'charlie'])
-    alpha.add_row(['1', '2', '3'])
-
-    book.add_sheet('Bravo')
-
-    charlie = book.add_sheet('Charlie')
-    charlie.add_row(['alpha', 'bravo', 'charlie'])
-    charlie.add_row([1, 2, 3])
-
-    book.save('/Users/mwelham/Temp/Phonetics.xlsx')
+    sheet_2 = book.add_sheet('Another Sheet')
+    assert_equal book.sheets.count, 2
+    assert_equal book.get_part_names.count, initial_part_count + 1
+    
+    sheet_3_name = 'And Another Sheet'
+    sheet_3 = book.add_sheet(sheet_3_name)
+    assert_equal book.sheets.count, 3
+    assert_equal book.get_part_names.count, initial_part_count + 2
+    
+    assert_equal sheet_1, book.find_sheet_by_name(sheet_1.name)
+    book.remove_sheet(sheet_1)
+    assert_equal book.sheets.count, 2
+    assert_equal book.get_part_names.count, initial_part_count + 1
+    
+    book.remove_sheet(book.find_sheet_by_name(sheet_3_name))
+    assert_equal book.sheets.count, 1
+    assert_equal book.sheets.first, sheet_2
+    assert_equal book.get_part_names.count, initial_part_count
   end
 end

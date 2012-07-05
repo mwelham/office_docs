@@ -72,6 +72,20 @@ module Office
       @sheets.last
     end
 
+    def find_sheet_by_name(name)
+      @sheets.each { |s| return s if s.name == name }
+      nil
+    end
+
+    def remove_sheet(sheet)
+      return if sheet.nil?
+      raise PackageError.new("sheet not found in workbook") unless @sheets.include? sheet
+
+      @sheets_node.at_xpath("./xmlns:sheet[@name='#{sheet.name}']").remove
+      remove_part(sheet.worksheet_part)
+      @sheets.delete(sheet)
+    end
+
     def debug_dump
       super
       @shared_strings.debug_dump unless @shared_strings.nil?

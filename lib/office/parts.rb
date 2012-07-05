@@ -45,7 +45,12 @@ module Office
     end
 
     def add_relationship(part, type)
-      @relationships.add_relationship(part, type)
+      @relationships.add(part, type)
+    end
+
+    def remove_relationships(part)
+      return if self == part || @relationships.nil?
+      @relationships.remove(part)
     end
 
     @@subclasses = []
@@ -176,12 +181,21 @@ module Office
       nil
     end
 
-    def add_relationship(part, type)
+    def add(part, type)
       relationship_id = next_free_relationship_id
       target = relative_path_from_owner(part.name)
       @xml.root.add_child(Relationship.create_node(@xml, relationship_id, type, target))
       @relationships_by_id[relationship_id] = Relationship.new(relationship_id, type, target, part)
       relationship_id
+    end
+
+    def remove(part)
+      to_remove = []
+      @relationships_by_id.values.each { |r| to_remove << r if r.target_part == part }
+      to_remove.each do |r|
+        @xml.root.at_xpath("/xmlns:Relationships/xmlns:Relationship[@Id='#{r.id}']").remove
+        @relationships_by_id.delete(r.id)
+      end
     end
 
     def next_free_relationship_id

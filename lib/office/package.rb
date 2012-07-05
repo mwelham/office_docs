@@ -45,6 +45,15 @@ module Office
       part
     end
 
+    def remove_part(part)
+      return if part.nil?
+      raise PackageError.new("part not found in package") unless @parts_by_name[part.name] == part
+
+      @parts_by_name.values.each { |p| p.remove_relationships(part) }
+      remove_content_type_override(part.name)
+      @parts_by_name.delete(part.name)
+    end
+
     def save(filename)
       if File.exists? filename
         backup_file = filename + ".bak"
@@ -96,6 +105,12 @@ module Office
       node["ContentType"] = content_type
       @content_types_part.xml.root.add_child(node)
       @overriden_content_types[name.downcase] = content_type
+    end
+
+    def remove_content_type_override(name)
+      nodes = @content_types_part.xml.root.xpath("/xmlns:Types/xmlns:Override[@PartName='#{name}']")
+      nodes.each { |n| n.remove } unless nodes.nil?
+      @overriden_content_types.delete(name.downcase)
     end
 
     def parse_content_types(zip_entry)
