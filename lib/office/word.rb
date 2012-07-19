@@ -72,8 +72,8 @@ module Office
       @main_doc.plain_text
     end
 
-    def replace_all(source, replacement)
-      @main_doc.replace_all(source, replacement)
+    def replace_all_with_text(source, replacement_text)
+      @main_doc.replace_all_with_text(source, replacement_text)
     end
 
     def debug_dump
@@ -119,8 +119,8 @@ module Office
       text
     end
 
-    def replace_all(source, replacement)
-      @paragraphs.each { |p| p.replace_all(source, replacement) }
+    def replace_all_with_text(source, replacement_text)
+      @paragraphs.each { |p| p.replace_all_with_text(source, replacement_text) }
     end
 
     def debug_dump
@@ -189,15 +189,15 @@ module Office
       r
     end
 
-    def replace_all(source, replacement)
+    def replace_all_with_text(source, replacement_text)
       return if source.nil? or source.empty?
-      replacement = "" if replacement.nil?
+      replacement_text = "" if replacement_text.nil?
       
       text = @runs.inject("") { |t, run| t + (run.text || "") }
       until (i = text.index(source, i.nil? ? 0 : i)).nil?
-        replace_in_runs(i, source.length, replacement)
-        text = replace_in_text(text, i, source.length, replacement)
-        i += replacement.length
+        replace_in_runs(i, source.length, replacement_text)
+        text = replace_in_text(text, i, source.length, replacement_text)
+        i += replacement_text.length
       end
     end
     

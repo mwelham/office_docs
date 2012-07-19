@@ -25,7 +25,7 @@ class WordDocumentsTest < Test::Unit::TestCase
     filename = file.path
     
     doc = load_simple_doc
-    doc.replace_all("pork chop", "radish and tofu salad")
+    doc.replace_all_with_text("pork chop", "radish and tofu salad")
     doc.save(filename)
     assert File.file?(filename)
     assert File.stat(filename).size > 0
@@ -122,7 +122,7 @@ class WordDocumentsTest < Test::Unit::TestCase
 
   def replace_and_check(doc, source, replacement)
     original = doc.plain_text
-    doc.replace_all(source, replacement)
+    doc.replace_all_with_text(source, replacement)
     assert_equal original.gsub(source, replacement), doc.plain_text
   end
 
