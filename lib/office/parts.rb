@@ -9,6 +9,10 @@ module Office
     attr_accessor :name
     attr_accessor :content_type
 
+    def path_components
+      name.split('/').values_at(1..-2)
+    end
+
     def save(zip_output)
       zip_output.put_next_entry @name[1..-1] # strip off leading '/'
       zip_output << get_zip_content

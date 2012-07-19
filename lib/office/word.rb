@@ -38,25 +38,34 @@ module Office
     def add_heading(text)
       p = @main_doc.add_paragraph
       p.add_style("Heading1")
-      p.add_run(text)
+      p.add_text_run(text)
       p
     end
 
     def add_sub_heading(text)
       p = @main_doc.add_paragraph
       p.add_style("Heading2")
-      p.add_run(text)
+      p.add_text_run(text)
       p
     end
 
     def add_paragraph(text)
       p = @main_doc.add_paragraph
-      p.add_run(text)
+      p.add_text_run(text)
       p
     end
 
-    def add_image
-      # TODO WordDocument.add_image
+    def add_image(image) # image must be an Magick::Image::Image
+      prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
+      extension = "#{image.format}".downcase
+      identifier = unused_part_identifier(prefix, extension)
+
+      part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
+      relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
+
+      p = @main_doc.add_paragraph
+      p.add_image_run(identifier, image.columns, image.rows, relationship_id)
+      p
     end
 
     def plain_text
@@ -157,13 +166,25 @@ module Office
       # TODO return style object
     end
 
-    def add_run(text)
+    def add_text_run(text)
       r_node = @node.add_child(@node.document.create_element("r"))
       t_node = r_node.add_child(@node.document.create_element("t"))
       t_node["xml:space"] = "preserve"
       t_node.content = text
 
       r = Run.new(r_node)
+      @runs << r
+      r
+    end
+
+    def add_image_run(image_identifier, pixel_width, pixel_height, image_relationship_id)
+      fragment = IO.read(File.join(File.dirname(__FILE__), 'content', 'image_fragment.xml'))
+      fragment.gsub!("IMAGE_RELATIONSHIP_ID_PLACEHOLDER", image_relationship_id)
+      fragment.gsub!("IDENTIFIER_PLACEHOLDER", image_identifier.to_s)
+      fragment.gsub!("EXTENT_WIDTH_PLACEHOLDER", (pixel_height * 6000).to_s)
+      fragment.gsub!("EXTENT_LENGTH_PLACEHOLDER", (pixel_width * 6000).to_s)
+
+      r = Run.new(@node.add_child(fragment))
       @runs << r
       r
     end

@@ -87,6 +87,33 @@ class WordDocumentsTest < Test::Unit::TestCase
     replace_and_check(doc, "Swampy Castle (might be sinking)", "Farcical Aquatic Ceremony")
   end
 
+  def test_image_addition
+    doc = Office::WordDocument.blank_document
+    doc.add_heading "Heading"
+    doc.add_paragraph "intro"
+    doc.add_sub_heading "Sub-heading"
+    doc.add_paragraph "body"
+    doc.add_sub_heading "Sub-heading"
+    doc.add_image Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
+    doc.add_sub_heading "Sub-heading"
+    doc.add_image Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
+    doc.add_sub_heading "Sub-heading"
+    doc.add_paragraph ""
+    doc.add_paragraph "end"
+
+    file = Tempfile.new('test_image_addition_doc')
+    file.close
+    filename = file.path
+    doc.save(filename)
+
+    doc_copy = Office::WordDocument.new(filename)
+    assert_equal doc.plain_text, doc_copy.plain_text
+    assert_equal doc_copy.plain_text, "Heading\nintro\nSub-heading\nbody\nSub-heading\n\nSub-heading\n\nSub-heading\n\nend\n"
+
+    assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
+    assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
+   end
+
   private
 
   def load_simple_doc

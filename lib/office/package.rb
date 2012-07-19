@@ -39,7 +39,7 @@ module Office
     def add_part(name, content_io, content_type)
       PackageError.new("part name cannot be empty") if name.nil? or name.empty?
       PackageError.new("package already contains a part with name '#{name}'") if @parts_by_name.has_key? name
-      add_content_type_override(name, content_type) unless content_type.nil? or content_type.empty?
+      add_content_type_override(name, content_type)
       part = Part.from_entry(name, content_io)
       @parts_by_name[name] = part
       part
@@ -52,6 +52,14 @@ module Office
       @parts_by_name.values.each { |p| p.remove_relationships(part) }
       remove_content_type_override(part.name)
       @parts_by_name.delete(part.name)
+    end
+
+    def unused_part_identifier(prefix, extension)
+      i = 1
+      while @parts_by_name.has_key? "#{prefix}#{i}.#{extension}" do
+        i = i + 1
+      end
+      i
     end
 
     def save(filename)
@@ -100,6 +108,9 @@ module Office
     end
 
     def add_content_type_override(name, content_type)
+      return if content_type.nil? or content_type.empty?
+      return if @default_content_types[name.split('.').last.downcase] = content_type
+
       node = @content_types_part.xml.create_element('Override')
       node["PartName"] = name
       node["ContentType"] = content_type

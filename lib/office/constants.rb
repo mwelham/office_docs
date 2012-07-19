@@ -8,4 +8,5 @@ module Office
   EXCEL_WORKBOOK_TYPE       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
   EXCEL_SHARED_STRINGS_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"
   EXCEL_WORKSHEET_TYPE      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
+  IMAGE_RELATIONSHIP_TYPE   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 end
