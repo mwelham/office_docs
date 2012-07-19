@@ -94,9 +94,9 @@ class WordDocumentsTest < Test::Unit::TestCase
     doc.add_sub_heading "Sub-heading"
     doc.add_paragraph "body"
     doc.add_sub_heading "Sub-heading"
-    doc.add_image Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
+    doc.add_image test_image
     doc.add_sub_heading "Sub-heading"
-    doc.add_image Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
+    doc.add_image test_image
     doc.add_sub_heading "Sub-heading"
     doc.add_paragraph ""
     doc.add_paragraph "end"
@@ -112,7 +112,27 @@ class WordDocumentsTest < Test::Unit::TestCase
 
     assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
     assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
-   end
+    assert_nil doc_copy.get_part("/word/media/image3.jpeg")
+  end
+
+  def test_image_replacement
+    doc = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'image_replacement_test.docx'))
+    doc.replace_all_with_image("IMAGE", test_image)
+
+    file = Tempfile.new('test_image_addition_doc')
+    file.close
+    filename = file.path
+    doc.save(filename)
+
+    doc_copy = Office::WordDocument.new(filename)
+    assert_equal doc_copy.plain_text, "Header\n\n\n\nABC\n\nDEF\n\nABCDEF\n\n"
+
+    assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
+    assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
+    assert_not_nil doc_copy.get_part("/word/media/image3.jpeg")
+    assert_not_nil doc_copy.get_part("/word/media/image4.jpeg")
+    assert_nil doc_copy.get_part("/word/media/image5.jpeg")
+  end
 
   private
 
@@ -147,5 +167,9 @@ class WordDocumentsTest < Test::Unit::TestCase
     text = ""
     Random::rand(20).times { text <<= 'a' }
     text
+  end
+
+  def test_image
+    Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
   end
 end
