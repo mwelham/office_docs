@@ -109,7 +109,7 @@ module Office
       raise PackageError.new("Word document '#{@filename}' is missing main document body") if body_node.nil?
 
       @paragraphs = []
-      body_node.xpath("w:p").each { |p| @paragraphs << Paragraph.new(p) }
+      body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p) }
     end
 
     def add_paragraph
