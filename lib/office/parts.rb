@@ -239,7 +239,7 @@ module Office
 
   class ImagePart < Part
     attr_accessor :raw_blob
-    attr_accessor :image # Magick::Image::Image
+    attr_accessor :image # Magick::Image
 
     def initialize(part_name, blob)
       @raw_blob = blob

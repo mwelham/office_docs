@@ -55,7 +55,7 @@ module Office
       p
     end
 
-    def add_image(image) # image must be an Magick::Image::Image
+    def add_image(image) # image must be an Magick::Image
       p = @main_doc.add_paragraph
       p.add_run_with_fragment(create_image_fragment(image))
       p
@@ -74,7 +74,7 @@ module Office
       runs.each { |r| r.replace_with_fragment(create_image_fragment(replacement_image)) }
     end
 
-    def create_image_fragment(image) # image must be an Magick::Image::Image
+    def create_image_fragment(image) # image must be an Magick::Image
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
       extension = "#{image.format}".downcase
       identifier = unused_part_identifier(prefix, extension)
