@@ -7,6 +7,7 @@ require 'office/logger'
 module Office
   class Part
     attr_accessor :name
+    attr_accessor :zip_entry_name # original case-sensitive non-rooted name (when available)
     attr_accessor :content_type
 
     def path_components
@@ -14,7 +15,7 @@ module Office
     end
 
     def save(zip_output)
-      zip_output.put_next_entry @name[1..-1] # strip off leading '/'
+      zip_output.put_next_entry @zip_entry_name || @name[1..-1] # strip off leading '/'
       zip_output << get_zip_content
     end
 
@@ -65,7 +66,9 @@ module Office
       part_class = @@subclasses.find { |sc| sc.zip_extensions.include? extension } || UnknownPart
 
       begin
-        part_class.parse(part_name, entry_io, default_content_type)
+        part = part_class.parse(part_name, entry_io, default_content_type)
+        part.zip_entry_name = entry_name[0] == "/" ? entry_name[1..-1] : entry_name # no leading '/' in entry names
+        part
       rescue StandardError => e
         raise PackageError.new("failed to parse package #{part_class.name} '#{part_name}' - #{e}")
       end
