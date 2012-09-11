@@ -109,7 +109,7 @@ module Office
 
     def add_content_type_override(name, content_type)
       return if content_type.nil? or content_type.empty?
-      return if @default_content_types[name.split('.').last.downcase] = content_type
+      return if @default_content_types[name.split('.').last.downcase] == content_type
 
       node = @content_types_part.xml.create_element('Override')
       node["PartName"] = name

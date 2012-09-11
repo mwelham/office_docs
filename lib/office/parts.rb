@@ -267,7 +267,7 @@ module Office
       extensions = []
       Magick.formats do |format, attributes|
         # attributes indicate RMagick support for the format BRWA (native blob, read, write, multi-image)
-        extensions << format.downcase if attributes.downcase[1, 2] = 'rw'
+        extensions << format.downcase if attributes.downcase[1, 2] == 'rw'
       end
       extensions
     end
