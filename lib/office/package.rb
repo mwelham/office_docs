@@ -54,9 +54,9 @@ module Office
       @parts_by_name.delete(part.name)
     end
 
-    def unused_part_identifier(prefix, extension)
+    def unused_part_identifier(prefix)
       i = 1
-      while @parts_by_name.has_key? "#{prefix}#{i}.#{extension}" do
+      until (@parts_by_name.keys.index { |name| name.start_with? "#{prefix}#{i}" }).nil?
         i = i + 1
       end
       i

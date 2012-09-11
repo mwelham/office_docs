@@ -76,8 +76,8 @@ module Office
 
     def create_image_fragment(image) # image must be an Magick::Image
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
+      identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
-      identifier = unused_part_identifier(prefix, extension)
 
       part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
       relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
