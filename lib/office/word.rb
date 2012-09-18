@@ -65,16 +65,36 @@ module Office
       @main_doc.plain_text
     end
 
-    def replace_all_with_text(source_text, replacement_text)
-      @main_doc.replace_all_with_text(source_text, replacement_text)
-    end
+    # The type of 'replacement' determines what replaces the source text:
+    #   Image  - an image (Magick::Image or Magick::ImageList)
+    #   Hash   - a table, keys being column headings, and each value an array of column data
+    #   Array  - a sequence of these replacement types all of which will be inserted
+    #   String - simple text replacement
+    def replace_all(source_text, replacement)
+      if replacement.kind_of? String
+        # Special case for simple text, so we can preserve the style of source in the replacement
+        @main_doc.replace_all_with_text(source_text, replacement)
+        return
+      end
 
-    def replace_all_with_image(source_text, replacement_image)
       runs = @main_doc.replace_all_with_empty_runs(source_text)
-      runs.each { |r| r.replace_with_fragment(create_image_fragment(replacement_image)) }
+      runs.each { |r| r.replace_with_fragment(create_fragment(replacement)) }
     end
 
-    def create_image_fragment(image) # image must be an Magick::Image
+    def create_fragment(item)
+      case
+      when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
+        create_image_fragment(item)
+      when item.is_a?(Hash)
+        create_table_fragment(item)
+      when item.is_a?(Array)
+        create_mulitple_fragments(item)
+      else
+        create_text_fragment(item.nil? ? "" : item.to_s)
+      end
+    end
+
+    def create_image_fragment(image)
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
       identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
@@ -83,6 +103,19 @@ module Office
       relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
 
       Run.create_image_fragment(identifier, image.columns, image.rows, relationship_id)
+    end
+
+    def create_table_fragment(hash)
+      # TODO WordDocument.create_table_fragment
+      create_text_fragment("(tables are not yet implemented)")
+    end
+
+    def create_mulitple_fragments(array)
+      array.inject("") { |fragments, item| fragments + create_fragment(item) }
+    end
+
+    def create_text_fragment(text)
+      "<w:r><w:t>#{Nokogiri::XML::Document.new.encode_special_chars(text)}</w:t></w:r>"
     end
 
     def debug_dump

@@ -25,7 +25,7 @@ class WordDocumentsTest < Test::Unit::TestCase
     filename = file.path
     
     doc = load_simple_doc
-    doc.replace_all_with_text("pork chop", "radish and tofu salad")
+    doc.replace_all("pork chop", "radish and tofu salad")
     doc.save(filename)
     assert File.file?(filename)
     assert File.stat(filename).size > 0
@@ -117,7 +117,7 @@ class WordDocumentsTest < Test::Unit::TestCase
 
   def test_image_replacement
     doc = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'image_replacement_test.docx'))
-    doc.replace_all_with_image("IMAGE", test_image)
+    doc.replace_all("IMAGE", test_image)
 
     file = Tempfile.new('test_image_addition_doc')
     file.close
@@ -142,7 +142,7 @@ class WordDocumentsTest < Test::Unit::TestCase
 
   def replace_and_check(doc, source, replacement)
     original = doc.plain_text
-    doc.replace_all_with_text(source, replacement)
+    doc.replace_all(source, replacement)
     assert_equal original.gsub(source, replacement), doc.plain_text
   end
 
