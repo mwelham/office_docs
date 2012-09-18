@@ -88,7 +88,7 @@ module Office
       when item.is_a?(Hash)
         create_table_fragment(item)
       when item.is_a?(Array)
-        create_mulitple_fragments(item)
+        create_multiple_fragments(item)
       else
         create_text_fragment(item.nil? ? "" : item.to_s)
       end
@@ -110,7 +110,7 @@ module Office
       create_text_fragment("(tables are not yet implemented)")
     end
 
-    def create_mulitple_fragments(array)
+    def create_multiple_fragments(array)
       array.inject("") { |fragments, item| fragments + create_fragment(item) }
     end
 
