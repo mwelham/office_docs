@@ -55,9 +55,9 @@ module Office
       p
     end
 
-    def add_image(image) # image must be an Magick::Image
+    def add_image(image) # image must be an Magick::Image or ImageList
       p = @main_doc.add_paragraph
-      p.add_run_with_fragment(create_image_fragment(image))
+      p.add_run_with_fragment(create_image_run_fragment(image))
       p
     end
 
@@ -71,30 +71,33 @@ module Office
     #   Array  - a sequence of these replacement types all of which will be inserted
     #   String - simple text replacement
     def replace_all(source_text, replacement)
-      if replacement.kind_of? String
-        # Special case for simple text, so we can preserve the style of source in the replacement
+      case
+      # For simple cases we just replace runs to try and keep formatting/layout of source
+      when replacement.is_a?(String)
         @main_doc.replace_all_with_text(source_text, replacement)
-        return
+      when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
+        runs = @main_doc.replace_all_with_empty_runs(source_text)
+        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(replacement)) }
+      else
+        runs = @main_doc.replace_all_with_empty_runs(source_text)
+        runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement)) }
       end
-
-      runs = @main_doc.replace_all_with_empty_runs(source_text)
-      runs.each { |r| r.replace_with_fragment(create_fragment(replacement)) }
     end
 
-    def create_fragment(item)
+    def create_body_fragments(item)
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
-        create_image_fragment(item)
+        [ "<w:p>#{create_image_run_fragment(item)}</w:p>" ]
       when item.is_a?(Hash)
-        create_table_fragment(item)
+        [ create_table_fragment(item) ]
       when item.is_a?(Array)
         create_multiple_fragments(item)
       else
-        create_text_fragment(item.nil? ? "" : item.to_s)
+        [ create_paragraph_fragment(item.nil? ? "" : item.to_s) ]
       end
     end
 
-    def create_image_fragment(image)
+    def create_image_run_fragment(image)
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
       identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
@@ -105,17 +108,53 @@ module Office
       Run.create_image_fragment(identifier, image.columns, image.rows, relationship_id)
     end
 
+    DEFAULT_TABLE_PROPERTIES = <<TBL_PTR
+      <w:tblPr>
+        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblStyle w:val="LightGrid"/>
+        <w:tblStyleRowBandSize w:val="1"/>
+        <w:tblStyleColBandSize w:val="1"/>
+        <w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+      </w:tblPr>
+TBL_PTR
+
     def create_table_fragment(hash)
-      # TODO WordDocument.create_table_fragment
-      create_text_fragment("(tables are not yet implemented)")
+      c_count = hash.size
+      return "" if c_count == 0
+
+      fragment = "<w:tbl>#{DEFAULT_TABLE_PROPERTIES}<w:tr>"
+      hash.keys.each { |header| fragment << "<w:tc><w:p><w:r><w:t>#{header}</w:t></w:r></w:p></w:tc>" }
+      fragment << "</w:tr>"
+
+      r_count = hash.values.inject(0) { |max, value| [max, value.is_a?(Array) ? value.length : (value.nil? ? 0 : 1)].max }
+      0.upto(r_count - 1).each do |i|
+        fragment << "<w:tr>"
+        hash.values.each { |v| fragment << create_table_cell_fragment(v, i) }
+        fragment << "</w:tr>"
+      end
+
+      fragment << "</w:tbl>"
+      fragment
+    end
+
+    def create_table_cell_fragment(values, index)
+      item = case
+      when (!values.is_a?(Array))
+        index != 0 || values.nil? ? "" : values
+      when index < values.length
+        values[index]
+      else
+        ""
+      end
+      "<w:tc>#{create_body_fragments(item)}</w:tc>"
     end
 
     def create_multiple_fragments(array)
-      array.inject("") { |fragments, item| fragments + create_fragment(item) }
+      array.map { |item| create_body_fragments(item) }.flatten
     end
 
-    def create_text_fragment(text)
-      "<w:r><w:t>#{Nokogiri::XML::Document.new.encode_special_chars(text)}</w:t></w:r>"
+    def create_paragraph_fragment(text)
+      "<w:p><w:r><w:t>#{Nokogiri::XML::Document.new.encode_special_chars(text)}</w:t></w:r></w:p>"
     end
 
     def debug_dump
@@ -142,16 +181,23 @@ module Office
       raise PackageError.new("Word document '#{@filename}' is missing main document body") if body_node.nil?
 
       @paragraphs = []
-      body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p) }
+      body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
     end
 
     def add_paragraph
       p = @body_node.document.create_element("p")
       p_node = @paragraphs.empty? ? @body_node.add_child(p) : @paragraphs.last.node.add_next_sibling(p)
-      @paragraphs << Paragraph.new(p_node)
+      @paragraphs << Paragraph.new(p_node, self)
       @paragraphs.last
     end
-    
+
+    def paragraph_inserted_after(existing, additional)
+      p_index = @paragraphs.index(existing)
+      raise ArgumentError.new("Cannot find paragraph after which new one was inserted") if p_index.nil?
+
+      @paragraphs.insert(p_index + 1, additional)
+    end
+
     def plain_text
       text = ""
       @paragraphs.each do |p| 
@@ -197,11 +243,13 @@ module Office
   class Paragraph
     attr_accessor :node
     attr_accessor :runs
+    attr_accessor :document
     
-    def initialize(p_node)
+    def initialize(p_node, parent)
       @node = p_node
+      @document = parent
       @runs = []
-      p_node.xpath("w:r").each { |r| @runs << Run.new(r) }
+      p_node.xpath("w:r").each { |r| @runs << Run.new(r, self) }
     end
 
     # TODO Wrap styles up in a class
@@ -216,7 +264,7 @@ module Office
       r_node = @node.add_child(@node.document.create_element("r"))
       populate_r_node(r_node, text)
 
-      r = Run.new(r_node)
+      r = Run.new(r_node, self)
       @runs << r
       r
     end
@@ -228,7 +276,7 @@ module Office
     end
 
     def add_run_with_fragment(fragment)
-      r = Run.new(@node.add_child(fragment))
+      r = Run.new(@node.add_child(fragment), self)
       @runs << r
       r
     end
@@ -263,7 +311,7 @@ module Office
       index_in_run = replaced[1]
 
       r_node = @node.document.create_element("r")
-      run = Run.new(r_node)
+      run = Run.new(r_node, self)
       case
       when index_in_run == 0
         # Insert empty run before first_run
@@ -280,7 +328,7 @@ module Office
         first_run.text = first_run.text[index_in_run..-1]
 
         first_run.node.add_previous_sibling(preceding_r_node)
-        @runs.insert(@runs.index(first_run), Run.new(preceding_r_node))
+        @runs.insert(@runs.index(first_run), Run.new(preceding_r_node, self))
 
         first_run.node.add_previous_sibling(r_node)
         @runs.insert(@runs.index(first_run), run)
@@ -327,22 +375,62 @@ module Office
       end
       chars_cleared
     end
+
+    def split_after_run(run)
+      r_index = @runs.index(run)
+      raise ArgumentError.new("Cannot split paragraph on run that is not in paragraph") if r_index.nil?
+
+      next_node = @node.add_next_sibling("<w:p></w:p>")
+      next_p = Paragraph.new(next_node, @document)
+      @document.paragraph_inserted_after(self, next_p)
+
+      if r_index + 1 < @runs.length
+        next_p.runs = @runs.slice!(r_index + 1..-1)
+        next_p.runs.each do |r|
+          next_node << r.node
+          r.paragraph = next_p
+        end
+      end
+    end
+
+    def remove_run(run)
+      r_index = @runs.index(run)
+      raise ArgumentError.new("Cannot remove run from paragraph to which it does not below") if r_index.nil?
+
+      run.node.remove
+      runs.delete_at(r_index)
+    end
   end
   
   class Run
     attr_accessor :node
     attr_accessor :text_range
+    attr_accessor :paragraph
     
-    def initialize(r_node)
+    def initialize(r_node, parent_p)
       @node = r_node
+      @paragraph = parent_p
       read_text_range
     end
 
-    def replace_with_fragment(fragment)
+    def replace_with_run_fragment(fragment)
       new_node = @node.add_next_sibling(fragment)
       @node.remove
       @node = new_node
       read_text_range
+    end
+
+    def replace_with_body_fragments(fragments)
+      @paragraph.split_after_run(self) unless @node.next_sibling.nil?
+      @paragraph.remove_run(self)
+
+      fragments.reverse.each do |xml|
+        @paragraph.node.add_next_sibling(xml)
+        @paragraph.node.next_sibling.xpath(".//w:p").each do |p_node|
+          p = Paragraph.new(node, @paragraph.document)
+          @paragraph.document.paragraph_inserted_after(@paragraph, p)
+        end
+      end
     end
 
     def read_text_range
