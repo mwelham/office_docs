@@ -1,6 +1,7 @@
 require 'test/unit'
 require 'date'
 require 'office_docs'
+require 'equivalent-xml'
 
 class WordDocumentsTest < Test::Unit::TestCase
   SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__), 'content', 'simple_test.docx')
@@ -134,6 +135,64 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert_nil doc_copy.get_part("/word/media/image5.jpeg")
   end
 
+  def test_complex_search_and_replace
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'complex_replacement_source.docx'))
+    source.replace_all("{{BLOCK_1}}", ["So much Sow!", test_image, nil, "Hopefully crispy"])
+    source.replace_all("{{BLOCK_2}}", ["Boudin", "bacon", "ham", "hock", "meatball", "salami", "andouille"])
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'complex_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
+  def test_table_search_and_replace
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'table_replacement_source.docx'))
+    source.replace_all("{{MY_TABLE}}", { :column_1 => ["Alpha", "One", 1], :column_2 => ["Bravo", "Two", 2], "Column 3" => nil, "Column 4" => [], :column_5 => "Echo"})
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'table_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
+  def test_image_within_table_search_and_replace
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'image_within_table_replacement_source.docx'))
+    source.replace_all("{{MY_TABLE}}", { :column_1 => ["Alpha", "One", 1], :column_2 => ["Bravo", test_image, 2], "Column 3" => ["Charlie", nil, 3]})
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'image_within_table_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
+  def test_table_within_table_search_and_replace
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'table_within_table_replacement_source.docx'))
+    inner_table = { :one => ["1", "one"], :two => [ "2", "two"]}
+    source.replace_all("{{MY_TABLE}}", { :column_1 => ["Alpha", "One"], :column_2 => ["Bravo", inner_table, 2], "Column 3" => ["Charlie"]})
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'table_within_table_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
+  def test_complex_within_table_search_and_replace
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'complex_within_table_replacement_source.docx'))
+    source.replace_all("{{MY_TABLE}}", { :column_1 => "Alpha", :column_2 => [["pre", test_image]], "Column 3" => [["Charlie", "post"]]})
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'complex_within_table_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
+  def test_complex_append
+    # source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', '???_replacement_source.docx'))
+    # Once off generation
+    # source.save(File.join(File.dirname(__FILE__), 'content', '???_replacement_target.docx'))
+
+    # TODO Word.test_complex_append
+  end
+
+  def test_adding_tables
+    # source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', '???_replacement_source.docx'))
+    # Once off generation
+    # source.save(File.join(File.dirname(__FILE__), 'content', '???_replacement_target.docx'))
+
+    # TODO Word.test_adding_tables
+  end
+
   private
 
   def load_simple_doc
@@ -171,5 +230,15 @@ class WordDocumentsTest < Test::Unit::TestCase
 
   def test_image
     Magick::ImageList.new File.join(File.dirname(__FILE__), 'content', 'test_image.jpg')
+  end
+
+  def docs_are_equivalent?(doc1, doc2)
+    xml_1 = doc1.main_doc.part.xml
+    xml_2 = doc2.main_doc.part.xml
+    EquivalentXml.equivalent?(xml_1, xml_2, { :element_order => true }) { |n1, n2, result| return false unless result }
+
+    # TODO docs_are_equivalent? : check other doc properties
+
+    true
   end
 end

@@ -61,6 +61,10 @@ module Office
       p
     end
 
+    def add_table(hash) # keys of hash are column headings, each value an array of column data
+      # TODO WordDocument.add_table
+    end
+
     def plain_text
       @main_doc.plain_text
     end
@@ -108,6 +112,7 @@ module Office
       Run.create_image_fragment(identifier, image.columns, image.rows, relationship_id)
     end
 
+    # TODO If the 'LightGrid' style is not present in the original Word doc (it is with our blank) then the style is ignored:
     DEFAULT_TABLE_PROPERTIES = <<TBL_PTR
       <w:tblPr>
         <w:tblW w:w="0" w:type="auto"/>
@@ -146,7 +151,11 @@ TBL_PTR
       else
         ""
       end
-      "<w:tc>#{create_body_fragments(item)}</w:tc>"
+
+      xml = create_body_fragments(item).join
+      # Word vaildation rules seem to require a w:p immediately before a /w:tc
+      xml << "<w:p/>" unless xml.end_with?("<w:p/>") or xml.end_with?("</w:p>")
+      "<w:tc>#{xml}</w:tc>"
     end
 
     def create_multiple_fragments(array)
