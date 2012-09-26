@@ -62,7 +62,7 @@ module Office
     end
 
     def add_table(hash) # keys of hash are column headings, each value an array of column data
-      # TODO WordDocument.add_table
+      @main_doc.add_table(create_table_fragment(hash))
     end
 
     def plain_text
@@ -190,12 +190,11 @@ TBL_PTR
       raise PackageError.new("Word document '#{@filename}' is missing main document body") if body_node.nil?
 
       @paragraphs = []
-      body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
+      @body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
     end
 
     def add_paragraph
-      p = @body_node.document.create_element("p")
-      p_node = @paragraphs.empty? ? @body_node.add_child(p) : @paragraphs.last.node.add_next_sibling(p)
+      p_node = @body_node.add_child(@body_node.document.create_element("p"))
       @paragraphs << Paragraph.new(p_node, self)
       @paragraphs.last
     end
@@ -205,6 +204,11 @@ TBL_PTR
       raise ArgumentError.new("Cannot find paragraph after which new one was inserted") if p_index.nil?
 
       @paragraphs.insert(p_index + 1, additional)
+    end
+
+    def add_table(xml_fragment)
+      table_node = @body_node.add_child(xml_fragment)
+      table_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
     end
 
     def plain_text

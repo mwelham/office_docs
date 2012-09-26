@@ -177,20 +177,20 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert docs_are_equivalent?(source, target)
   end
 
-  def test_complex_append
-    # source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', '???_replacement_source.docx'))
-    # Once off generation
-    # source.save(File.join(File.dirname(__FILE__), 'content', '???_replacement_target.docx'))
-
-    # TODO Word.test_complex_append
-  end
-
   def test_adding_tables
-    # source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', '???_replacement_source.docx'))
-    # Once off generation
-    # source.save(File.join(File.dirname(__FILE__), 'content', '???_replacement_target.docx'))
+    source = Office::WordDocument.blank_document
+    source.add_heading "Heading"
+    source.add_paragraph "intro"
+    source.add_sub_heading "Sub-heading"
+    source.add_table({ :column_1 => ["Alpha", "One", 1], :column_2 => ["Bravo", "Two", 2], :column_3 => ["Charlie", "Three", 3]})
+    source.add_sub_heading "Sub-heading"
+    source.add_table({ "Column 1" => ["{{PLACEHOLDER_1}}", ""], "Column 2" => ["", "{{PLACEHOLDER_2}}"], "Column 3" => ["{{PLACEHOLDER_1}}", ""]})
+    source.add_paragraph "footer"
+    source.replace_all("{{PLACEHOLDER_1}}", "Delta Echo Foxtrot Golf")
+    source.replace_all("{{PLACEHOLDER_2}}", "Hotel India Juliet Kilo")
 
-    # TODO Word.test_adding_tables
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'add_tables_target.docx'))
+    assert docs_are_equivalent?(source, target)
   end
 
   private
