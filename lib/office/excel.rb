@@ -108,7 +108,7 @@ module Office
       @workbook_node = sheet_node
       @name = sheet_node["name"]
       @id = sheet_node["sheetId"].to_i
-      @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["id"]).target_part
+      @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
       
       data_node = @worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
       raise PackageError.new("Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data") if data_node.nil?
