@@ -128,7 +128,10 @@ TBL_PTR
       return "" if c_count == 0
 
       fragment = "<w:tbl>#{DEFAULT_TABLE_PROPERTIES}<w:tr>"
-      hash.keys.each { |header| fragment << "<w:tc><w:p><w:r><w:t>#{header}</w:t></w:r></w:p></w:tc>" }
+      hash.keys.each do |header|
+        encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
+        fragment << "<w:tc><w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+      end
       fragment << "</w:tr>"
 
       r_count = hash.values.inject(0) { |max, value| [max, value.is_a?(Array) ? value.length : (value.nil? ? 0 : 1)].max }
