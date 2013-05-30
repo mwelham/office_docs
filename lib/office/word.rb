@@ -115,12 +115,13 @@ module Office
     # TODO If the 'LightGrid' style is not present in the original Word doc (it is with our blank) then the style is ignored:
     DEFAULT_TABLE_PROPERTIES = <<TBL_PTR
       <w:tblPr>
-        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblW w:w="5000" w:type="pct"/>
         <w:tblStyle w:val="LightGrid"/>
         <w:tblStyleRowBandSize w:val="1"/>
         <w:tblStyleColBandSize w:val="1"/>
         <w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
       </w:tblPr>
+      <w:tblGrid/>
 TBL_PTR
 
     def create_table_fragment(hash)
