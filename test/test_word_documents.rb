@@ -193,6 +193,43 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert docs_are_equivalent?(source, target)
   end
 
+  def test_autosizing_table_columns
+    source = Office::WordDocument.blank_document
+
+    table_1 = { :column_1 => ["Alpha", "One", 1], :column_2 => ["Bravo", "Two", 2], :column_3 => ["Charlie", "Three", 3]}
+    source.add_heading "Autosized table 1"
+    source.add_table(table_1)
+    source.add_heading "Full Width table 1"
+    source.add_table(table_1, { :use_full_width => true })
+
+    table_2 = { "Single Column" => ["First Row", "Second Row", "Third Row", "Fourth Row"] }
+    source.add_heading "Autosized table 2"
+    source.add_table(table_2)
+    source.add_heading "Full Width table 2"
+    source.add_table(table_2, { :use_full_width => true })
+
+    table_3 = { 
+      :one => ["Asparagus"], 
+      :two => ["Beetroot"], 
+      :three => ["Cabbage"], 
+      :four => ["Dates"], 
+      :five => ["Elderberries"], 
+      :six => ["Figs"], 
+      :seven => ["Grapes"], 
+      :eight => ["Hackberry"], 
+      :nine => ["Iceberg lettuce"], 
+      :ten => ["Jalapeno"], 
+      :eleven => ["Key lime"]
+    }
+    source.add_heading "Autosized table 3"
+    source.add_table(table_3)
+    source.add_heading "Full Width table 3"
+    source.add_table(table_3, { :use_full_width => true })
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'autosizing_table_columns_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
   private
 
   def load_simple_doc

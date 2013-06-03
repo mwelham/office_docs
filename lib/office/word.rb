@@ -61,8 +61,8 @@ module Office
       p
     end
 
-    def add_table(hash) # keys of hash are column headings, each value an array of column data
-      @main_doc.add_table(create_table_fragment(hash))
+    def add_table(hash, options = {}) # keys of hash are column headings, each value an array of column data
+      @main_doc.add_table(create_table_fragment(hash, options))
     end
 
     def plain_text
@@ -74,7 +74,7 @@ module Office
     #   Hash   - a table, keys being column headings, and each value an array of column data
     #   Array  - a sequence of these replacement types all of which will be inserted
     #   String - simple text replacement
-    def replace_all(source_text, replacement)
+    def replace_all(source_text, replacement, options = {})
       case
       # For simple cases we just replace runs to try and keep formatting/layout of source
       when replacement.is_a?(String)
@@ -84,18 +84,18 @@ module Office
         runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(replacement)) }
       else
         runs = @main_doc.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement)) }
+        runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement, options)) }
       end
     end
 
-    def create_body_fragments(item)
+    def create_body_fragments(item, options = {})
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
         [ "<w:p>#{create_image_run_fragment(item)}</w:p>" ]
       when item.is_a?(Hash)
-        [ create_table_fragment(item) ]
+        [ create_table_fragment(item, options) ]
       when item.is_a?(Array)
-        create_multiple_fragments(item)
+        create_multiple_fragments(item, options)
       else
         [ create_paragraph_fragment(item.nil? ? "" : item.to_s) ]
       end
@@ -112,24 +112,17 @@ module Office
       Run.create_image_fragment(identifier, image.columns, image.rows, relationship_id)
     end
 
-    # TODO If the 'LightGrid' style is not present in the original Word doc (it is with our blank) then the style is ignored:
-    DEFAULT_TABLE_PROPERTIES = <<TBL_PTR
-      <w:tblPr>
-        <w:tblStyle w:val="LightGrid"/>
-        <w:tblW w:w="5000" w:type="pct"/>
-        <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
-      </w:tblPr>
-      <w:tblGrid/>
-TBL_PTR
-
-    def create_table_fragment(hash)
+    def create_table_fragment(hash, options = {})
       c_count = hash.size
       return "" if c_count == 0
 
-      fragment = "<w:tbl>#{DEFAULT_TABLE_PROPERTIES}<w:tr>"
+      c_index = 0
+      fragment = "<w:tbl>#{create_table_properties_fragment(c_count, options)}<w:tr>"
       hash.keys.each do |header|
+        column_properties = create_column_properties_fragment(c_index, c_count, options)
+        c_index += 1
         encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
-        fragment << "<w:tc><w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+        fragment << "<w:tc>#{column_properties}<w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
       end
       fragment << "</w:tr>"
 
@@ -142,6 +135,54 @@ TBL_PTR
 
       fragment << "</w:tbl>"
       fragment
+    end
+
+    MAX_TABLE_WIDTH_IN_TWIPS = 10592
+
+    # Valid options for customizing the table are:
+    #   options[:table_style]     : the name of the style to use
+    #   options[:use_full_width]  : set to true to explicitly declare column sizes to try and fill the page width
+    def create_table_properties_fragment(column_count, options)
+      # If the 'LightGrid' style is not present in the original Word doc (it is with our blank) then the style is ignored.
+      style = (options.nil? or options[:table_style].nil? or options[:table_style].empty?) ? "LightGrid" : options[:table_style]
+
+      properties = '<w:tblPr>'
+      properties << "<w:tblStyle w:val=\"#{Nokogiri::XML::Document.new.encode_special_chars(style.to_s)}\"/>"
+      properties << '<w:tblW w:w="0" w:type="auto"/>'
+      properties << '<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>'
+      properties << '</w:tblPr>'
+
+      if autosize_columns?(options)
+        properties << '<w:tblGrid/>'
+      else
+        properties << '<w:tblGrid>'
+        (column_count - 1).times { |i| properties << "<w:gridCol w:w=\"#{column_width(i, column_count)}\"/>" }
+        properties << "<w:gridCol w:w=\"#{column_width(column_count - 1, column_count)}\"/>"
+        properties << '</w:tblGrid>'        
+      end
+
+      properties
+    end
+
+    def create_column_properties_fragment(zero_based_index, count, options)
+      return "" if autosize_columns?(options)
+
+      properties = '<w:tcPr>'
+      properties << "<w:tcW w:w=\"#{column_width(zero_based_index, count)}\" w:type=\"dxa\"/>"
+      properties << '</w:tcPr>'
+      properties
+    end
+
+    def autosize_columns?(options)
+      (options.nil? or options[:use_full_width] != true)
+    end
+
+    def column_width(zero_based_index, count)
+      if zero_based_index < (count - 1)
+        (MAX_TABLE_WIDTH_IN_TWIPS / count).to_i
+      else
+        MAX_TABLE_WIDTH_IN_TWIPS - (MAX_TABLE_WIDTH_IN_TWIPS / count).to_i * (count - 1)
+      end
     end
 
     def create_table_cell_fragment(values, index)
@@ -160,8 +201,8 @@ TBL_PTR
       "<w:tc>#{xml}</w:tc>"
     end
 
-    def create_multiple_fragments(array)
-      array.map { |item| create_body_fragments(item) }.flatten
+    def create_multiple_fragments(array, options = {})
+      array.map { |item| create_body_fragments(item, options) }.flatten
     end
 
     def create_paragraph_fragment(text)
