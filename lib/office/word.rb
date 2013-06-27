@@ -401,19 +401,22 @@ module Office
       index_in_run = index - (first_index == 0 ? 0 : ends[first_index - 1])
       if ends[first_index] >= index + length
         first_run.text = replace_in_text(first_run.text, index_in_run, length, replacement)
+        first_run.adjust_for_right_to_left_text
       else
         length_in_run = first_run.text.length - index_in_run
         first_run.text = replace_in_text(first_run.text, index_in_run, length_in_run, replacement[0,length_in_run])
+        first_run.adjust_for_right_to_left_text
 
         last_index = ends.index { |e| e >= index + length }
         remaining_text = length - length_in_run - clear_runs((first_index + 1), (last_index - 1))
 
         last_run = last_index.nil? ? @runs.last : @runs[last_index]
         last_run.text = replace_in_text(last_run.text, 0, remaining_text, replacement[length_in_run..-1])
+        last_run.adjust_for_right_to_left_text
       end
       [ first_run, index_in_run ]
     end
-    
+
     def replace_in_text(original, index, length, replacement)
       return original if length == 0
       result = index == 0 ? "" : original[0, index]
@@ -518,6 +521,27 @@ module Office
     
     def clear_text
       @text_range.text = "" unless @text_range.nil?
+    end
+
+    def adjust_for_right_to_left_text
+      return if self.text.nil? or self.text.empty?
+
+      # Can include the following if we ever come across ancient Phoenician sailors needing to do search and replace...
+      # \p{Cypriot}\p{Kharoshthi}\p{Lydian}\p{Nko}\p{Phoenician}\p{Syriac}\p{Thaana}
+      has_rtl = /[\p{Arabic}\p{Hebrew}]/ =~ text
+      return unless has_rtl
+      has_non_rtl = /[^\s\d\p{Arabic}\p{Hebrew}]/ =~ text
+      return if has_non_rtl
+
+      rPr_node = @node.at_xpath("w:rPr")
+      if rPr_node.nil?
+        rPr_node = @text_range.node.add_previous_sibling(Nokogiri::XML::Element.new("w:rPr", @node.document))
+      end
+
+      rtl_node = rPr_node.at_xpath("w:rtl")
+      if rtl_node.nil?
+        rPr_node.add_child(Nokogiri::XML::Element.new("w:rtl", rPr_node.document))
+      end
     end
 
     def self.create_image_fragment(image_identifier, pixel_width, pixel_height, image_relationship_id)

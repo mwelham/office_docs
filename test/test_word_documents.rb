@@ -230,6 +230,14 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert docs_are_equivalent?(source, target)
   end
 
+  def test_replacing_with_rtl_text
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'rtl_replacement_source.docx'))
+    source.replace_all("{{Placeholder}}", "אן כתוב בעברית")
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'rtl_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
   private
 
   def load_simple_doc
