@@ -1,3 +1,5 @@
+#encoding: UTF-8
+
 require 'office/package'
 require 'office/constants'
 require 'office/errors'
