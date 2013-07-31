@@ -342,7 +342,7 @@ module Office
     def replace_all_with_text(source_text, replacement_text)
       return if source_text.nil? or source_text.empty?
       replacement_text = "" if replacement_text.nil?
-      
+
       text = @runs.inject("") { |t, run| t + (run.text || "") }
       until (i = text.index(source_text, i.nil? ? 0 : i)).nil?
         replace_in_runs(i, source_text.length, replacement_text)
@@ -568,6 +568,11 @@ module Office
     end
     
     def text=(text)
+      if text.nil? or text.empty?
+        @node.remove_attribute("space")
+      else
+        @node["xml:space"] = "preserve"
+      end
       @node.content = text
     end
   end
