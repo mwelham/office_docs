@@ -242,8 +242,12 @@ module Office
       @location = c_node["r"]
       @style = c_node["s"]
       @data_type = c_node["t"]
-      @value_node = c_node.at_xpath("xmlns:v")
-      
+
+      # Originally did this, but was incredibly slow:
+      #@value_node = c_node.at_xpath("xmlns:v")
+      @value_node = nil
+      c_node.elements.each { |e| @value_node = e if e.name == 'v' }
+
       if is_string? && !@value_node.nil?
         string_id = @value_node.content.to_i
         @shared_string = string_table.get_string_by_id(string_id)
