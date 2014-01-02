@@ -1,4 +1,4 @@
-require 'zip/zip'  # docs at http://rubyzip.sourceforge.net
+require 'zip'  # docs at http://rubyzip.sourceforge.net
 require 'office/errors'
 require 'office/parts'
 require 'office/logger'
@@ -69,7 +69,7 @@ module Office
       end
 
       begin
-        Zip::ZipOutputStream.open(filename) do |zip|
+        Zip::OutputStream.open(filename) do |zip|
           @parts_by_name.values.each { |p| p.save(zip) }
         end
         File.delete(backup_file) unless backup_file.nil?
@@ -85,7 +85,7 @@ module Office
       @default_content_types = {}
       @overriden_content_types = {}
       
-      Zip::ZipFile.open(@filename) do |zip|
+      Zip::File.open(@filename) do |zip|
         entries = []
         zip.each do |e|
           if "/[Content_Types].xml".casecmp(e.name[0] == "/" ? e.name : "/" + e.name) == 0
