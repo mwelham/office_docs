@@ -45,8 +45,8 @@ module Office
       @relationships.get_relationship_by_id(id)
     end
 
-    def get_relationship_target(type)
-      @relationships.get_relationship_target(type)
+    def get_relationship_targets(type)
+      @relationships.get_relationship_targets(type)
     end
 
     def add_relationship(part, type)
@@ -183,9 +183,8 @@ module Office
       @relationships_by_id[id]
     end
     
-    def get_relationship_target(type)
-      @relationships_by_id.values.each { |r| return r.target_part if r.type == type }
-      nil
+    def get_relationship_targets(type)
+      @relationships_by_id.values.keep_if { |r| r.type == type }.map { |r| r.target_part }
     end
 
     def add(part, type)

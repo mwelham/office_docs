@@ -152,9 +152,9 @@ module Office
       @relationships = relationships_part
     end
 
-    def get_relationship_target(type)
+    def get_relationship_targets(type)
       raise "package '#{@filename}' is missing package-level relationships" if @relationships.nil?
-      @relationships.get_relationship_target(type)
+      @relationships.get_relationship_targets(type)
     end
 
     def debug_dump

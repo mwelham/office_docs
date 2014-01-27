@@ -12,7 +12,7 @@ module Office
     def initialize(filename)
       super(filename)
 
-      main_doc_part = get_relationship_target(WORD_MAIN_DOCUMENT_TYPE)
+      main_doc_part = get_relationship_targets(WORD_MAIN_DOCUMENT_TYPE).first
       raise PackageError.new("Word document package '#{@filename}' has no main document part") if main_doc_part.nil?
       @main_doc = MainDocument.new(self, main_doc_part)
     end
@@ -217,29 +217,19 @@ module Office
       #Logger.debug_dump_xml("Word Main Document", @main_doc.part.xml)
     end
   end
-  
-  class MainDocument
-    attr_accessor :part
-    attr_accessor :body_node
-    attr_accessor :paragraphs
-    
-    def initialize(word_doc, part)
-      @parent = word_doc
-      @part = part
-      parse_xml
-    end
-    
-    def parse_xml
-      xml_doc = @part.xml
-      @body_node = xml_doc.at_xpath("/w:document/w:body")
-      raise PackageError.new("Word document '#{@filename}' is missing main document body") if body_node.nil?
 
+  class ParagraphContainer
+    attr_accessor :container_node
+    attr_accessor :paragraphs
+
+    def parse_paragraphs(node)
+      @container_node = node
       @paragraphs = []
-      @body_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
+      node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
     end
 
     def add_paragraph
-      p_node = @body_node.add_child(@body_node.document.create_element("p"))
+      p_node = @container_node.add_child(@container_node.document.create_element("p"))
       @paragraphs << Paragraph.new(p_node, self)
       @paragraphs.last
     end
@@ -252,7 +242,7 @@ module Office
     end
 
     def add_table(xml_fragment)
-      table_node = @body_node.add_child(xml_fragment)
+      table_node = @container_node.add_child(xml_fragment)
       table_node.xpath(".//w:p").each { |p| @paragraphs << Paragraph.new(p, self) }
     end
 
@@ -273,31 +263,121 @@ module Office
       @paragraphs.collect { |p| p.replace_all_with_empty_runs(source_text) }.flatten
     end
 
-    def debug_dump
-      p_count = 0
-      r_count = 0
-      t_chars = 0
+    def debug_stats
+      stats = { :p_count => 0, :r_count => 0, :t_chars => 0 }
       @paragraphs.each do |p|
-        p_count += 1
+        stats[:p_count] += 1
         p.runs.each do |r|
-          r_count += 1
-          t_chars += r.text_length
+          stats[:r_count] += 1
+          stats[:t_chars] += r.text_length
         end
       end
-      Logger.debug_dump "Main Document Stats"
-      Logger.debug_dump "  paragraphs  : #{p_count}"
-      Logger.debug_dump "  runs        : #{r_count}"
-      Logger.debug_dump "  text length : #{t_chars}"
-      Logger.debug_dump ""
+      stats
+    end
 
-      Logger.debug_dump "Main Document Plain Text"
+    def debug_dump_stats(part_name)
+      stats = debug_stats
+      Logger.debug_dump "#{part_name} Stats"
+      Logger.debug_dump "  paragraphs  : #{stats[:p_count]}"
+      Logger.debug_dump "  runs        : #{stats[:r_count]}"
+      Logger.debug_dump "  text length : #{stats[:t_chars]}"
+      Logger.debug_dump ""
+    end
+
+    def debug_dump_plain_text(part_name)
+      Logger.debug_dump "#{part_name} Plain Text"
       Logger.debug_dump ">>>"
       Logger.debug_dump plain_text
       Logger.debug_dump "<<<"
       Logger.debug_dump ""
     end
   end
-  
+
+  class MainDocument < ParagraphContainer
+    attr_accessor :part
+    attr_accessor :body_node
+    attr_accessor :headers
+    attr_accessor :footers
+    
+    def initialize(word_doc, part)
+      @parent = word_doc
+      @part = part
+      parse_xml
+      parse_headers
+      parse_footers
+    end
+    
+    def parse_xml
+      xml_doc = @part.xml
+      @body_node = xml_doc.at_xpath("/w:document/w:body")
+      raise PackageError.new("Word document '#{@filename}' is missing main document body") if @body_node.nil?
+      parse_paragraphs(@body_node)
+    end
+
+    def parse_headers
+      @headers = @part.get_relationship_targets(DOCX_HEADER_TYPE).map { |part| Header.new(part, self) }
+    end
+
+    def parse_footers
+      @footers = @part.get_relationship_targets(DOCX_FOOTER_TYPE).map { |part| Footer.new(part, self) }
+    end
+
+    def debug_dump
+      debug_dump_stats("Main Document")
+      debug_dump_plain_text("Main Document")
+
+      if @headers.empty?
+        Logger.debug_dump "(no headers present for document)"
+        Logger.debug_dump ""
+      else
+        @headers.each_index do |i|
+          @headers[i].debug_dump_stats("Header #{i + 1}")
+          @headers[i].debug_dump_plain_text("Header #{i + 1}")
+        end
+      end
+        
+      if @footers.empty?
+        Logger.debug_dump "(no footers present for document)"
+        Logger.debug_dump ""
+      else
+        @footers.each_index do |i|
+          @footers[i].debug_dump_stats("Footer #{i + 1}")
+          @footers[i].debug_dump_plain_text("Footer #{i + 1}")
+        end
+      end
+    end
+  end
+
+  class Header < ParagraphContainer
+    attr_accessor :part
+    attr_accessor :main_doc
+    attr_accessor :header_node
+
+    def initialize(header_part, parent_doc)
+      @part = header_part
+      @main_doc = parent_doc
+ 
+      @header_node = part.xml.at_xpath("/w:hdr")
+      raise PackageError.new("Word document '#{@filename}' is missing hdr root in header XML") if @header_node.nil?
+      parse_paragraphs(@header_node)
+     end
+  end
+
+  class Footer < ParagraphContainer
+    attr_accessor :part
+    attr_accessor :main_doc
+    attr_accessor :footer_node
+
+    def initialize(footer_part, parent_doc)
+      @part = footer_part
+      @main_doc = parent_doc
+
+      @footer_node = part.xml.at_xpath("/w:ftr")
+      raise PackageError.new("Word document '#{@filename}' is missing ftr root in footer XML") if @footer_node.nil?
+      parse_paragraphs(@footer_node)
+    end
+  end
+
   class Paragraph
     attr_accessor :node
     attr_accessor :runs

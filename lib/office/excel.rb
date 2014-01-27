@@ -12,7 +12,7 @@ module Office
     def initialize(filename)
       super(filename)
 
-      @workbook_part = get_relationship_target(EXCEL_WORKBOOK_TYPE)
+      @workbook_part = get_relationship_targets(EXCEL_WORKBOOK_TYPE).first
       raise PackageError.new("Excel workbook package '#{@filename}' has no workbook part") if @workbook_part.nil?
 
       parse_shared_strings
@@ -40,7 +40,7 @@ module Office
     end
 
     def parse_shared_strings
-      shared_strings_part = @workbook_part.get_relationship_target(EXCEL_SHARED_STRINGS_TYPE)
+      shared_strings_part = @workbook_part.get_relationship_targets(EXCEL_SHARED_STRINGS_TYPE).first
       @shared_strings = SharedStringTable.new(shared_strings_part) unless shared_strings_part.nil?
     end
     

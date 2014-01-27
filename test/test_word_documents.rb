@@ -240,6 +240,17 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert docs_are_equivalent?(source, target)
   end
 
+  def test_parsing_headers_and_footers
+    docx = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'headers_and_footers.docx'))
+    assert_equal "The shirt is nearer the body than the coat.\n", docx.main_doc.plain_text
+
+    assert_equal 1, docx.main_doc.headers.count
+    assert_equal "He that has no head, needs no hat.\n", docx.main_doc.headers.first.plain_text
+
+    assert_equal 1, docx.main_doc.footers.count
+    assert_equal "If you speak the truth,\n\nkeep a foot in the stirrup.\n", docx.main_doc.footers.first.plain_text
+  end
+
   private
 
   def load_simple_doc
