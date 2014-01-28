@@ -251,6 +251,23 @@ class WordDocumentsTest < Test::Unit::TestCase
     assert_equal "If you speak the truth,\n\nkeep a foot in the stirrup.\n", docx.main_doc.footers.first.plain_text
   end
 
+  def test_replacing_placeholders_in_headers_and_footers
+    source = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'header_footer_replacement_source.docx'))
+    
+    source.replace_all("{{header_text_placeholder}}", "Sitting on a cornflake waiting for the van to come")
+    source.replace_all("--body_text_placeholder--", "Elementary penguin singing Hare Krishna")
+    source.replace_all("+footer_text_placeholder+", "I am the walrus")
+
+    # TODO Images embedded in headers/footers need to be added to the header/footer's own relationship file. 
+    # They're presently incorrectly being put in the main doc's _rel file.
+    #source.replace_all("{{header_image_placeholder}}", test_image)
+    #source.replace_all("__body_image_placeholder__", test_image)
+    #source.replace_all("please place the image here", test_image)
+
+    target = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'header_footer_replacement_target.docx'))
+    assert docs_are_equivalent?(source, target)
+  end
+
   private
 
   def load_simple_doc

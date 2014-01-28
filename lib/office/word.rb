@@ -322,6 +322,19 @@ module Office
       @footers = @part.get_relationship_targets(DOCX_FOOTER_TYPE).map { |part| Footer.new(part, self) }
     end
 
+    def replace_all_with_text(source_text, replacement_text)
+      super
+      @headers.each { |h| h.replace_all_with_text(source_text, replacement_text) }
+      @footers.each { |f| f.replace_all_with_text(source_text, replacement_text) }
+    end
+
+    def replace_all_with_empty_runs(source_text)
+      runs = super
+      @headers.each { |h| runs += h.replace_all_with_empty_runs(source_text) }
+      @footers.each { |f| runs += f.replace_all_with_empty_runs(source_text) }
+      runs
+    end
+
     def debug_dump
       debug_dump_stats("Main Document")
       debug_dump_plain_text("Main Document")
