@@ -535,6 +535,7 @@ module Office
       raise ArgumentError.new("Cannot split paragraph on run that is not in paragraph") if r_index.nil?
 
       next_node = @node.add_next_sibling("<w:p></w:p>")
+      next_node = next_node.first if next_node.is_a? Nokogiri::XML::NodeSet
       next_p = Paragraph.new(next_node, @document)
       @document.paragraph_inserted_after(self, next_p)
 
@@ -569,13 +570,14 @@ module Office
 
     def replace_with_run_fragment(fragment)
       new_node = @node.add_next_sibling(fragment)
+      new_node = new_node.first if new_node.is_a? Nokogiri::XML::NodeSet
       @node.remove
       @node = new_node
       read_text_range
     end
 
     def replace_with_body_fragments(fragments)
-      @paragraph.split_after_run(self) unless @node.next_sibling.nil?
+      @paragraph.split_after_run(self) unless @paragraph.runs.last == self
       @paragraph.remove_run(self)
 
       fragments.reverse.each do |xml|
