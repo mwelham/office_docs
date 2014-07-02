@@ -583,7 +583,7 @@ module Office
       fragments.reverse.each do |xml|
         @paragraph.node.add_next_sibling(xml)
         @paragraph.node.next_sibling.xpath(".//w:p").each do |p_node|
-          p = Paragraph.new(node, @paragraph.document)
+          p = Paragraph.new(p_node, @paragraph.document)
           @paragraph.document.paragraph_inserted_after(@paragraph, p)
         end
       end
