@@ -111,7 +111,7 @@ module Office
       part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
       relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
 
-      Run.create_image_fragment(identifier, image.columns, image.rows, relationship_id)
+      Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
     end
 
     def create_table_fragment(hash, options = {})
@@ -333,6 +333,14 @@ module Office
       @headers.each { |h| runs += h.replace_all_with_empty_runs(source_text) }
       @footers.each { |f| runs += f.replace_all_with_empty_runs(source_text) }
       runs
+    end
+
+    def find_unused_drawing_object_id
+      largest_unused_in_xml = (@body_node.xpath('//wp:docPr').map { |docPr| docPr[:id].to_i }.max || 0) + 1
+      # It's possible to batch create drawing objects and insert them into the doc
+      # in one go. So we also need to track the largest id we've issued so far.
+      @last_created_unused_id = [largest_unused_in_xml, (@last_created_unused_id || 0) + 1].max
+      @last_created_unused_id 
     end
 
     def debug_dump
