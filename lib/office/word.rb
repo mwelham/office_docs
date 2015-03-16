@@ -4,11 +4,12 @@ require 'office/package'
 require 'office/constants'
 require 'office/errors'
 require 'office/logger'
+require 'office/word/template'
 
 module Office
   class WordDocument < Package
     attr_accessor :main_doc
-    
+
     def initialize(filename)
       super(filename)
 
@@ -90,6 +91,11 @@ module Office
       end
     end
 
+    def render_template(data)
+      template_renderer = Word::Template.new(@main_doc)
+      #template_renderer.render(data)
+    end
+
     def create_body_fragments(item, options = {})
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
@@ -160,7 +166,7 @@ module Office
         properties << '<w:tblGrid>'
         (column_count - 1).times { |i| properties << "<w:gridCol w:w=\"#{column_width(i, column_count)}\"/>" }
         properties << "<w:gridCol w:w=\"#{column_width(column_count - 1, column_count)}\"/>"
-        properties << '</w:tblGrid>'        
+        properties << '</w:tblGrid>'
       end
 
       properties
@@ -248,7 +254,7 @@ module Office
 
     def plain_text
       text = ""
-      @paragraphs.each do |p| 
+      @paragraphs.each do |p|
         p.runs.each { |r| text << r.text unless r.text.nil? }
         text << "\n"
       end
@@ -298,7 +304,7 @@ module Office
     attr_accessor :body_node
     attr_accessor :headers
     attr_accessor :footers
-    
+
     def initialize(word_doc, part)
       @parent = word_doc
       @part = part
@@ -306,7 +312,7 @@ module Office
       parse_headers
       parse_footers
     end
-    
+
     def parse_xml
       xml_doc = @part.xml
       @body_node = xml_doc.at_xpath("/w:document/w:body")
@@ -348,7 +354,7 @@ module Office
           @headers[i].debug_dump_plain_text("Header #{i + 1}")
         end
       end
-        
+
       if @footers.empty?
         Logger.debug_dump "(no footers present for document)"
         Logger.debug_dump ""
@@ -369,7 +375,7 @@ module Office
     def initialize(header_part, parent_doc)
       @part = header_part
       @main_doc = parent_doc
- 
+
       @header_node = part.xml.at_xpath("/w:hdr")
       raise PackageError.new("Word document '#{@filename}' is missing hdr root in header XML") if @header_node.nil?
       parse_paragraphs(@header_node)
@@ -395,7 +401,7 @@ module Office
     attr_accessor :node
     attr_accessor :runs
     attr_accessor :document
-    
+
     def initialize(p_node, parent)
       @node = p_node
       @document = parent
@@ -443,7 +449,7 @@ module Office
         i += replacement_text.length
       end
     end
-    
+
     def replace_all_with_empty_runs(source_text)
       return [] if source_text.nil? or source_text.empty?
 
@@ -519,7 +525,7 @@ module Office
       result += original[(index + length)..-1] unless index + length == original.length
       result
     end
-    
+
     def clear_runs(first, last)
       return 0 unless first <= last
       chars_cleared = 0
@@ -556,12 +562,12 @@ module Office
       runs.delete_at(r_index)
     end
   end
-  
+
   class Run
     attr_accessor :node
     attr_accessor :text_range
     attr_accessor :paragraph
-    
+
     def initialize(r_node, parent_p)
       @node = r_node
       @paragraph = parent_p
@@ -597,7 +603,7 @@ module Office
     def text
       @text_range.nil? ? nil : @text_range.text
     end
-    
+
     def text=(text)
       if text.nil?
         @text_range.node.remove unless @text_range.nil?
@@ -611,11 +617,11 @@ module Office
         @text_range.text = text
       end
     end
-    
+
     def text_length
       @text_range.nil? || @text_range.text.nil? ? 0 : @text_range.text.length
     end
-    
+
     def clear_text
       @text_range.text = "" unless @text_range.nil?
     end
@@ -653,15 +659,15 @@ module Office
 
   class TextRange
     attr_accessor :node
-    
+
     def initialize(t_node)
       @node = t_node
     end
-    
+
     def text
       @node.text
     end
-    
+
     def text=(text)
       if text.nil? or text.empty?
         @node.remove_attribute("space")
