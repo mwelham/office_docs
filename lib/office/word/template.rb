@@ -15,12 +15,12 @@
 module Word
   class Template
 
-    attr_accessor :errors
+    attr_accessor :word_document, :main_doc, :errors
 
     class InvalidTemplateError < StandardError
     end
 
-    attr_accessor :word_document, :main_doc
+
     def initialize(word_document)
       self.word_document = word_document
       self.main_doc = word_document.main_doc
@@ -38,9 +38,6 @@ module Word
 
     def render(data)
       paragraphs = main_doc.paragraphs #Create various sections using the #for_each later
-
-      placeholders = get_placeholders(paragraphs)
-
       render_section(paragraphs, data)
     end
 
@@ -62,7 +59,91 @@ module Word
 
     def get_placeholders_from_paragraph(paragraph, paragraph_index)
       placeholders = []
+      loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
+        placeholders << placeholder
+        {run_index: placeholder[:end_of_placeholder][:run_index], char_index: placeholder[:end_of_placeholder][:char_index] + 1}
+      end
+      placeholders
+    end
 
+
+    #
+    #
+    # =>
+    # => Rendering
+    # =>
+    #
+    #
+
+    def render_section(paragraphs, data)
+      paragraphs.each_with_index do |paragraph, paragraph_index|
+        loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
+          replacement = replace_in_paragraph(paragraph, placeholder, data)
+          {run_index: replacement[:end_run], char_index: replacement[:end_char] + 1}
+        end
+      end
+    end
+
+    def replace_in_paragraph(paragraph, placeholder, data)
+      start_run_index = placeholder[:beginning_of_placeholder][:run_index]
+      start_char_index = placeholder[:beginning_of_placeholder][:char_index]
+
+      end_run_index = placeholder[:end_of_placeholder][:run_index]
+      end_char_index = placeholder[:end_of_placeholder][:char_index]
+
+      replacement = get_replacement(placeholder, data)
+      placeholder_length = placeholder[:placeholder].to_s.length
+
+      first_run = paragraph.runs[start_run_index]
+      index_in_run = start_char_index
+
+      if start_run_index == end_run_index
+        first_run.text = replace_in_text(first_run.text, index_in_run, placeholder_length, replacement)
+        first_run.adjust_for_right_to_left_text
+        result = {end_run: start_run_index, end_char: index_in_run + placeholder_length}
+      else
+        length_in_run = first_run.text.length - index_in_run
+        first_run.text = replace_in_text(first_run.text, index_in_run, length_in_run, replacement[0,length_in_run])
+        first_run.adjust_for_right_to_left_text
+
+        remaining_text = placeholder_length - length_in_run - paragraph.clear_runs((start_run_index + 1), (end_run_index - 1))
+
+        last_run = paragraph.runs[end_run_index]
+        last_run.text = replace_in_text(last_run.text, 0, remaining_text, replacement[length_in_run..-1])
+        last_run.adjust_for_right_to_left_text
+
+        result = {end_run: end_run_index, end_char: remaining_text}
+      end
+
+      result
+
+    end
+
+    def get_replacement(placeholder, data)
+      placeholder_text = placeholder[:placeholder_text]
+      #TODO: Evaluate placeholder and options - work out replacement
+      replacement = "urka durka mohammed jihaad"
+    end
+
+    def replace_in_text(original, index, length, replacement)
+      return original if length == 0
+      result = index == 0 ? "" : original[0, index]
+      result += replacement unless replacement.nil?
+      result += original[(index + length)..-1] unless index + length == original.length
+      result
+    end
+
+
+    #
+    #
+    # =>
+    # => Magical placeholder looping stuff
+    # =>
+    #
+    #
+
+
+    def loop_through_placeholders_in_paragraph(paragraph, paragraph_index)
       runs = paragraph.runs
 
       next_run_index = 0
@@ -74,21 +155,19 @@ module Word
         text.each_char.with_index do |char, j|
           next if j < next_char_index
           if char == '{' and next_char(runs, i, j)[:char] == '{'
-            #We have found the start of a placeholder!
             beginning_of_placeholder = {run_index: i, char_index: j}
             end_of_placeholder = get_end_of_placeholder(runs, i, j)
             placeholder_text = get_placeholder_text(runs, beginning_of_placeholder, end_of_placeholder)
 
-            placeholders << {placeholder: placeholder_text, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
-
-            #Skip ahead to the end of this placeholder
-            next_run_index = end_of_placeholder[:run_index]
-            next_char_index = end_of_placeholder[:char_index] + 1
+            placeholder = {placeholder: placeholder_text, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+            next_step = block_given? ? yield(placeholder) : {}
+            if next_step.is_a? Hash
+              next_run_index = next_step[:run_index] if !next_step[:run_index].nil?
+              next_char_index = next_step[:char_index] if !next_step[:char_index].nil?
+            end
           end
         end
       end
-
-      placeholders
     end
 
     def get_end_of_placeholder(runs, current_run_index, start_of_placeholder)
@@ -96,9 +175,9 @@ module Word
       runs[current_run_index..-1].each_with_index do |run, i|
         text = run.text
         text[start_char..-1].each_char.with_index do |char, j|
-          the_next_char = next_char(runs, current_run_index + i, j)
+          the_next_char = next_char(runs, current_run_index + i, start_char + j)
           if char == '}' && the_next_char[:char] == '}'
-            return {run_index: current_run_index + i, char_index: the_next_char[:char_index]}
+            return {run_index: the_next_char[:run_index], char_index: the_next_char[:char_index]}
           end
         end
         start_char = 0
@@ -141,30 +220,6 @@ module Word
       end
       result
     end
-
-    #
-    #
-    # =>
-    # => Rendering
-    # =>
-    #
-    #
-
-    def render_section(paragraphs, data)
-      placeholders = get_placeholders(paragraphs)
-
-      paragraphs.each do |p|
-        template_paragraph(p, data)
-      end
-    end
-
-
-
-
-
-
-
-
 
   end
 end

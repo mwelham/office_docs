@@ -7,8 +7,8 @@ require 'equivalent-xml'
 require 'pry'
 
 class TemplateTest < Test::Unit::TestCase
-  SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'simple_replacement_test.docx')
-  BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'broken_replacement_test.docx')
+  SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'template', 'simple_replacement_test.docx')
+  BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'broken_replacement_test.docx')
 
   def test_get_placeholders
     doc = load_simple_doc
@@ -19,10 +19,10 @@ class TemplateTest < Test::Unit::TestCase
                              :paragraph_index=>2,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>8}},
-                            {:placeholder=>"{{test_food_2}",
+                            {:placeholder=>"{{test_food_2}}",
                              :paragraph_index=>2,
                              :beginning_of_placeholder=>{:run_index=>4, :char_index=>1},
-                             :end_of_placeholder=>{:run_index=>4, :char_index=>14}},
+                             :end_of_placeholder=>{:run_index=>4, :char_index=>15}},
                             {:placeholder=>"{{ some.cool_heading }}",
                              :paragraph_index=>3,
                              :beginning_of_placeholder=>{:run_index=>1, :char_index=>8},
@@ -53,6 +53,15 @@ class TemplateTest < Test::Unit::TestCase
     refute template.template_valid?
     assert template.errors = "Template invalid - end of placeholder }} missing."
   end
+
+  def test_render
+    doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
+    template = Word::Template.new(doc)
+    template.render({})
+    #template.word_document.save('lol.docx')
+    binding.pry
+  end
+
 
   private
 
