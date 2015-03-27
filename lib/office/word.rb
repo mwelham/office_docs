@@ -93,7 +93,7 @@ module Office
 
     def render_template(data)
       template_renderer = Word::Template.new(@main_doc)
-      #template_renderer.render(data)
+      template_renderer.render(data)
     end
 
     def create_body_fragments(item, options = {})

@@ -9,29 +9,30 @@ require 'pry'
 class TemplateTest < Test::Unit::TestCase
   SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'template', 'simple_replacement_test.docx')
   BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'broken_replacement_test.docx')
+  BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'really_big_template.docx')
 
   def test_get_placeholders
-    doc = load_simple_doc
+    doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
     template = Word::Template.new(doc)
     placeholders = template.get_placeholders
 
-    assert placeholders == [{:placeholder=>"{{test_food_1}}",
+    assert placeholders == [{:placeholder_text=>"{{test_food_1}}",
                              :paragraph_index=>2,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>8}},
-                            {:placeholder=>"{{test_food_2}}",
+                            {:placeholder_text=>"{{test_food_2}}",
                              :paragraph_index=>2,
                              :beginning_of_placeholder=>{:run_index=>4, :char_index=>1},
                              :end_of_placeholder=>{:run_index=>4, :char_index=>15}},
-                            {:placeholder=>"{{ some.cool_heading }}",
+                            {:placeholder_text=>"{{ some.cool_heading }}",
                              :paragraph_index=>3,
                              :beginning_of_placeholder=>{:run_index=>1, :char_index=>8},
                              :end_of_placeholder=>{:run_index=>5, :char_index=>2}},
-                            {:placeholder=>"{{ lower1}}",
+                            {:placeholder_text=>"{{ lower1}}",
                              :paragraph_index=>6,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>1}},
-                            {:placeholder=>"{{ lower2}}",
+                            {:placeholder_text=>"{{ lower2}}",
                              :paragraph_index=>8,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>1}}]
@@ -55,18 +56,35 @@ class TemplateTest < Test::Unit::TestCase
   end
 
   def test_render
+    file = File.new('test_save_simple_doc.docx', 'w')
+    file.close
+    filename = file.path
+
     doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
     template = Word::Template.new(doc)
     template.render({})
-    #template.word_document.save('lol.docx')
-    binding.pry
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    File.delete(filename)
   end
 
+  def test_render_big_template
+    file = File.new('test_save_simple_doc.docx', 'w')
+    file.close
+    filename = file.path
 
-  private
+    doc = Office::WordDocument.new(BIG_TEST_DOC_PATH)
+    template = Word::Template.new(doc)
+    template.render({})
+    template.word_document.save(filename)
 
-  def load_simple_doc
-    Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    File.delete(filename)
   end
 
 end
