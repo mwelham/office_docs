@@ -2,32 +2,34 @@ require 'office/word/placeholder_evaluator'
 
 module Word
   class PlaceholderReplacer
-    attr_accessor :placeholder
-    def initialize(placeholder)
+    attr_accessor :placeholder, :word_document
+    def initialize(placeholder, word_document)
       self.placeholder = placeholder
+      self.word_document = word_document
     end
 
     def replace_in_paragraph(paragraph, data)
       replacement = get_replacement(placeholder, data)
       source_text = placeholder[:placeholder_text]
 
+      options = {}
+
       case
       when replacement.is_a?(String)
         paragraph.replace_all_with_text(source_text, replacement)
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = paragraph.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(replacement)) }
+        runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(replacement)) }
       else
         runs = paragraph.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement, options)) }
+        runs.each { |r| r.replace_with_body_fragments(word_document.create_body_fragments(replacement, options)) }
       end
 
       {}
     end
 
     def get_replacement(placeholder, data)
-      placeholder_text = placeholder[:placeholder_text]
-      evaluator = Word::PlaceholderEvaluator.new(placeholder_text)
+      evaluator = Word::PlaceholderEvaluator.new(placeholder)
       evaluator.evaluate(data)
     end
   end

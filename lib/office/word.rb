@@ -92,7 +92,7 @@ module Office
     end
 
     def render_template(data)
-      template_renderer = Word::Template.new(@main_doc)
+      template_renderer = Word::Template.new(self)
       template_renderer.render(data)
     end
 

@@ -10,6 +10,7 @@ module Word
 
     def evaluate(data={})
       return "" if data.blank?
+      placeholder_text = placeholder[:placeholder_text]
       field_identifier, options = placeholder_text[2..-3].split("|").map(&:strip)
 
       field_value = get_value_from_field_identifier(field_identifier, data)
@@ -25,7 +26,7 @@ module Word
         end
 
         result = result[identifier]
-        break if result = nil
+        break if result == nil
       end
       result
     end

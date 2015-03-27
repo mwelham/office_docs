@@ -63,7 +63,7 @@ module Word
       placeholders = []
       loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
         placeholders << placeholder
-        {run_index: placeholder[:end_of_placeholder][:run_index], char_index: placeholder[:end_of_placeholder][:char_index] + 1}
+        next_step = {run_index: placeholder[:end_of_placeholder][:run_index], char_index: placeholder[:end_of_placeholder][:char_index] + 1}
       end
       placeholders
     end
@@ -80,12 +80,12 @@ module Word
     def render_section(paragraphs, data)
       paragraphs.each_with_index do |paragraph, paragraph_index|
         loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
-          replacer = Word::PlaceholderReplacer.new(placeholder)
+          replacer = Word::PlaceholderReplacer.new(placeholder, word_document)
           replacement = replacer.replace_in_paragraph(paragraph, data)
-          result = {}
-          result[:run_index] = replacement[:next_run] if replacement[:next_run]
-          result[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
-          result
+          next_step = {}
+          next_step[:run_index] = replacement[:next_run] if replacement[:next_run]
+          next_step[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
+          next_step
         end
       end
     end
@@ -112,7 +112,7 @@ module Word
         next_char_index = 0
         text.each_char.with_index do |char, j|
           next if j < next_char_index
-          if char == '{' and next_char(runs, i, j)[:char] == '{'
+          if char == '{' && next_char(runs, i, j)[:char] == '{'
             beginning_of_placeholder = {run_index: i, char_index: j}
             end_of_placeholder = get_end_of_placeholder(runs, i, j)
             placeholder_text = get_placeholder_text(runs, beginning_of_placeholder, end_of_placeholder)
@@ -120,6 +120,9 @@ module Word
             placeholder = {placeholder_text: placeholder_text, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
             next_step = block_given? ? yield(placeholder) : {}
             if next_step.is_a? Hash
+              # This is a bit dodge - even if we increment the run index it will loop through
+              # the rest of the chars from the char_index...
+              # It doesn't matter because placeholders inside placeholders is not a thing..e but still dodge
               next_run_index = next_step[:run_index] if !next_step[:run_index].nil?
               next_char_index = next_step[:char_index] if !next_step[:char_index].nil?
             end
@@ -146,7 +149,10 @@ module Word
 
     def next_char(runs, current_run_index, current_char_index)
       current_run = runs[current_run_index]
-      text = current_run.text
+      blank = {run_index: nil, char_index: nil, char: nil}
+      return blank if current_run.nil?
+
+      text = current_run.text || ""
       if text.length - 1 > current_char_index #still chars left at the end
         return {run_index: current_run_index, char_index: current_char_index + 1, char: text[current_char_index + 1]}
       else
@@ -154,7 +160,7 @@ module Word
           next if run.text.length == 0
           return {run_index: current_run_index+1+i, char_index: 0, char: run.text[0]}
         end
-        return {run_index: nil, char_index: nil, char: nil}
+        return blank
       end
     end
 
