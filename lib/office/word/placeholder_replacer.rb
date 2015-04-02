@@ -8,11 +8,9 @@ module Word
       self.word_document = word_document
     end
 
-    def replace_in_paragraph(paragraph, data)
-      replacement = get_replacement(placeholder, data)
+    def replace_in_paragraph(paragraph, data, options = {})
+      replacement = get_replacement(placeholder, data, options)
       source_text = placeholder[:placeholder_text]
-
-      options = {}
 
       case
       when replacement.is_a?(String)
@@ -28,9 +26,9 @@ module Word
       {}
     end
 
-    def get_replacement(placeholder, data)
+    def get_replacement(placeholder, data, options = {})
       evaluator = Word::PlaceholderEvaluator.new(placeholder)
-      evaluator.evaluate(data)
+      evaluator.evaluate(data, options)
     end
   end
 end

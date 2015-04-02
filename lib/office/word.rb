@@ -91,9 +91,9 @@ module Office
       end
     end
 
-    def render_template(data)
+    def render_template(data, options = {})
       template_renderer = Word::Template.new(self)
-      template_renderer.render(data)
+      template_renderer.render(data, options)
     end
 
     def create_body_fragments(item, options = {})

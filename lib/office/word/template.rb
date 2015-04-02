@@ -38,9 +38,9 @@ module Word
       return true
     end
 
-    def render(data)
+    def render(data, options = {})
       paragraphs = main_doc.paragraphs #Create various sections using the #for_each later
-      render_section(paragraphs, data)
+      render_section(paragraphs, data, options)
     end
 
     #
@@ -77,11 +77,11 @@ module Word
     #
     #
 
-    def render_section(paragraphs, data)
+    def render_section(paragraphs, data, options = {})
       paragraphs.each_with_index do |paragraph, paragraph_index|
         loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
           replacer = Word::PlaceholderReplacer.new(placeholder, word_document)
-          replacement = replacer.replace_in_paragraph(paragraph, data)
+          replacement = replacer.replace_in_paragraph(paragraph, data, options)
           next_step = {}
           next_step[:run_index] = replacement[:next_run] if replacement[:next_run]
           next_step[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
