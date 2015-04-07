@@ -1,7 +1,7 @@
 Gem::Specification.new do |spec|
   spec.name        = "office_docs"
-  spec.version     = "0.3.9"
-  spec.date        = "2014-04-24"
+  spec.version     = "0.4.0"
+  spec.date        = "2014-08-09"
   spec.summary     = "Manipulate Microsoft Office Open XML files"
   spec.description = "Generate and modify Word .docx and Excel .xlsx files"
   spec.authors     = ["Mike Welham"]
