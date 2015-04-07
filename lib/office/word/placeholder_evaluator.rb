@@ -55,18 +55,22 @@ module Word
 
     def apply_options_to_normal_value(field_value, field_options)
       field_options.each do |option|
-        case option
+        case option.downcase
         when "currency"
           field_value = number_to_currency(field_value.to_f, unit: '')
+        when "each_answer_on_new_line"
+          field_value = field_value.split(',').map(&:strip)
+        else
+          field_value.to_s
         end
       end
-      field_value.to_s
+      field_value
     end
 
     def apply_options_to_image_value(field_value, field_options)
       field_options.each do |option|
-        edges = /(\d+)x(\d+)\}\}/.match(option)
-        resize_image_answer(field_value, edges[1].to_f, edges[2].to_f) if edges[1].present? && edges[2].present?
+        edges = /(\d+)x(\d+)/.match(option)
+        field_value = resize_image_answer(field_value, edges[1].to_f, edges[2].to_f) if edges.present? && edges[1].present? && edges[2].present?
       end
       field_value
     end
@@ -79,10 +83,10 @@ module Word
       field_value = Array(field_value) if field_value.is_a? Hash
 
       #apply field filter if it is present
-      field_filter = field_options.select{|o| o.include?('fields')}.first
+      field_filter = field_options.select{|o| o.downcase.include?('filter_fields')}.first
       field_value = field_value.map{|v| apply_field_filter_to_group_fields(field_filter, v) } if field_filter.present?
 
-      if field_options.any?{|o| o == 'list'}
+      if field_options.any?{|o| o.downcase == 'list'}
         field_value = create_list_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value)
       else
         global_options[:use_full_width] = true
@@ -140,7 +144,7 @@ module Word
           while(whole_filter.count('[') != whole_filter.count(']')) do
             whole_filter += ss.scan_until(/\]/)
           end
-          group_name = whole_filter.split(':')[0].strip
+          group_name = whole_filter.split(':')[0].gsub(/[\[\],]/,'').strip
           fields = whole_filter.split(':')[1..-1].join(':').strip
           results << {group_name => parse_nested_fields(fields)}
           ss.scan_until(/,/) #Just to get to the end of the section

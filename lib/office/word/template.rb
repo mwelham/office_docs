@@ -39,8 +39,17 @@ module Word
     end
 
     def render(data, options = {})
-      paragraphs = main_doc.paragraphs #Create various sections using the #for_each later
-      render_section(paragraphs, data, options)
+      paragraph_sets = [main_doc.paragraphs]
+      main_doc.headers.each do |header|
+        paragraph_sets << header.paragraphs
+      end
+      main_doc.footers.each do |footer|
+        paragraph_sets << footer.paragraphs
+      end
+
+      paragraph_sets.each do |paragraphs|
+        render_section(paragraphs, data, options)
+      end
     end
 
     #
