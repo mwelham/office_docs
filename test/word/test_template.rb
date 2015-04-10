@@ -10,6 +10,7 @@ class TemplateTest < Test::Unit::TestCase
   SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'template', 'simple_replacement_test.docx')
   BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'broken_replacement_test.docx')
   BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'really_big_template.docx')
+  MENICON_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'menicon_template.docx')
 
   def test_get_placeholders
     doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
@@ -80,6 +81,24 @@ class TemplateTest < Test::Unit::TestCase
     template = Word::Template.new(doc)
     template.render({})
     template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    File.delete(filename)
+  end
+
+  def test_render_menicon_template
+    file = File.new('test_menicon_template.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(MENICON_DOC_PATH)
+    template = Word::Template.new(doc)
+    template.render({})
+    template.word_document.save(filename)
+
+    binding.pry
 
     assert File.file?(filename)
     assert File.stat(filename).size > 0
