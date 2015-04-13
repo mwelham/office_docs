@@ -86,18 +86,35 @@ module Word
       field_filter = field_options.select{|o| o.downcase.include?('filter_fields')}.first
       field_value = field_value.map{|v| apply_field_filter_to_group_fields(field_filter, v) } if field_filter.present?
 
+      creation_options = {}
+
+      image_size = field_options.select{|o| o.downcase.include?('image_size')}.first
+      if image_size.present?
+        edges = /(\d+)x(\d+)/.match(image_size)
+        creation_options[:image_size] = {}
+        creation_options[:image_size][:width] = edges[1].to_f
+        creation_options[:image_size][:height] = edges[2].to_f
+      end
+
+
       if field_options.any?{|o| o.downcase == 'list'}
-        field_value = create_list_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value)
+        field_value = create_list_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value, creation_options)
       else
         global_options[:use_full_width] = true
-        field_value = create_table_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value)
+        field_value = create_table_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value, creation_options)
       end
       field_value
     end
 
     #{{ loltest | list, fields: [a, b: [x y z], c, d, e, f, g] }}
 
-    #private
+    #
+    #
+    #####
+    ##### Helper functions for applying options under here
+    #####
+    #
+    #
 
     #
     #
@@ -182,7 +199,7 @@ module Word
       result
     end
 
-    def create_list_for_group(form_xml_def, group_id, values, indent = "")
+    def create_list_for_group(form_xml_def, group_id, values, options = {}, indent = "")
       return "" if values.blank?
       list = []
       values.each_index do |i|
@@ -192,8 +209,12 @@ module Word
           title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
           if is_text_answer?(answer)
             list << "#{indent}#{title}\t\t\t#{answer}"
+          elsif is_image_answer(answer)
+            if options[:image_size].present?
+              resize_image_answer(answer, options[:image_size][:width], options[:image_size][:height])
+            end
           elsif is_group_answer?(answer)
-            list << "#{indent}#{title}" << create_list_for_group(form_xml_def, full_id, answer, "-\t\t\t#{indent}")
+            list << "#{indent}#{title}" << create_list_for_group(form_xml_def, full_id, answer, options, "-\t\t\t#{indent}")
           else
             list << "#{indent}#{title}" << answer
           end
@@ -203,7 +224,7 @@ module Word
       list
     end
 
-    def create_table_for_group(form_xml_def, group_id, values)
+    def create_table_for_group(form_xml_def, group_id, values, options = {})
       return "" if values.blank?
       table = {}
       values.each do |v|
@@ -212,9 +233,15 @@ module Word
           title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
           table[title] = [] unless table.has_key?(title)
           if is_group_answer?(answer)
-            table[title] << create_table_for_group(form_xml_def, full_id, answer)
+            table[title] << create_table_for_group(form_xml_def, full_id, answer, options)
           elsif is_image_answer?(answer)
-            table[title] << resize_image_answer(answer, 500, 500)
+            width = 500
+            height = 500
+            if options[:image_size].present?
+              width = options[:image_size][:width]
+              height = options[:image_size][:height]
+            end
+            table[title] << resize_image_answer(answer, width, height)
           else
             table[title] << answer
           end
