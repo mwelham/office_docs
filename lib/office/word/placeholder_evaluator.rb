@@ -209,10 +209,11 @@ module Word
           title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
           if is_text_answer?(answer)
             list << "#{indent}#{title}\t\t\t#{answer}"
-          elsif is_image_answer(answer)
+          elsif is_image_answer?(answer)
             if options[:image_size].present?
-              resize_image_answer(answer, options[:image_size][:width], options[:image_size][:height])
+              answer = resize_image_answer(answer, options[:image_size][:width], options[:image_size][:height])
             end
+            list << "#{indent}#{title}" << answer
           elsif is_group_answer?(answer)
             list << "#{indent}#{title}" << create_list_for_group(form_xml_def, full_id, answer, options, "-\t\t\t#{indent}")
           else
