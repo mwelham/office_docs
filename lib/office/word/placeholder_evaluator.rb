@@ -44,8 +44,7 @@ module Word
       when (field_value.is_a?(Magick::Image) || field_value.is_a?(Magick::ImageList))
         apply_options_to_image_value(field_value, field_options)
       when is_map_answer?(field_value)
-        # No options for maps yet
-        field_value
+        apply_options_to_map_value(field_value, field_options)
       else #must be a group
         apply_options_to_group_value(field_identifier, field_value, field_options, global_options)
       end
@@ -75,6 +74,11 @@ module Word
       field_value
     end
 
+    def apply_options_to_map_value(field_value, field_options)
+      field_value[0] = apply_options_to_image_value(field_value[0], field_options)
+      field_value
+    end
+
     def apply_options_to_group_value(field_identifier, field_value, field_options, global_options={})
       form_xml_def = global_options[:form_xml_def]
 
@@ -86,16 +90,17 @@ module Word
       field_filter = field_options.select{|o| o.downcase.include?('filter_fields')}.first
       field_value = field_value.map{|v| apply_field_filter_to_group_fields(field_filter, v) } if field_filter.present?
 
+      #Image/Map size settings
       creation_options = {}
-
-      image_size = field_options.select{|o| o.downcase.include?('image_size')}.first
-      if image_size.present?
-        edges = /(\d+)x(\d+)/.match(image_size)
-        creation_options[:image_size] = {}
-        creation_options[:image_size][:width] = edges[1].to_f
-        creation_options[:image_size][:height] = edges[2].to_f
+      ['image_size', 'map_size'].each do |size_setting|
+        size = field_options.select{|o| o.downcase.include?(size_setting)}.first
+        if size.present?
+          edges = /(\d+)x(\d+)/.match(size)
+          creation_options[size_setting.to_sym] = {}
+          creation_options[size_setting.to_sym][:width] = edges[1].to_f
+          creation_options[size_setting.to_sym][:height] = edges[2].to_f
+        end
       end
-
 
       if field_options.any?{|o| o.downcase == 'list'}
         field_value = create_list_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value, creation_options)
@@ -106,7 +111,7 @@ module Word
       field_value
     end
 
-    #{{ loltest | list, fields: [a, b: [x y z], c, d, e, f, g] }}
+    #{{ loltest | list, filter_fields: [a, b: [x y z], c, d, e, f, g] }}
 
     #
     #
@@ -207,17 +212,19 @@ module Word
           next if answer.blank?
           full_id = "#{group_id}.#{id}"
           title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
-          if is_text_answer?(answer)
-            list << "#{indent}#{title}\t\t\t#{answer}"
-          elsif is_image_answer?(answer)
-            if options[:image_size].present?
-              answer = resize_image_answer(answer, options[:image_size][:width], options[:image_size][:height])
-            end
-            list << "#{indent}#{title}" << answer
-          elsif is_group_answer?(answer)
-            list << "#{indent}#{title}" << create_list_for_group(form_xml_def, full_id, answer, options, "-\t\t\t#{indent}")
-          else
-            list << "#{indent}#{title}" << answer
+          case
+            when is_text_answer?(answer)
+              list << "#{indent}#{title}\t\t\t#{answer}"
+            when is_image_answer?(answer)
+              answer = resize_image_answer(answer, options[:image_size][:width], options[:image_size][:height]) if options[:image_size].present?
+              list << "#{indent}#{title}" << answer
+            when is_map_answer?(answer)
+              answer[0] = resize_image_answer(answer[0], options[:map_size][:width], options[:map_size][:height]) if options[:map_size].present?
+              list << "#{indent}#{title}" << answer
+            when is_group_answer?(answer)
+              list << "#{indent}#{title}" << create_list_for_group(form_xml_def, full_id, answer, options, "-\t\t\t#{indent}")
+            else
+              list << "#{indent}#{title}" << answer
           end
         end
         list << "" unless i == values.length - 1
@@ -233,18 +240,22 @@ module Word
           full_id = "#{group_id}.#{id}"
           title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
           table[title] = [] unless table.has_key?(title)
-          if is_group_answer?(answer)
-            table[title] << create_table_for_group(form_xml_def, full_id, answer, options)
-          elsif is_image_answer?(answer)
-            width = 500
-            height = 500
-            if options[:image_size].present?
-              width = options[:image_size][:width]
-              height = options[:image_size][:height]
-            end
-            table[title] << resize_image_answer(answer, width, height)
-          else
-            table[title] << answer
+          case
+            when is_group_answer?(answer)
+              table[title] << create_table_for_group(form_xml_def, full_id, answer, options)
+            when is_image_answer?(answer)
+              width = 500
+              height = 500
+              if options[:image_size].present?
+                width = options[:image_size][:width]
+                height = options[:image_size][:height]
+              end
+              table[title] << resize_image_answer(answer, width, height)
+            when is_map_answer?(answer)
+              answer[0] = resize_image_answer(answer[0], options[:map_size][:width], options[:map_size][:height]) if options[:map_size].present?
+              table[title] << answer
+            else
+              table[title] << answer
           end
         end
       end
