@@ -6,9 +6,13 @@ include ActionView::Helpers::NumberHelper
 
 module Word
   class PlaceholderEvaluator
-    attr_accessor :placeholder
+    attr_accessor :placeholder    #Placeholder to work out
+    attr_accessor :replacement    #Result from the placeholder
+    attr_accessor :render_options #Options to be passed on to the renderer
+
     def initialize(placeholder)
       self.placeholder = placeholder
+      self.render_options = {}
     end
 
     def evaluate(data={}, global_options={})
@@ -18,7 +22,7 @@ module Word
       field_options = split_options_on_commas(field_options)
 
       field_value = get_value_from_field_identifier(field_identifier, data, global_options)
-      result = apply_options_to_field_value(field_identifier, field_value, field_options, global_options)
+      self.replacement = apply_options_to_field_value(field_identifier, field_value, field_options, global_options)
     end
 
     def get_value_from_field_identifier(field_identifier, data, options={})
@@ -75,7 +79,22 @@ module Word
     end
 
     def apply_options_to_map_value(field_value, field_options)
+      # Image size options
       field_value[0] = apply_options_to_image_value(field_value[0], field_options)
+
+      # Hyperlink options
+      hyperlink_option = get_option_from_field_options(field_options, 'hyperlink')
+      if hyperlink_option[:params].downcase == 'true'
+        coord_info = field_value[1]
+        render_options[:hyperlink] = "http://maps.google.com/?q=#{coord_info.match(/lat=((\d+|-\d)+\.\d+)/)[1]},#{coord_info.match(/long=((\d+|-\d)+\.\d+)/)[1]}"
+      end
+
+      # Coordinate info options
+      coordinate_info_option = get_option_from_field_options(field_options, 'show_coordinate_info')
+      if coordinate_info_option[:params].downcase == 'false'
+        field_value = [field_value[0]]
+      end
+
       field_value
     end
 
@@ -314,6 +333,12 @@ module Word
 
     def is_map_answer?(value)
       value.is_a?(Array) && value.first.present? && value.first.is_a?(Magick::Image)
+    end
+
+    def get_option_from_field_options(field_options, option)
+      option_text = field_options.select{|o| o.match(/#{option}\s*:?/)}.first
+      option, params = option_text.split(':').map(&:strip)
+      {option: option, params: params}
     end
 
   end#endclass

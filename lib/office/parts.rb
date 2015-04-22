@@ -26,7 +26,7 @@ module Office
     def get_comparison_content
       get_zip_content
     end
-    
+
     def has_relationships?
       !@relationships.nil?
     end
@@ -51,6 +51,10 @@ module Office
 
     def add_relationship(part, type)
       @relationships.add(part, type)
+    end
+
+    def add_arbitrary_relationship(type, target, extra_settings={})
+      @relationships.add_arbitrary_relationship(type, target, extra_settings)
     end
 
     def remove_relationships(part)
@@ -182,7 +186,7 @@ module Office
     def get_relationship_by_id(id)
       @relationships_by_id[id]
     end
-    
+
     def get_relationship_targets(type)
       @relationships_by_id.values.keep_if { |r| r.type == type }.map { |r| r.target_part }
     end
@@ -192,6 +196,16 @@ module Office
       target = relative_path_from_owner(part.name)
       @xml.root.add_child(Relationship.create_node(@xml, relationship_id, type, target))
       @relationships_by_id[relationship_id] = Relationship.new(relationship_id, type, target, part)
+      relationship_id
+    end
+
+    def add_arbitrary_relationship(type, target, extra_settings={})
+      relationship_id = next_free_relationship_id
+      node = @xml.root.add_child(Relationship.create_node(@xml, relationship_id, type, target))
+      extra_settings.each do |k,v|
+        node[k] = v
+      end
+      @relationships_by_id[relationship_id] = Relationship.new(relationship_id, type, target)
       relationship_id
     end
 

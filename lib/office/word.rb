@@ -99,7 +99,7 @@ module Office
     def create_body_fragments(item, options = {})
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
-        [ "<w:p>#{create_image_run_fragment(item)}</w:p>" ]
+        [ "<w:p>#{create_image_run_fragment(item, options)}</w:p>" ]
       when item.is_a?(Hash)
         [ create_table_fragment(item, options) ]
       when item.is_a?(Array)
@@ -109,7 +109,7 @@ module Office
       end
     end
 
-    def create_image_run_fragment(image)
+    def create_image_run_fragment(image, options = {})
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
       identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
@@ -117,7 +117,14 @@ module Office
       part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
       relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
 
-      Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+      image_fragment = Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+
+      hyperlink = options[:hyperlink]
+      if hyperlink.present?
+        hyperlink_relationship_id = @main_doc.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
+        image_fragment.gsub!("</wp:docPr>", %|<a:hlinkClick xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" r:id="#{hyperlink_relationship_id}"/></wp:docPr>|)
+      end
+      image_fragment
     end
 
     def create_table_fragment(hash, options = {})
@@ -346,7 +353,7 @@ module Office
       # It's possible to batch create drawing objects and insert them into the doc
       # in one go. So we also need to track the largest id we've issued so far.
       @last_created_unused_id = [largest_unused_in_xml, (@last_created_unused_id || 0) + 1].max
-      @last_created_unused_id 
+      @last_created_unused_id
     end
 
     def debug_dump

@@ -98,8 +98,6 @@ class TemplateTest < Test::Unit::TestCase
     template.render({})
     template.word_document.save(filename)
 
-    binding.pry
-
     assert File.file?(filename)
     assert File.stat(filename).size > 0
 

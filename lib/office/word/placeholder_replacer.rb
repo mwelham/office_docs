@@ -9,7 +9,12 @@ module Word
     end
 
     def replace_in_paragraph(paragraph, data, options = {})
-      replacement = get_replacement(placeholder, data, options)
+      replacement_result = get_replacement(placeholder, data, options)
+      replacement = replacement_result[:replacement]
+      render_options = replacement_result[:render_options]
+
+      local_options = options.deep_dup.merge(render_options)
+
       source_text = placeholder[:placeholder_text]
 
       case
@@ -17,10 +22,10 @@ module Word
         paragraph.replace_all_with_text(source_text, replacement)
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = paragraph.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(replacement)) }
+        runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(replacement, local_options)) }
       else
         runs = paragraph.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_body_fragments(word_document.create_body_fragments(replacement, options)) }
+        runs.each { |r| r.replace_with_body_fragments(word_document.create_body_fragments(replacement, local_options)) }
       end
 
       {}
@@ -28,7 +33,9 @@ module Word
 
     def get_replacement(placeholder, data, options = {})
       evaluator = Word::PlaceholderEvaluator.new(placeholder)
-      evaluator.evaluate(data, options)
+      replacement = evaluator.evaluate(data, options)
+      render_options = evaluator.render_options
+      {replacement: replacement, render_options: render_options}
     end
   end
 end
