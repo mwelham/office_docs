@@ -86,7 +86,11 @@ module Word
       hyperlink_option = get_option_from_field_options(field_options, 'hyperlink')
       if hyperlink_option[:params].downcase == 'true'
         coord_info = field_value[1]
-        render_options[:hyperlink] = "http://maps.google.com/?q=#{coord_info.match(/lat=((\d+|-\d)+\.\d+)/)[1]},#{coord_info.match(/long=((\d+|-\d)+\.\d+)/)[1]}"
+        lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)[1]
+        long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)[1]
+        if !lat.nil? && !long.nil?
+          render_options[:hyperlink] = "http://maps.google.com/?q=#{lat[1]},#{long[1]}"
+        end
       end
 
       # Coordinate info options
