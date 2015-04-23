@@ -166,7 +166,7 @@ module Word
         return {run_index: current_run_index, char_index: current_char_index + 1, char: text[current_char_index + 1]}
       else
         runs[current_run_index+1..-1].each_with_index do |run, i|
-          next if run.text.length == 0
+          next if run.text.nil? || run.text.length == 0
           return {run_index: current_run_index+1+i, char_index: 0, char: run.text[0]}
         end
         return blank
