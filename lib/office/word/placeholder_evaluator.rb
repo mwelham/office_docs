@@ -84,7 +84,7 @@ module Word
 
       # Hyperlink options
       hyperlink_option = get_option_from_field_options(field_options, 'hyperlink')
-      if hyperlink_option[:params].downcase == 'true'
+      if hyperlink_option && hyperlink_option[:params].downcase == 'true'
         coord_info = field_value[1]
         lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
         long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)
@@ -95,7 +95,7 @@ module Word
 
       # Coordinate info options
       coordinate_info_option = get_option_from_field_options(field_options, 'show_coordinate_info')
-      if coordinate_info_option[:params].downcase == 'false'
+      if coordinate_info_option && coordinate_info_option[:params].downcase == 'false'
         field_value = [field_value[0]]
       end
 
@@ -340,9 +340,11 @@ module Word
     end
 
     def get_option_from_field_options(field_options, option)
+      return nil if field_options.nil?
       option_text = field_options.select{|o| o.match(/#{option}\s*:?/)}.first
+      return nil if option_text.nil?
       option, params = option_text.split(':').map(&:strip)
-      {option: option, params: params}
+      {option: option, params: params.to_s}
     end
 
   end#endclass
