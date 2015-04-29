@@ -119,6 +119,7 @@ module Word
         size = field_options.select{|o| o.downcase.include?(size_setting)}.first
         if size.present?
           edges = /(\d+)x(\d+)/.match(size)
+          raise "Template error - #{size} is invalid" if edges.nil?
           creation_options[size_setting.to_sym] = {}
           creation_options[size_setting.to_sym][:width] = edges[1].to_f
           creation_options[size_setting.to_sym][:height] = edges[2].to_f
