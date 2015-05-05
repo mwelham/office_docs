@@ -141,6 +141,7 @@ module Word
     end
 
     def get_end_of_placeholder(runs, current_run_index, start_of_placeholder)
+      placeholder_text = ""
       start_char = start_of_placeholder
       runs[current_run_index..-1].each_with_index do |run, i|
         text = run.text
@@ -148,12 +149,13 @@ module Word
           the_next_char = next_char(runs, current_run_index + i, start_char + j)
           if char == '}' && the_next_char[:char] == '}'
             return {run_index: the_next_char[:run_index], char_index: the_next_char[:char_index]}
+          else
+            placeholder_text += char
           end
         end
         start_char = 0
       end
-
-      raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing.")
+      raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{placeholder_text}\".")
     end
 
     def next_char(runs, current_run_index, current_char_index)
