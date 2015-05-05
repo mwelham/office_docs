@@ -111,22 +111,24 @@ module Word
 
     def loop_through_placeholders_in_paragraph(paragraph, paragraph_index)
       runs = paragraph.runs
+      run_texts = runs.map(&:text).dup
 
       next_run_index = 0
-      runs.each_with_index do |run, i|
+      run_texts.each_with_index do |run_text, i|
         next if i < next_run_index
-        text = run.text
+        text = run_text
         next if text.nil?
 
         next_char_index = 0
         text.each_char.with_index do |char, j|
           next if j < next_char_index
-          if char == '{' && next_char(runs, i, j)[:char] == '{'
+          if char == '{' && next_char(run_texts, i, j)[:char] == '{'
             beginning_of_placeholder = {run_index: i, char_index: j}
-            end_of_placeholder = get_end_of_placeholder(runs, i, j)
-            placeholder_text = get_placeholder_text(runs, beginning_of_placeholder, end_of_placeholder)
+            end_of_placeholder = get_end_of_placeholder(run_texts, i, j)
+            placeholder_text = get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
 
             placeholder = {placeholder_text: placeholder_text, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+
             next_step = block_given? ? yield(placeholder) : {}
             if next_step.is_a? Hash
               # This is a bit dodge - even if we increment the run index it will loop through
@@ -140,50 +142,54 @@ module Word
       end
     end
 
-    def get_end_of_placeholder(runs, current_run_index, start_of_placeholder)
+    def get_end_of_placeholder(run_texts, current_run_index, start_of_placeholder)
       placeholder_text = ""
       start_char = start_of_placeholder
-      runs[current_run_index..-1].each_with_index do |run, i|
-        text = run.text
-        text[start_char..-1].each_char.with_index do |char, j|
-          the_next_char = next_char(runs, current_run_index + i, start_char + j)
-          if char == '}' && the_next_char[:char] == '}'
-            return {run_index: the_next_char[:run_index], char_index: the_next_char[:char_index]}
-          else
-            placeholder_text += char
+      run_texts[current_run_index..-1].each_with_index do |run_text, i|
+        text = run_text
+        if !text.nil? && text.length > 0
+          text[start_char..-1].each_char.with_index do |char, j|
+            the_next_char = next_char(run_texts, current_run_index + i, start_char + j)
+            if char == '}' && the_next_char[:char] == '}'
+              return {run_index: the_next_char[:run_index], char_index: the_next_char[:char_index]}
+            else
+              placeholder_text += char
+            end
           end
         end
         start_char = 0
       end
+
       raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{placeholder_text}\".")
     end
 
-    def next_char(runs, current_run_index, current_char_index)
-      current_run = runs[current_run_index]
+    def next_char(run_texts, current_run_index, current_char_index)
+      current_run_text = run_texts[current_run_index]
       blank = {run_index: nil, char_index: nil, char: nil}
-      return blank if current_run.nil?
+      return blank if current_run_text.nil?
 
-      text = current_run.text || ""
+      text = current_run_text || ""
       if text.length - 1 > current_char_index #still chars left at the end
         return {run_index: current_run_index, char_index: current_char_index + 1, char: text[current_char_index + 1]}
       else
-        runs[current_run_index+1..-1].each_with_index do |run, i|
-          next if run.text.nil? || run.text.length == 0
-          return {run_index: current_run_index+1+i, char_index: 0, char: run.text[0]}
+        run_texts[current_run_index+1..-1].each_with_index do |run_text, i|
+          next if run_text.nil? || run_text.length == 0
+          return {run_index: current_run_index+1+i, char_index: 0, char: run_text[0]}
         end
         return blank
       end
     end
 
-    def get_placeholder_text(runs, beginning_of_placeholder, end_of_placeholder)
+    def get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
       result = ""
       first_run_index = beginning_of_placeholder[:run_index]
       last_run_index = end_of_placeholder[:run_index]
       if first_run_index == last_run_index
-        result = runs[first_run_index].text[beginning_of_placeholder[:char_index]..end_of_placeholder[:char_index]]
+        result = run_texts[first_run_index][beginning_of_placeholder[:char_index]..end_of_placeholder[:char_index]]
       else
         (first_run_index..last_run_index).each do |run_i|
-          text = runs[run_i].text
+          text = run_texts[run_i]
+          next if text.nil? || text.length == 0
           if run_i == first_run_index
             result += text[beginning_of_placeholder[:char_index]..-1]
           elsif run_i == last_run_index
