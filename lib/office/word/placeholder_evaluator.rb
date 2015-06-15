@@ -111,7 +111,7 @@ module Word
 
       #apply field filter if it is present
       field_filter = field_options.select{|o| o.downcase.include?('filter_fields')}.first
-      field_value = field_value.map{|v| apply_field_filter_to_group_fields(field_filter, v) } if field_filter.present?
+      field_value = field_value.map{|v| apply_field_filter_to_group_fields(field_filter, v) } if field_filter.present? && field_value.present?
 
       #Image/Map size settings
       creation_options = {}
