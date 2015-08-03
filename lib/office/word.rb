@@ -132,19 +132,31 @@ module Office
       return "" if c_count == 0
 
       c_index = 0
-      fragment = "<w:tbl>#{create_table_properties_fragment(c_count, options)}<w:tr>"
-      hash.keys.each do |header|
-        column_properties = create_column_properties_fragment(c_index, c_count, options)
-        c_index += 1
-        encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
-        fragment << "<w:tc>#{column_properties}<w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+      fragment = "<w:tbl>#{create_table_properties_fragment(c_count, options)}"
+      if options[:no_header_row] != true
+        fragment << "<w:tr>"
+        hash.keys.each do |header|
+          column_properties = create_column_properties_fragment(c_index, c_count, options)
+          c_index += 1
+          encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
+          fragment << create_table_cell_fragment(encoded_header, 0, {column_properties: column_properties})
+          #<< "<w:tc>#{column_properties}<w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+        end
+        fragment << "</w:tr>"
       end
-      fragment << "</w:tr>"
 
       r_count = hash.values.inject(0) { |max, value| [max, value.is_a?(Array) ? value.length : (value.nil? ? 0 : 1)].max }
       0.upto(r_count - 1).each do |i|
         fragment << "<w:tr>"
-        hash.values.each { |v| fragment << create_table_cell_fragment(v, i) }
+        hash.values.each_with_index do |v, c_index|
+          column_properties =  if options[:no_header_row] == true && i == 0
+            create_column_properties_fragment(c_index, c_count, options)
+          else
+            ""
+          end
+
+          fragment << create_table_cell_fragment(v, i, {column_properties: column_properties})
+        end
         fragment << "</w:tr>"
       end
 
@@ -200,7 +212,7 @@ module Office
       end
     end
 
-    def create_table_cell_fragment(values, index)
+    def create_table_cell_fragment(values, index, options={})
       item = case
       when (!values.is_a?(Array))
         index != 0 || values.nil? ? "" : values
@@ -213,7 +225,9 @@ module Office
       xml = create_body_fragments(item).join
       # Word vaildation rules seem to require a w:p immediately before a /w:tc
       xml << "<w:p/>" unless xml.end_with?("<w:p/>") or xml.end_with?("</w:p>")
-      "<w:tc>#{xml}</w:tc>"
+
+      column_properties = options[:column_properties] || ""
+      "<w:tc>#{column_properties}#{xml}</w:tc>"
     end
 
     def create_multiple_fragments(array, options = {})

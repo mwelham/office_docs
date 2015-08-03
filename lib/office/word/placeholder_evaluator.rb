@@ -126,16 +126,25 @@ module Word
         end
       end
 
+      creation_options[:show_labels] = true
+      show_lables_option = field_options.select{|o| o.downcase.include?('show_labels') }.first
+      if show_lables_option.present?
+        creation_options[:show_labels] = false if show_lables_option.split(':')[1..-1].join(':').strip.downcase == 'false'
+      end
+
       if field_options.any?{|o| o.downcase == 'list'}
         field_value = create_list_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value, creation_options)
       else
-        global_options[:use_full_width] = true
+        if field_options.any?{|o| o.downcase == 'full_width'}
+          render_options[:use_full_width] = true
+        end
+        render_options[:no_header_row] = true if creation_options[:show_labels] == false
         field_value = create_table_for_group(form_xml_def, field_identifier.gsub('fields.',''), field_value, creation_options)
       end
       field_value
     end
 
-    #{{ loltest | list, filter_fields: [a, b: [x y z], c, d, e, f, g] }}
+    #{{ loltest | list, show_lables: false, filter_fields: [a, b: [x y z], c, d, e, f, g] }}
 
     #
     #
@@ -235,7 +244,11 @@ module Word
         values[i].each do |id, answer|
           next if answer.blank?
           full_id = "#{group_id}.#{id}"
-          title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
+          title = ""
+          if options[:show_labels].nil? || options[:show_labels] != false
+            title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
+          end
+
           case
             when is_text_answer?(answer)
               list << "#{indent}#{title}\t\t\t#{answer}"
