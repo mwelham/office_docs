@@ -600,7 +600,7 @@ module Office
     def initialize(r_node, parent_p)
       @node = r_node
       @paragraph = parent_p
-      read_text_range
+      read_text_ranges
     end
 
     def replace_with_run_fragment(fragment)
@@ -608,7 +608,7 @@ module Office
       new_node = new_node.first if new_node.is_a? Nokogiri::XML::NodeSet
       @node.remove
       @node = new_node
-      read_text_range
+      read_text_ranges
     end
 
     def replace_with_body_fragments(fragments)
@@ -624,35 +624,63 @@ module Office
       end
     end
 
-    def read_text_range
-      t_node = @node.at_xpath("w:t")
-      @text_range = t_node.nil? ? nil : TextRange.new(t_node)
+    def read_text_ranges
+      @text_ranges = @node.xpath("w:t").map{|t_node| TextRange.new(t_node) }
     end
 
     def text
-      @text_range.nil? ? nil : @text_range.text
+      @text_ranges.nil? || @text_ranges.length == 0 ? nil : @text_ranges.map(&:text).join("\n")
+    end
+
+    def remove_extra_text_nodes
+      @text_ranges[1..-1].each do |n|
+        n.node.remove
+      end
+      @text_ranges = Array(@text_ranges.first)
+    end
+
+    def remove_line_break_nodes
+      @node.xpath("w:br").each{|br_node| br_node.remove }
     end
 
     def text=(text)
+      remove_line_break_nodes
+      remove_extra_text_nodes
+
       if text.nil?
-        @text_range.node.remove unless @text_range.nil?
-        @text_range = nil
-      elsif @text_range.nil?
-        t_node = Nokogiri::XML::Node.new("w:t", @node.document)
-        t_node.content = text
-        @node.add_child(t_node)
-        @text_range = TextRange.new(t_node)
+        @text_ranges.first.node.remove unless @text_ranges.first.nil?
+        @text_ranges = []
       else
-        @text_range.text = text
+        ends_with_new_line = text[-1] == "\n"
+        texts = text.length == 0 ? [""] : text.split("\n")
+
+        texts.each_with_index do |text, i|
+          text_range = @text_ranges[i]
+          if text_range.nil?
+            t_node = Nokogiri::XML::Node.new("w:t", @node.document)
+            @node.add_child(t_node)
+            text_range = TextRange.new(t_node)
+            @text_ranges << text_range
+          end
+
+          text_range.text = text
+
+          if(i != (texts.length - 1) || ends_with_new_line)
+            @node.add_child(Nokogiri::XML::Node.new("w:br", @node.document))
+          end
+        end
       end
     end
 
     def text_length
-      @text_range.nil? || @text_range.text.nil? ? 0 : @text_range.text.length
+      full_text = self.text
+      full_text.nil? ? 0 : full_text.length
     end
 
     def clear_text
-      @text_range.text = "" unless @text_range.nil?
+      remove_line_break_nodes
+      remove_extra_text_nodes
+      @text_ranges.first.text = "" unless @text_ranges.first.nil?
     end
 
     def adjust_for_right_to_left_text
@@ -667,7 +695,7 @@ module Office
 
       rPr_node = @node.at_xpath("w:rPr")
       if rPr_node.nil?
-        rPr_node = @text_range.node.add_previous_sibling(Nokogiri::XML::Element.new("w:rPr", @node.document))
+        rPr_node = @text_ranges.first.node.add_previous_sibling(Nokogiri::XML::Element.new("w:rPr", @node.document))
       end
 
       rtl_node = rPr_node.at_xpath("w:rtl")
