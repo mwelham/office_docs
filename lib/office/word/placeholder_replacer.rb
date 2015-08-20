@@ -33,8 +33,9 @@ module Word
 
     def get_replacement(placeholder, data, options = {})
       evaluator = Word::PlaceholderEvaluator.new(placeholder)
-      replacement = evaluator.evaluate(data, options)
-      render_options = evaluator.render_options
+      replacement_settings = evaluator.evaluate(data, options)
+      replacement = replacement_settings[:replacement]
+      render_options = replacement_settings[:render_options]
       {replacement: replacement, render_options: render_options}
     end
   end
