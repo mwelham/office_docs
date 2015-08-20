@@ -13,7 +13,11 @@ module Word
       replacement = replacement_result[:replacement]
       render_options = replacement_result[:render_options]
 
-      local_options = options.deep_dup.merge(render_options)
+      if options.respond_to?(:deep_dup)
+        local_options = options.deep_dup.merge(render_options)
+      else
+        local_options = options.dup.merge(render_options)
+      end
 
       source_text = placeholder[:placeholder_text]
 

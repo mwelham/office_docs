@@ -2,6 +2,10 @@ require 'active_support/core_ext/hash/indifferent_access'
 require 'active_support/core_ext/object/blank'
 require 'action_view'
 
+Dir[File.join("./lib/office/word/placeholder_evaluator", "**/*.rb")].sort_by {|path| path.split("/").length }.each do |f|
+  require f
+end
+
 include ActionView::Helpers::NumberHelper
 
 module Word
@@ -13,13 +17,12 @@ module Word
     def initialize(placeholder)
       self.placeholder = placeholder
       self.render_options = {}
-      self.field_options = []
     end
 
 
     #Global options is a bit of a hack - its stuff passed in from the outside world, like xml_def
     def evaluate(data={}, global_options={})
-      return "" if data.blank?
+      return {replacement: "", render_options: {}} if data.blank?
       placeholder_text = placeholder[:placeholder_text]
       field_identifier, field_options = placeholder_text[2..-3].split("|").map(&:strip) #2,-3 to get rid of {{ and }}
 

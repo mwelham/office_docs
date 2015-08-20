@@ -45,7 +45,7 @@ class TemplateTest < Test::Unit::TestCase
     begin
       placeholders = template.get_placeholders
     rescue => e
-      assert(e.message == "Template invalid - end of placeholder }} missing.")
+      assert(e.message == "Template invalid - end of placeholder }} missing for \"{{test_food_2 pancetta pork chuck jowl pig.\".")
     end
   end
 
