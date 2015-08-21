@@ -1,5 +1,7 @@
 module Word
   class GroupPlaceholder < Word::Placeholder
+    include Word::ImageFunctions
+
     attr_accessor :group_generation_options, :form_xml_def
 
     def initialize(field_identifier, field_value, options_string, form_xml_def=nil)

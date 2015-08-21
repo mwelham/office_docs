@@ -2,9 +2,10 @@ require 'active_support/core_ext/hash/indifferent_access'
 require 'active_support/core_ext/object/blank'
 require 'action_view'
 
-Dir[File.join("./lib/office/word/placeholder_evaluator", "**/*.rb")].sort_by {|path| path.split("/").length }.each do |f|
-  require f
-end
+require 'office/word/placeholder_evaluator/shared/image_functions'
+
+require 'office/word/placeholder_evaluator/placeholder'
+require 'office/word/placeholder_evaluator/group_placeholder'
 
 include ActionView::Helpers::NumberHelper
 
@@ -19,7 +20,6 @@ module Word
       self.render_options = {}
     end
 
-
     #Global options is a bit of a hack - its stuff passed in from the outside world, like xml_def
     def evaluate(data={}, global_options={})
       return {replacement: "", render_options: {}} if data.blank?
@@ -29,12 +29,14 @@ module Word
       field_value = get_value_from_field_identifier(field_identifier, data, global_options)
 
       placeholder = if is_group_answer?(field_value)
-        Placeholder.new(field_identifier, field_value, field_options)
+        Word::GroupPlaceholder.new(field_identifier, field_value, field_options, global_options[:form_xml_def])
       else
-        GroupPlaceholder.new(field_identifier, field_value, field_options, global_options[:form_xml_def])
+        Word::Placeholder.new(field_identifier, field_value, field_options)
       end
+      replacement = placeholder.replacement
+      render_options = placeholder.render_options
 
-      return {replacement: placeholder.replacement, render_options: placeholder.render_options}
+      return {replacement: replacement, render_options: render_options}
     end
 
     def get_value_from_field_identifier(field_identifier, data, options={})

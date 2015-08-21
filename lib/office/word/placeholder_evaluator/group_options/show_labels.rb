@@ -1,6 +1,6 @@
 module Word
   module GroupOptions
-    class ShowLables < Word::GroupOption
+    class ShowLabels < Word::GroupOption
       def apply_option
         if params.downcase == 'false'
           placeholder.group_generation_options[:show_labels] = false

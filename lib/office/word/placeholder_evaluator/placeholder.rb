@@ -1,4 +1,16 @@
 require 'rmagick'
+require 'office/word/placeholder_evaluator/option'
+require 'office/word/placeholder_evaluator/group_option'
+
+# require all the options
+Dir[File.join(File.dirname(__FILE__) + '/options', "**/*.rb")].each do |f|
+  require f
+end
+
+# require all the group options
+Dir[File.join(File.dirname(__FILE__) + '/group_options', "**/*.rb")].each do |f|
+  require f
+end
 
 module Word
   class Placeholder
@@ -21,6 +33,26 @@ module Word
         end
         self.final_value = self.field_value
       end
+    end
+
+    def is_text_answer?(value = self.field_value)
+      value.kind_of?(String) || value.kind_of?(Numeric) || value.kind_of?(Date) || value.kind_of?(Time) || value.kind_of?(DateTime)
+    end
+
+    def is_image_answer?(value = self.field_value)
+      value.kind_of?(Magick::Image)
+    end
+
+    def is_map_answer?(value = self.field_value)
+      value.is_a?(Array) && value.first.present? && value.first.is_a?(Magick::Image)
+    end
+
+    def is_group_answer?(value = self.field_value)
+      self.class.is_group_answer?(value)
+    end
+
+    def self.is_group_answer?(value)
+      value.kind_of?(Array) && (value.empty? || value.first.kind_of?(Hash))
     end
 
     private
@@ -62,24 +94,5 @@ module Word
       results
     end
 
-    def is_text_answer?(value = self.field_value)
-      value.kind_of?(String) || value.kind_of?(Numeric) || value.kind_of?(Date) || value.kind_of?(Time) || value.kind_of?(DateTime)
-    end
-
-    def is_image_answer?(value = self.field_value)
-      value.kind_of?(Magick::Image)
-    end
-
-    def is_map_answer?(value = self.field_value)
-      value.is_a?(Array) && value.first.present? && value.first.is_a?(Magick::Image)
-    end
-
-    def is_group_answer?(value = self.field_value)
-      self.class.is_group_answer?(value)
-    end
-
-    def self.is_group_answer?(value)
-      value.kind_of?(Array) && (value.empty? || value.first.kind_of?(Hash))
-    end
   end
 end
