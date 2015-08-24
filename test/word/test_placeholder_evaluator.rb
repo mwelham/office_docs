@@ -58,7 +58,7 @@ class PlaceholderEvaluatorTest < Test::Unit::TestCase
     begin
     placeholder = Word::GroupPlaceholder.new("test_field", field_value, options.join(','))
     rescue => e
-      assert e.message == "Unknown option weo used in the placeholder for test_field."
+      assert e.message == "Unknown option weo used in the placeholder for test_field"
     end
   end
 
@@ -74,6 +74,6 @@ class PlaceholderEvaluatorTest < Test::Unit::TestCase
   def test_change_multi_select_to_array
     placeholder = Word::Placeholder.new('test',"one,two,three",'each_answer_on_new_line')
     results = placeholder.replacement
-    assert results == ["one", "two", "three"]
+    assert results == "one\ntwo\nthree"
   end
 end

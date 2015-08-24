@@ -40,11 +40,11 @@ module Word
     end
 
     def is_image_answer?(value = self.field_value)
-      value.kind_of?(Magick::Image)
+      value.kind_of?(Magick::Image) || value.is_a?(Magick::ImageList)
     end
 
     def is_map_answer?(value = self.field_value)
-      value.is_a?(Array) && value.first.present? && value.first.is_a?(Magick::Image)
+      value.is_a?(Array) && value.first.present? && (value.first.is_a?(Magick::Image) || value.first.is_a?(Magick::ImageList))
     end
 
     def is_group_answer?(value = self.field_value)
