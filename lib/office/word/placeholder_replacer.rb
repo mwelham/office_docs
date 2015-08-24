@@ -13,7 +13,11 @@ module Word
       replacement = replacement_result[:replacement]
       render_options = replacement_result[:render_options]
 
-      local_options = options.deep_dup.merge(render_options)
+      if options.respond_to?(:deep_dup)
+        local_options = options.deep_dup.merge(render_options)
+      else
+        local_options = options.dup.merge(render_options)
+      end
 
       source_text = placeholder[:placeholder_text]
 
@@ -33,8 +37,9 @@ module Word
 
     def get_replacement(placeholder, data, options = {})
       evaluator = Word::PlaceholderEvaluator.new(placeholder)
-      replacement = evaluator.evaluate(data, options)
-      render_options = evaluator.render_options
+      replacement_settings = evaluator.evaluate(data, options)
+      replacement = replacement_settings[:replacement]
+      render_options = replacement_settings[:render_options]
       {replacement: replacement, render_options: render_options}
     end
   end
