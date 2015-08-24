@@ -26,7 +26,8 @@ module Word
       begin
         option_class = "#{options_module}::#{option_class}".constantize
       rescue NameError
-        raise "Unknown option #{option} used in the placeholder for #{placeholder.field_identifier}"
+        #Ignoring bad options for now - maybe something to do in evaluate...
+        #raise "Unknown option #{option} used in the placeholder for #{placeholder.field_identifier}"
       end
     end
 
