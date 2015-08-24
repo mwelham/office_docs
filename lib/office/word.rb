@@ -4,11 +4,12 @@ require 'office/package'
 require 'office/constants'
 require 'office/errors'
 require 'office/logger'
+require 'office/word/template'
 
 module Office
   class WordDocument < Package
     attr_accessor :main_doc
-    
+
     def initialize(filename)
       super(filename)
 
@@ -90,10 +91,15 @@ module Office
       end
     end
 
+    def render_template(data, options = {})
+      template_renderer = Word::Template.new(self)
+      template_renderer.render(data, options)
+    end
+
     def create_body_fragments(item, options = {})
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
-        [ "<w:p>#{create_image_run_fragment(item)}</w:p>" ]
+        [ "<w:p>#{create_image_run_fragment(item, options)}</w:p>" ]
       when item.is_a?(Hash)
         [ create_table_fragment(item, options) ]
       when item.is_a?(Array)
@@ -103,7 +109,7 @@ module Office
       end
     end
 
-    def create_image_run_fragment(image)
+    def create_image_run_fragment(image, options = {})
       prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
       identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
@@ -111,7 +117,14 @@ module Office
       part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
       relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
 
-      Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+      image_fragment = Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+
+      hyperlink = options[:hyperlink]
+      if hyperlink.present?
+        hyperlink_relationship_id = @main_doc.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
+        image_fragment.gsub!("</wp:docPr>", %|<a:hlinkClick xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" r:id="#{hyperlink_relationship_id}"/></wp:docPr>|)
+      end
+      image_fragment
     end
 
     def create_table_fragment(hash, options = {})
@@ -119,19 +132,31 @@ module Office
       return "" if c_count == 0
 
       c_index = 0
-      fragment = "<w:tbl>#{create_table_properties_fragment(c_count, options)}<w:tr>"
-      hash.keys.each do |header|
-        column_properties = create_column_properties_fragment(c_index, c_count, options)
-        c_index += 1
-        encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
-        fragment << "<w:tc>#{column_properties}<w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+      fragment = "<w:tbl>#{create_table_properties_fragment(c_count, options)}"
+      if options[:no_header_row] != true
+        fragment << "<w:tr>"
+        hash.keys.each do |header|
+          column_properties = create_column_properties_fragment(c_index, c_count, options)
+          c_index += 1
+          encoded_header = Nokogiri::XML::Document.new.encode_special_chars(header.to_s)
+          fragment << create_table_cell_fragment(encoded_header, 0, {column_properties: column_properties})
+          #<< "<w:tc>#{column_properties}<w:p><w:r><w:t>#{encoded_header}</w:t></w:r></w:p></w:tc>"
+        end
+        fragment << "</w:tr>"
       end
-      fragment << "</w:tr>"
 
       r_count = hash.values.inject(0) { |max, value| [max, value.is_a?(Array) ? value.length : (value.nil? ? 0 : 1)].max }
       0.upto(r_count - 1).each do |i|
         fragment << "<w:tr>"
-        hash.values.each { |v| fragment << create_table_cell_fragment(v, i) }
+        hash.values.each_with_index do |v, c_index|
+          column_properties =  if options[:no_header_row] == true && i == 0
+            create_column_properties_fragment(c_index, c_count, options)
+          else
+            ""
+          end
+
+          fragment << create_table_cell_fragment(v, i, {column_properties: column_properties})
+        end
         fragment << "</w:tr>"
       end
 
@@ -160,7 +185,7 @@ module Office
         properties << '<w:tblGrid>'
         (column_count - 1).times { |i| properties << "<w:gridCol w:w=\"#{column_width(i, column_count)}\"/>" }
         properties << "<w:gridCol w:w=\"#{column_width(column_count - 1, column_count)}\"/>"
-        properties << '</w:tblGrid>'        
+        properties << '</w:tblGrid>'
       end
 
       properties
@@ -187,7 +212,7 @@ module Office
       end
     end
 
-    def create_table_cell_fragment(values, index)
+    def create_table_cell_fragment(values, index, options={})
       item = case
       when (!values.is_a?(Array))
         index != 0 || values.nil? ? "" : values
@@ -200,7 +225,9 @@ module Office
       xml = create_body_fragments(item).join
       # Word vaildation rules seem to require a w:p immediately before a /w:tc
       xml << "<w:p/>" unless xml.end_with?("<w:p/>") or xml.end_with?("</w:p>")
-      "<w:tc>#{xml}</w:tc>"
+
+      column_properties = options[:column_properties] || ""
+      "<w:tc>#{column_properties}#{xml}</w:tc>"
     end
 
     def create_multiple_fragments(array, options = {})
@@ -248,7 +275,7 @@ module Office
 
     def plain_text
       text = ""
-      @paragraphs.each do |p| 
+      @paragraphs.each do |p|
         p.runs.each { |r| text << r.text unless r.text.nil? }
         text << "\n"
       end
@@ -298,7 +325,7 @@ module Office
     attr_accessor :body_node
     attr_accessor :headers
     attr_accessor :footers
-    
+
     def initialize(word_doc, part)
       @parent = word_doc
       @part = part
@@ -306,7 +333,7 @@ module Office
       parse_headers
       parse_footers
     end
-    
+
     def parse_xml
       xml_doc = @part.xml
       @body_node = xml_doc.at_xpath("/w:document/w:body")
@@ -340,7 +367,7 @@ module Office
       # It's possible to batch create drawing objects and insert them into the doc
       # in one go. So we also need to track the largest id we've issued so far.
       @last_created_unused_id = [largest_unused_in_xml, (@last_created_unused_id || 0) + 1].max
-      @last_created_unused_id 
+      @last_created_unused_id
     end
 
     def debug_dump
@@ -356,7 +383,7 @@ module Office
           @headers[i].debug_dump_plain_text("Header #{i + 1}")
         end
       end
-        
+
       if @footers.empty?
         Logger.debug_dump "(no footers present for document)"
         Logger.debug_dump ""
@@ -377,7 +404,7 @@ module Office
     def initialize(header_part, parent_doc)
       @part = header_part
       @main_doc = parent_doc
- 
+
       @header_node = part.xml.at_xpath("/w:hdr")
       raise PackageError.new("Word document '#{@filename}' is missing hdr root in header XML") if @header_node.nil?
       parse_paragraphs(@header_node)
@@ -403,7 +430,7 @@ module Office
     attr_accessor :node
     attr_accessor :runs
     attr_accessor :document
-    
+
     def initialize(p_node, parent)
       @node = p_node
       @document = parent
@@ -451,7 +478,7 @@ module Office
         i += replacement_text.length
       end
     end
-    
+
     def replace_all_with_empty_runs(source_text)
       return [] if source_text.nil? or source_text.empty?
 
@@ -527,7 +554,7 @@ module Office
       result += original[(index + length)..-1] unless index + length == original.length
       result
     end
-    
+
     def clear_runs(first, last)
       return 0 unless first <= last
       chars_cleared = 0
@@ -564,16 +591,16 @@ module Office
       runs.delete_at(r_index)
     end
   end
-  
+
   class Run
     attr_accessor :node
     attr_accessor :text_range
     attr_accessor :paragraph
-    
+
     def initialize(r_node, parent_p)
       @node = r_node
       @paragraph = parent_p
-      read_text_range
+      read_text_ranges
     end
 
     def replace_with_run_fragment(fragment)
@@ -581,7 +608,7 @@ module Office
       new_node = new_node.first if new_node.is_a? Nokogiri::XML::NodeSet
       @node.remove
       @node = new_node
-      read_text_range
+      read_text_ranges
     end
 
     def replace_with_body_fragments(fragments)
@@ -597,35 +624,63 @@ module Office
       end
     end
 
-    def read_text_range
-      t_node = @node.at_xpath("w:t")
-      @text_range = t_node.nil? ? nil : TextRange.new(t_node)
+    def read_text_ranges
+      @text_ranges = @node.xpath("w:t").map{|t_node| TextRange.new(t_node) }
     end
 
     def text
-      @text_range.nil? ? nil : @text_range.text
+      @text_ranges.nil? || @text_ranges.length == 0 ? nil : @text_ranges.map(&:text).join("\n")
     end
-    
+
+    def remove_extra_text_nodes
+      @text_ranges[1..-1].each do |n|
+        n.node.remove
+      end
+      @text_ranges = Array(@text_ranges.first)
+    end
+
+    def remove_line_break_nodes
+      @node.xpath("w:br").each{|br_node| br_node.remove }
+    end
+
     def text=(text)
+      remove_line_break_nodes
+      remove_extra_text_nodes
+
       if text.nil?
-        @text_range.node.remove unless @text_range.nil?
-        @text_range = nil
-      elsif @text_range.nil?
-        t_node = Nokogiri::XML::Node.new("w:t", @node.document)
-        t_node.content = text
-        @node.add_child(t_node)
-        @text_range = TextRange.new(t_node)
+        @text_ranges.first.node.remove unless @text_ranges.first.nil?
+        @text_ranges = []
       else
-        @text_range.text = text
+        ends_with_new_line = text[-1] == "\n"
+        texts = text.length == 0 ? [""] : text.split("\n")
+
+        texts.each_with_index do |text, i|
+          text_range = @text_ranges[i]
+          if text_range.nil?
+            t_node = Nokogiri::XML::Node.new("w:t", @node.document)
+            @node.add_child(t_node)
+            text_range = TextRange.new(t_node)
+            @text_ranges << text_range
+          end
+
+          text_range.text = text
+
+          if(i != (texts.length - 1) || ends_with_new_line)
+            @node.add_child(Nokogiri::XML::Node.new("w:br", @node.document))
+          end
+        end
       end
     end
-    
+
     def text_length
-      @text_range.nil? || @text_range.text.nil? ? 0 : @text_range.text.length
+      full_text = self.text
+      full_text.nil? ? 0 : full_text.length
     end
-    
+
     def clear_text
-      @text_range.text = "" unless @text_range.nil?
+      remove_line_break_nodes
+      remove_extra_text_nodes
+      @text_ranges.first.text = "" unless @text_ranges.first.nil?
     end
 
     def adjust_for_right_to_left_text
@@ -640,7 +695,7 @@ module Office
 
       rPr_node = @node.at_xpath("w:rPr")
       if rPr_node.nil?
-        rPr_node = @text_range.node.add_previous_sibling(Nokogiri::XML::Element.new("w:rPr", @node.document))
+        rPr_node = @text_ranges.first.node.add_previous_sibling(Nokogiri::XML::Element.new("w:rPr", @node.document))
       end
 
       rtl_node = rPr_node.at_xpath("w:rtl")
@@ -661,15 +716,15 @@ module Office
 
   class TextRange
     attr_accessor :node
-    
+
     def initialize(t_node)
       @node = t_node
     end
-    
+
     def text
       @node.text
     end
-    
+
     def text=(text)
       if text.nil? or text.empty?
         @node.remove_attribute("space")

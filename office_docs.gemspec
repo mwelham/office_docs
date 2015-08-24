@@ -11,5 +11,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency("nokogiri", ">= 1.5.2")
   spec.add_dependency("rmagick", ">= 2.12.2")
   spec.add_dependency("rubyzip", ">= 1.0.0")
+  spec.add_dependency("activesupport")
+  spec.add_dependency("actionview")
   spec.add_development_dependency("equivalent-xml", ">= 0.2.9")
+  spec.add_development_dependency("pry")
 end

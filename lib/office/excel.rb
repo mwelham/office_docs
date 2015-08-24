@@ -8,7 +8,7 @@ module Office
     attr_accessor :workbook_part
     attr_accessor :shared_strings
     attr_accessor :sheets
-    
+
     def initialize(filename)
       super(filename)
 
@@ -43,7 +43,7 @@ module Office
       shared_strings_part = @workbook_part.get_relationship_targets(EXCEL_SHARED_STRINGS_TYPE).first
       @shared_strings = SharedStringTable.new(shared_strings_part) unless shared_strings_part.nil?
     end
-    
+
     def parse_workbook_xml
       @sheets_node = @workbook_part.xml.at_xpath("/xmlns:workbook/xmlns:sheets")
       raise PackageError.new("Excel workbook '#{@filename}' is missing sheets container") if @sheets_node.nil?
@@ -92,11 +92,11 @@ module Office
 
       rows = @sheets.collect { |s| ["#{s.name}", "#{s.id}", "#{s.worksheet_part.name}"] }
       Logger.debug_dump_table("Excel Workbook Sheets", ["Name", "Sheet ID", "Part"], rows)
-      
+
       @sheets.each { |s| s.sheet_data.debug_dump }
     end
   end
-  
+
   class Sheet
     attr_accessor :workbook_node
     attr_accessor :name
@@ -109,7 +109,7 @@ module Office
       @name = sheet_node["name"]
       @id = sheet_node["sheetId"].to_i
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
-      
+
       data_node = @worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
       raise PackageError.new("Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data") if data_node.nil?
       @sheet_data = SheetData.new(data_node, self, workbook)
@@ -118,11 +118,11 @@ module Office
     def add_row(data)
       @sheet_data.add_row(data)
     end
-    
+
     def to_csv(separator = ',')
       @sheet_data.to_csv(separator)
     end
-    
+
     def self.add_node(parent_node, name, sheet_id, relationship_id)
       sheet_node = parent_node.document.create_element("sheet")
       parent_node.add_child(sheet_node)
@@ -132,7 +132,7 @@ module Office
       sheet_node
     end
   end
-  
+
   class SheetData
     attr_accessor :node
     attr_accessor :sheet
@@ -180,10 +180,10 @@ module Office
         data[r.number] = r.to_ary.insert(0, (r.number + 1).to_s)
         column_count = [column_count, data[r.number].length].max
       end
-      
+
       headers = [ "" ]
       0.upto(column_count - 2) { |i| headers << Cell.column_name(i) }
-      
+
       Logger.debug_dump_table("Excel Sheet #{@sheet.worksheet_part.name}", headers, data)
     end
   end
@@ -193,13 +193,13 @@ module Office
     attr_accessor :number
     attr_accessor :spans
     attr_accessor :cells
-    
+
     def initialize(row_node, string_table)
       @node = row_node
-      
+
       @number = row_node["r"].to_i - 1
       @spans = row_node["spans"]
-      
+
       @cells = []
       node.xpath("xmlns:c").each { |c| @cells << Cell.new(c, string_table) }
     end
@@ -207,10 +207,10 @@ module Office
     def self.create_node(document, number, data, string_table)
       row_node = document.create_element("row")
       row_node["r"] = number.to_s unless number.nil?
-      
+
       unless data.nil? or data.length == 0
         row_node["spans"] = "1:#{data.length}"
-        0.upto(data.length - 1) do |i| 
+        0.upto(data.length - 1) do |i|
           c_node = Cell.create_node(document, number, i, data[i], string_table)
           row_node.add_child(c_node)
         end
@@ -225,7 +225,7 @@ module Office
         ary.push("") until ary.length > c.column_num
         ary[c.column_num] = c.value
       end
-      ary 
+      ary
     end
   end
 
@@ -236,7 +236,7 @@ module Office
     attr_accessor :data_type
     attr_accessor :value_node
     attr_accessor :shared_string
- 
+
     def initialize(c_node, string_table)
       @node = c_node
       @location = c_node["r"]
@@ -255,11 +255,11 @@ module Office
         @shared_string.add_cell(self)
       end
     end
-    
+
     def self.create_node(document, row_number, index, value, string_table)
       cell_node = document.create_element("c")
       cell_node["r"] = "#{column_name(index)}#{row_number}"
-      
+
       value_node = document.create_element("v")
       cell_node.add_child(value_node)
 
@@ -271,11 +271,11 @@ module Office
           value_node.content = string_table.id_for_text(value.to_s)
         end
       end
-      
+
       cell_node
     end
-    
-    
+
+
     def is_string?
       data_type == "s"
     end
@@ -296,20 +296,20 @@ module Office
       1.upto(letters.length - 1) { |i| num += (letters[i].ord - 'a'.ord + 1) * (26 ** i) }
       num
     end
-    
+
     def row_num
       /[a-z]+(\d+)/i.match(@location)[1].to_i - 1
     end
-    
+
     def value
       return nil if @value_node.nil?
       is_string? ? @shared_string.text : @value_node.content
     end
   end
-  
+
   class SharedStringTable
     attr_accessor :node
-    
+
     def initialize(part)
       @node = part.xml.at_xpath("/xmlns:sst")
       # TODO Keep these up-to-date
@@ -327,36 +327,36 @@ module Office
       @strings_by_text[string.text] = string
       string.id
     end
-    
+
     def get_string_by_id(id)
       @strings_by_id[id]
     end
 
     def id_for_text(text)
       return @strings_by_text[text].id if @strings_by_text.has_key? text
-      
+
       si = node.document.create_element("si")
       t = node.document.create_element("t")
       t.content = text
       si.add_child(t)
       @node.add_child(si)
-      
+
       parse_si_node(si)
     end
-    
+
     def debug_dump
       rows = @strings_by_id.values.collect do |s|
         cells = s.cells.collect { |c| c.location }
         ["#{s.id}", "#{s.text}", "#{cells.join(', ')}"]
       end
-      
+
       footer = ","
       footer << "  count = #{@count_attr.value}" unless @count_attr.nil?
       footer << "  unique count = #{@unique_count_attr.value}" unless @unique_count_attr.nil?
       Logger.debug_dump_table("Excel Workbook Shared Strings", ["ID", "Text", "Cells"], rows, footer)
     end
   end
-  
+
   class SharedString
     attr_accessor :node
     attr_accessor :text_node
@@ -369,11 +369,11 @@ module Office
       @text_node = si_node.at_xpath("xmlns:t")
       @cells = []
     end
-    
+
     def text
-      text_node.content
+      text_node.nil? ? nil : text_node.content
     end
-    
+
     def add_cell(cell)
       @cells << cell
     end
