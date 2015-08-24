@@ -76,4 +76,10 @@ class PlaceholderEvaluatorTest < Test::Unit::TestCase
     results = placeholder.replacement
     assert results == "one\ntwo\nthree"
   end
+
+  def test_change_multi_select_to_array
+    placeholder = Word::Placeholder.new('test',"2015-06-01",'date_time_format: %d %B %Y')
+    result = placeholder.replacement
+    assert result == "01 June 2015"
+  end
 end
