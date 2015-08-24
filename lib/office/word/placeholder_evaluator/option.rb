@@ -16,8 +16,12 @@ module Word
         params = option
         option = placeholder.is_map_answer? ? "map_size" : "image_size"
       end
-
-      get_option_class(placeholder,option).new(placeholder, params)
+      option_class = get_option_class(placeholder,option)
+      if option_class.nil?
+        nil
+      else
+        option_class.new(placeholder, params)
+      end
     end
 
     def self.get_option_class(placeholder,option)
@@ -26,8 +30,10 @@ module Word
       begin
         option_class = "#{options_module}::#{option_class}".constantize
       rescue NameError
-        #Ignoring bad options for now - maybe something to do in evaluate...
         #raise "Unknown option #{option} used in the placeholder for #{placeholder.field_identifier}"
+
+        #Ignoring bad options for now - maybe something to do in evaluate...
+        return nil
       end
     end
 

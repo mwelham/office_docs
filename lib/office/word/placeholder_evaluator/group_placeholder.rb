@@ -32,7 +32,7 @@ module Word
 
     def parse_options(options_in_string_format)
       whole_options = split_options_on_commas(options_in_string_format)
-      option_objects = whole_options.map{|o| Word::GroupOption.build_option_object(o, self)}
+      option_objects = whole_options.map{|o| Word::GroupOption.build_option_object(o, self)}.compact
     end
 
     def create_list_for_group(form_xml_def, group_id, values, options = {}, indent = "")
