@@ -26,7 +26,7 @@ module Word
       placeholder_text = placeholder[:placeholder_text]
       field_identifier, field_options = placeholder_text[2..-3].split("|").map(&:strip) #2,-3 to get rid of {{ and }}
 
-      field_value = get_value_from_field_identifier(field_identifier, data, global_options)
+      field_value = Word::Template.get_value_from_field_identifier(field_identifier, data, global_options)
 
       placeholder = if is_group_answer?(field_value)
         Word::GroupPlaceholder.new(field_identifier, field_value, field_options, global_options[:form_xml_def])
@@ -38,21 +38,6 @@ module Word
 
       return {replacement: replacement, render_options: render_options}
     end
-
-    def get_value_from_field_identifier(field_identifier, data, options={})
-      result = data.with_indifferent_access
-      field_recurse = field_identifier.split('.')
-      field_recurse.each do |identifier|
-        if result.is_a? Array
-          result = result.length == 1 ? result.first : {}
-        end
-
-        result = result[identifier]
-        break if result == nil
-      end
-      result
-    end
-
 
     def is_group_answer?(value)
       value.kind_of?(Array) && (value.empty? || value.first.kind_of?(Hash))

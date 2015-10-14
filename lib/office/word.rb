@@ -455,6 +455,13 @@ module Office
       r
     end
 
+    def add_text_run_before(run, text)
+      preceding_r_node = @node.add_child(@node.document.create_element("r"))
+      populate_r_node(preceding_r_node, text)
+      run.node.add_previous_sibling(preceding_r_node)
+      @runs.insert(@runs.index(run), Run.new(preceding_r_node, self))
+    end
+
     def populate_r_node(r_node, text)
       t_node = r_node.add_child(@node.document.create_element("t"))
       t_node["xml:space"] = "preserve"

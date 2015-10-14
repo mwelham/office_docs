@@ -7,19 +7,19 @@ require 'equivalent-xml'
 require 'pry'
 
 class TemplateTest < Test::Unit::TestCase
-  SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'template', 'simple_replacement_test.docx')
-  BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'broken_replacement_test.docx')
-  BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'really_big_template.docx')
-  MENICON_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'menicon_template.docx')
+  SIMPLE_TEST_DOC_PATH = File.join(File.dirname(__FILE__),'..', 'content', 'template', 'placeholders', 'simple_replacement_test.docx')
+  BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'broken_replacement_test.docx')
+  BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'really_big_template.docx')
+  MENICON_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'menicon_template.docx')
 
-  TEMPLATE_ALL_OPTIONS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'Template_Test_Form.docx')
+  TEMPLATE_ALL_OPTIONS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'Template_Test_Form.docx')
 
   def test_get_placeholders
     doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
     template = Word::Template.new(doc)
     placeholders = template.get_placeholders
 
-    assert placeholders == [{:placeholder_text=>"{{test_food_1}}",
+    correct_placeholder_info = [{:placeholder_text=>"{{test_food_1}}",
                              :paragraph_index=>2,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>8}},
@@ -39,6 +39,13 @@ class TemplateTest < Test::Unit::TestCase
                              :paragraph_index=>8,
                              :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
                              :end_of_placeholder=>{:run_index=>2, :char_index=>1}}]
+
+    correct_placeholder_info.each do |placeholder_info|
+      target = placeholders.find{|p| p[:placeholder_text] == placeholder_info[:placeholder_text]}
+      assert target[:paragraph_index] == placeholder_info[:paragraph_index]
+      assert target[:beginning_of_placeholder] == placeholder_info[:beginning_of_placeholder]
+      assert target[:end_of_placeholder] == placeholder_info[:end_of_placeholder]
+    end
   end
 
   def test_broken_template
@@ -119,7 +126,7 @@ class TemplateTest < Test::Unit::TestCase
     assert File.file?(filename)
     assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'correct_render', 'test_template_all_options.docx'))
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_template_all_options.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
 
