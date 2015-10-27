@@ -640,10 +640,14 @@ module Office
     end
 
     def remove_extra_text_nodes
-      @text_ranges[1..-1].each do |n|
-        n.node.remove
+      if @text_ranges.any?
+        @text_ranges[1..-1].each do |n|
+          n.node.remove
+        end
+        @text_ranges = Array(@text_ranges.first)
+      else
+        nil
       end
-      @text_ranges = Array(@text_ranges.first)
     end
 
     def remove_line_break_nodes
