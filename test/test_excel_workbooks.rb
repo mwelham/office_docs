@@ -5,6 +5,7 @@ require 'office_docs'
 class ExcelWorkbooksTest < Test::Unit::TestCase
   SIMPLE_TEST_WORKBOOK_PATH = File.join(File.dirname(__FILE__), 'content', 'simple_test.xlsx')
   LARGE_TEST_WORKBOOK_PATH = File.join(File.dirname(__FILE__), 'content', 'large_test.xlsx')
+  OPENXML_TEST_WORKBOOK_PATH = File.join(File.dirname(__FILE__), 'content', 'openxml_generated.xlsx')
 
   def test_parse_simple_workbook
     book = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
@@ -133,5 +134,21 @@ class ExcelWorkbooksTest < Test::Unit::TestCase
     assert_equal book.sheets.count, 1
     assert_equal book.sheets.first, sheet_2
     assert_equal book.get_part_names.count, initial_part_count
+  end
+
+  def test_parsing_openxml_generated
+    book = Office::ExcelWorkbook.new(OPENXML_TEST_WORKBOOK_PATH)
+    assert_equal book.sheets.count, 1
+    assert_equal book.sheets.first.name, "Sheet 1"
+    assert_equal book.sheets.first.sheet_data.rows.count, 3
+    assert_equal book.sheets.first.sheet_data.rows[0].cells.count, 2
+    assert_equal book.sheets.first.sheet_data.rows[1].cells.count, 2
+    assert_equal book.sheets.first.sheet_data.rows[2].cells.count, 2
+    assert_equal book.sheets.first.sheet_data.rows[0].cells[0].value, "Person"
+    assert_equal book.sheets.first.sheet_data.rows[0].cells[1].value, "Age"
+    assert_equal book.sheets.first.sheet_data.rows[1].cells[0].value, "Person 0001"
+    assert_equal book.sheets.first.sheet_data.rows[1].cells[1].value, "20"
+    assert_equal book.sheets.first.sheet_data.rows[2].cells[0].value, "Person 0002"
+    assert_equal book.sheets.first.sheet_data.rows[2].cells[1].value, "20"
   end
 end

@@ -119,7 +119,8 @@ module Office
     end
 
     def remove_content_type_override(name)
-      nodes = @content_types_part.xml.root.xpath("/xmlns:Types/xmlns:Override[@PartName='#{name}']")
+      ns_prefix = Package.xpath_ns_prefix(@content_types_part.xml.root)
+      nodes = @content_types_part.xml.root.xpath("/#{ns_prefix}:Types/#{ns_prefix}:Override[@PartName='#{name}']")
       nodes.each { |n| n.remove } unless nodes.nil?
       @overriden_content_types.delete(name.downcase)
     end
@@ -164,8 +165,12 @@ module Office
       @relationships.debug_dump unless @relationships.nil?
       @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
     end
+
+    def self.xpath_ns_prefix(node)
+      node.nil? or node.namespace.nil? or node.namespace.prefix.blank? ? 'xmlns' : node.namespace.prefix 
+    end
   end
-  
+
   class PackageComparer
     def self.are_equal?(path_1, path_2)
       package_1 = Package.new(path_1)

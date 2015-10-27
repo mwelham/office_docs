@@ -212,8 +212,9 @@ module Office
     def remove(part)
       to_remove = []
       @relationships_by_id.values.each { |r| to_remove << r if r.target_part == part }
+      ns_prefix = Package.xpath_ns_prefix(@xml.root)
       to_remove.each do |r|
-        @xml.root.at_xpath("/xmlns:Relationships/xmlns:Relationship[@Id='#{r.id}']").remove
+        @xml.root.at_xpath("/#{ns_prefix}:Relationships/#{ns_prefix}:Relationship[@Id='#{r.id}']").remove
         @relationships_by_id.delete(r.id)
       end
     end
