@@ -52,10 +52,11 @@ module Word
     def expand_loop(start_index, end_index)
       start_placeholder = placeholders[start_index]
       end_placeholder = placeholders[end_index]
+      inbetween_placeholders = placeholders[(start_index+1)..(end_index-1)]
       #puts "Expanding from\n #{start_placeholder.inspect}\nto\n#{end_placeholder.inspect}\n\n"
       if start_placeholder[:paragraph_index] == end_placeholder[:paragraph_index]
         # if start and end are in the same paragraph
-        loop_inside_paragraph(start_placeholder, end_placeholder)
+        loop_inside_paragraph(start_placeholder, end_placeholder, inbetween_placeholders)
         # Break runs on start + end
         # loop runs inbetween
       elsif false
@@ -71,11 +72,11 @@ module Word
       end
     end
 
-    def loop_inside_paragraph(start_placeholder, end_placeholder)
+    def loop_inside_paragraph(start_placeholder, end_placeholder, inbetween_placeholders)
       paragraph = start_placeholder[:paragraph_object]
 
-      start_run = paragraph.replace_all_with_empty_runs(start_placeholder[:placeholder_text]).last
-      end_run = paragraph.replace_all_with_empty_runs(end_placeholder[:placeholder_text]).first
+      start_run = paragraph.replace_first_with_empty_runs(start_placeholder[:placeholder_text]).last
+      end_run = paragraph.replace_first_with_empty_runs(end_placeholder[:placeholder_text]).first
 
       from_run = paragraph.runs.index(start_run) + 1
       to_run = paragraph.runs.index(end_run) - 1
@@ -83,16 +84,39 @@ module Word
       inbetween_runs = paragraph.runs[from_run..to_run]
       #This is the 0 run of our loop.
       # Get a set of text for the duplicate runs
-      run_texts = inbetween_runs.map(&:text)
+      #run_texts = inbetween_runs.map(&:text)
       for_loop_placeholder_info = parse_for_loop_placeholder(start_placeholder[:placeholder_text])
 
       field_data = for_loop_placeholder_info[:data].presence || []
       field_data[1..-1].each_with_index do |data_set, i|
-        run_texts.each do |run_text|
-          paragraph.add_text_run_before(end_run, run_text.to_s)
+        new_run_set = generate_new_run_set(paragraph, inbetween_runs)
+        replace_variable_in_placeholders(i+1, for_loop_placeholder_info, inbetween_placeholders, paragraph, new_run_set)
+
+        new_run_set.each do |run|
+          paragraph.add_new_run_object_before_run(run, end_run)
         end
       end
       #Replace placeholders with extrapolated placeholders
+      replace_variable_in_placeholders(0, for_loop_placeholder_info, inbetween_placeholders, paragraph, inbetween_runs)
+    end
+
+    def generate_new_run_set(paragraph, runs)
+      new_run_set = []
+      runs.each do |r|
+        new_run_set << Office::Run.new(r.node.clone, paragraph)
+      end
+      new_run_set
+    end
+
+    def replace_variable_in_placeholders(index, for_loop_placeholder_info, placeholders, paragraph, inbetween_runs)
+      placeholders.each do |p|
+        placeholder_variable_matcher = /#{for_loop_placeholder_info[:variable]}\./
+        placeholder = p[:placeholder_text]
+        if placeholder.match(placeholder_variable_matcher)
+          new_placeholder = placeholder.gsub(placeholder_variable_matcher,"lolpies[#{index}]")
+          paragraph.replace_all_with_text(placeholder, new_placeholder, inbetween_runs)
+        end
+      end
     end
 
     def parse_for_loop_placeholder(placeholder)

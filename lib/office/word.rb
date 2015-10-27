@@ -462,6 +462,18 @@ module Office
       @runs.insert(@runs.index(run), Run.new(preceding_r_node, self))
     end
 
+    # New run adding stuff
+    def add_new_run_object_before_run(new_run_object, target_run_object)
+      target_run_object.node.add_previous_sibling(new_run_object.node)
+      @runs.insert(@runs.index(target_run_object), new_run_object)
+    end
+
+    def add_run_node_before_run_object(new_run_node, target_run_object)
+      target_run_object.node.add_previous_sibling(new_run_node)
+      @runs.insert(@runs.index(target_run_object), Run.new(new_run_node, self))
+    end
+    # end new run adding stuff
+
     def populate_r_node(r_node, text)
       t_node = r_node.add_child(@node.document.create_element("t"))
       t_node["xml:space"] = "preserve"
@@ -474,13 +486,13 @@ module Office
       r
     end
 
-    def replace_all_with_text(source_text, replacement_text)
+    def replace_all_with_text(source_text, replacement_text, runs = @runs)
       return if source_text.nil? or source_text.empty?
       replacement_text = "" if replacement_text.nil?
 
-      text = @runs.inject("") { |t, run| t + (run.text || "") }
+      text = runs.inject("") { |t, run| t + (run.text || "") }
       until (i = text.index(source_text, i.nil? ? 0 : i)).nil?
-        replace_in_runs(i, source_text.length, replacement_text)
+        replace_in_runs(i, source_text.length, replacement_text, runs)
         text = replace_in_text(text, i, source_text.length, replacement_text)
         i += replacement_text.length
       end
@@ -495,6 +507,17 @@ module Office
         empty_runs << replace_with_empty_run(i, source_text.length)
         text = replace_in_text(text, i, source_text.length, "")
       end
+      empty_runs
+    end
+
+    def replace_first_with_empty_runs(source_text)
+      return [] if source_text.nil? or source_text.empty?
+
+      empty_runs = []
+      text = @runs.inject("") { |t, run| t + (run.text || "") }
+      i = text.index(source_text, i.nil? ? 0 : i)
+      empty_runs << replace_with_empty_run(i, source_text.length)
+      text = replace_in_text(text, i, source_text.length, "")
       empty_runs
     end
 
@@ -529,7 +552,7 @@ module Office
       run
     end
 
-    def replace_in_runs(index, length, replacement)
+    def replace_in_runs(index, length, replacement, runs = @runs)
       total_length = 0
       ends = @runs.map { |r| total_length += r.text_length }
       first_index = ends.index { |e| e > index }
