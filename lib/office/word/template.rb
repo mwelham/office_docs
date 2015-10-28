@@ -101,7 +101,10 @@ module Word
         end
 
         result = result[identifier]
-        break if result == nil
+        if result == nil
+          result = ""
+          break
+        end
       end
       result
     end

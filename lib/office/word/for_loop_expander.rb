@@ -82,22 +82,22 @@ module Word
       to_run = paragraph.runs.index(end_run) - 1
 
       inbetween_runs = paragraph.runs[from_run..to_run]
-      #This is the 0 run of our loop.
-      # Get a set of text for the duplicate runs
-      #run_texts = inbetween_runs.map(&:text)
       for_loop_placeholder_info = parse_for_loop_placeholder(start_placeholder[:placeholder_text])
+      #This is the 0 run of our loop.
+      # Get a set of runs for the duplicate runs
+      duplicate_runs = generate_new_run_set(paragraph, inbetween_runs)
+      replace_variable_in_placeholders(0, for_loop_placeholder_info, inbetween_placeholders, paragraph, inbetween_runs)
 
       field_data = for_loop_placeholder_info[:data].presence || []
       field_data[1..-1].each_with_index do |data_set, i|
-        new_run_set = generate_new_run_set(paragraph, inbetween_runs)
+        new_run_set = generate_new_run_set(paragraph, duplicate_runs)
         replace_variable_in_placeholders(i+1, for_loop_placeholder_info, inbetween_placeholders, paragraph, new_run_set)
 
         new_run_set.each do |run|
           paragraph.add_new_run_object_before_run(run, end_run)
         end
       end
-      #Replace placeholders with extrapolated placeholders
-      replace_variable_in_placeholders(0, for_loop_placeholder_info, inbetween_placeholders, paragraph, inbetween_runs)
+
     end
 
     def generate_new_run_set(paragraph, runs)
@@ -108,13 +108,17 @@ module Word
       new_run_set
     end
 
-    def replace_variable_in_placeholders(index, for_loop_placeholder_info, placeholders, paragraph, inbetween_runs)
+    def replace_variable_in_placeholders(index, for_loop_placeholder_info, placeholders, paragraph, inbetween_runs=nil)
       placeholders.each do |p|
         placeholder_variable_matcher = /#{for_loop_placeholder_info[:variable]}\./
         placeholder = p[:placeholder_text]
         if placeholder.match(placeholder_variable_matcher)
-          new_placeholder = placeholder.gsub(placeholder_variable_matcher,"lolpies[#{index}]")
-          paragraph.replace_all_with_text(placeholder, new_placeholder, inbetween_runs)
+          new_placeholder = placeholder.gsub(placeholder_variable_matcher,"#{for_loop_placeholder_info[:data_pointer]}[#{index}].")
+          if inbetween_runs
+            paragraph.replace_all_with_text(placeholder, new_placeholder, inbetween_runs)
+          else
+            paragraph.replace_all_with_text(placeholder, new_placeholder)
+          end
         end
       end
     end

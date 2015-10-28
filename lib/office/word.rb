@@ -554,10 +554,10 @@ module Office
 
     def replace_in_runs(index, length, replacement, runs = @runs)
       total_length = 0
-      ends = @runs.map { |r| total_length += r.text_length }
+      ends = runs.map { |r| total_length += r.text_length }
       first_index = ends.index { |e| e > index }
 
-      first_run = @runs[first_index]
+      first_run = runs[first_index]
       index_in_run = index - (first_index == 0 ? 0 : ends[first_index - 1])
       if ends[first_index] >= index + length
         first_run.text = replace_in_text(first_run.text, index_in_run, length, replacement)
@@ -568,9 +568,9 @@ module Office
         first_run.adjust_for_right_to_left_text
 
         last_index = ends.index { |e| e >= index + length }
-        remaining_text = length - length_in_run - clear_runs((first_index + 1), (last_index - 1))
+        remaining_text = length - length_in_run - clear_runs((first_index + 1), (last_index - 1), runs)
 
-        last_run = last_index.nil? ? @runs.last : @runs[last_index]
+        last_run = last_index.nil? ? runs.last : runs[last_index]
         last_run.text = replace_in_text(last_run.text, 0, remaining_text, replacement[length_in_run..-1])
         last_run.adjust_for_right_to_left_text
       end
@@ -585,10 +585,10 @@ module Office
       result
     end
 
-    def clear_runs(first, last)
+    def clear_runs(first, last, runs = @runs)
       return 0 unless first <= last
       chars_cleared = 0
-      @runs[first..last].each do |r|
+      runs[first..last].each do |r|
         chars_cleared += r.text_length
         r.clear_text
       end
