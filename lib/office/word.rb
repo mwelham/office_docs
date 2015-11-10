@@ -155,7 +155,7 @@ module Office
             ""
           end
 
-          fragment << create_table_cell_fragment(v, i, {column_properties: column_properties})
+          fragment << create_table_cell_fragment(v, i, {column_properties: column_properties}, {no_header_row: options[:no_header_row]})
         end
         fragment << "</w:tr>"
       end
@@ -212,7 +212,7 @@ module Office
       end
     end
 
-    def create_table_cell_fragment(values, index, options={})
+    def create_table_cell_fragment(values, index, options={}, render_options={})
       item = case
       when (!values.is_a?(Array))
         index != 0 || values.nil? ? "" : values
@@ -222,7 +222,7 @@ module Office
         ""
       end
 
-      xml = create_body_fragments(item).join
+      xml = create_body_fragments(item, render_options).join
       # Word vaildation rules seem to require a w:p immediately before a /w:tc
       xml << "<w:p/>" unless xml.end_with?("<w:p/>") or xml.end_with?("</w:p>")
 
