@@ -261,6 +261,20 @@ module Office
       @paragraphs.last
     end
 
+    def remove_paragraph(paragraph)
+      p_index = @paragraphs.index(paragraph)
+      raise ArgumentError.new("Cannot remove paragraph from container to which it does not belong") if p_index.nil?
+
+      paragraph.node.remove
+      @paragraphs.delete_at(p_index)
+    end
+
+    def insert_new_paragraph_object_after_paragraph(target_paragraph_object, new_paragraph_object)
+
+      target_paragraph_object.node.add_next_sibling(new_paragraph_object.node)
+      paragraph_inserted_after(target_paragraph_object, new_paragraph_object)
+    end
+
     def paragraph_inserted_after(existing, additional)
       p_index = @paragraphs.index(existing)
       raise ArgumentError.new("Cannot find paragraph after which new one was inserted") if p_index.nil?
@@ -611,6 +625,8 @@ module Office
           r.paragraph = next_p
         end
       end
+      # returns newly created paragraph
+      next_p
     end
 
     def remove_run(run)

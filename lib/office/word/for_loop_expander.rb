@@ -1,3 +1,6 @@
+require 'office/word/for_loop_expanders/loop_in_paragraph'
+require 'office/word/for_loop_expanders/loop_over_paragraphs'
+
 module Word
   class ForLoopExpander
     attr_accessor :main_doc, :paragraphs, :data, :options, :placeholders
@@ -13,7 +16,6 @@ module Word
       self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       i = 0
       while i < placeholders.length
-        puts i
         start_placeholder = placeholders[i]
         if start_placeholder[:placeholder_text].include?("foreach")
           end_index = get_end_index(i)
@@ -56,9 +58,8 @@ module Word
       #puts "Expanding from\n #{start_placeholder.inspect}\nto\n#{end_placeholder.inspect}\n\n"
       if start_placeholder[:paragraph_index] == end_placeholder[:paragraph_index]
         # if start and end are in the same paragraph
-        loop_inside_paragraph(start_placeholder, end_placeholder, inbetween_placeholders)
-        # Break runs on start + end
-        # loop runs inbetween
+        looper = Word::ForLoopExpanders::LoopInParagraph.new(main_doc, data, options)
+        looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
       elsif false
         # else if start is in a table cell and end is in a different table cell
         # loop whole row
@@ -66,70 +67,10 @@ module Word
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
       else
-        # else
-        # break paragraphs on start + end
-        # loop paragraphs inbetween
+        # else its over paragraphs
+        looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
+        looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
       end
-    end
-
-    def loop_inside_paragraph(start_placeholder, end_placeholder, inbetween_placeholders)
-      paragraph = start_placeholder[:paragraph_object]
-
-      start_run = paragraph.replace_first_with_empty_runs(start_placeholder[:placeholder_text]).last
-      end_run = paragraph.replace_first_with_empty_runs(end_placeholder[:placeholder_text]).first
-
-      from_run = paragraph.runs.index(start_run) + 1
-      to_run = paragraph.runs.index(end_run) - 1
-
-      inbetween_runs = paragraph.runs[from_run..to_run]
-      for_loop_placeholder_info = parse_for_loop_placeholder(start_placeholder[:placeholder_text])
-      #This is the 0 run of our loop.
-      # Get a set of runs for the duplicate runs
-      duplicate_runs = generate_new_run_set(paragraph, inbetween_runs)
-      replace_variable_in_placeholders(0, for_loop_placeholder_info, inbetween_placeholders, paragraph, inbetween_runs)
-
-      field_data = for_loop_placeholder_info[:data].presence || []
-      field_data[1..-1].each_with_index do |data_set, i|
-        new_run_set = generate_new_run_set(paragraph, duplicate_runs)
-        replace_variable_in_placeholders(i+1, for_loop_placeholder_info, inbetween_placeholders, paragraph, new_run_set)
-
-        new_run_set.each do |run|
-          paragraph.add_new_run_object_before_run(run, end_run)
-        end
-      end
-
-    end
-
-    def generate_new_run_set(paragraph, runs)
-      new_run_set = []
-      runs.each do |r|
-        new_run_set << Office::Run.new(r.node.clone, paragraph)
-      end
-      new_run_set
-    end
-
-    def replace_variable_in_placeholders(index, for_loop_placeholder_info, placeholders, paragraph, inbetween_runs=nil)
-      placeholders.each do |p|
-        placeholder_variable_matcher = /#{for_loop_placeholder_info[:variable]}\./
-        placeholder = p[:placeholder_text]
-        if placeholder.match(placeholder_variable_matcher)
-          new_placeholder = placeholder.gsub(placeholder_variable_matcher,"#{for_loop_placeholder_info[:data_pointer]}[#{index}].")
-          if inbetween_runs
-            paragraph.replace_all_with_text(placeholder, new_placeholder, inbetween_runs)
-          else
-            paragraph.replace_all_with_text(placeholder, new_placeholder)
-          end
-        end
-      end
-    end
-
-    def parse_for_loop_placeholder(placeholder)
-      result = placeholder.gsub('{%','').gsub('%}','').match(/foreach (\w+) in (.+)/)
-      variable = result[1].strip
-      data_pointer = result[2].strip
-      raise "Invalid syntax for foreach placeholder #{placeholder}" if variable.blank? || data_pointer.blank?
-      field_data = Word::Template.get_value_from_field_identifier(data_pointer, data)
-      {variable: variable, data_pointer: data_pointer, data: field_data}
     end
 
   end#endclass
