@@ -4,6 +4,8 @@ module Word
       def apply_option
         if params.downcase == 'true'
           coord_info = placeholder.field_value[1]
+          return if coord_info.blank?
+
           lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
           long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)
           if !lat.nil? && !long.nil?
