@@ -7,6 +7,12 @@ module Word
     SPECIAL_CASE_MAP = {
     }
 
+    # Use these to sort, so more important options are run first
+    # Higher number is more important
+    def importance
+      10
+    end
+
     def self.build_option_object(option_text, placeholder)
       option = option_text.split(':').first.strip.downcase
       params = option_text.split(':')[1..-1].join(':').strip

@@ -1,10 +1,15 @@
 module Word
   module Options
     class Hyperlink < Word::Option
+      def importance
+        20
+      end
+
       def apply_option
         if params.downcase == 'true'
           coord_info = placeholder.field_value[1]
-          return if coord_info.blank?
+
+          raise "Co-ordinate info missing" if coord_info.blank?
 
           lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
           long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)

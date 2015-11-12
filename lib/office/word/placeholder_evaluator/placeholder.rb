@@ -28,7 +28,7 @@ module Word
       if !self.final_value.nil?
         self.final_value
       else
-        field_options.each do |o|
+        field_options.sort_by(&:importance).reverse.each do |o|
           o.apply_option
         end
         self.final_value = self.field_value
