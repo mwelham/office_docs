@@ -9,12 +9,12 @@ module Word
         if params.downcase == 'true'
           coord_info = placeholder.field_value[1]
 
-          raise "Co-ordinate info missing" if coord_info.blank?
-
-          lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
-          long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)
-          if !lat.nil? && !long.nil?
-            placeholder.render_options[:hyperlink] = "http://maps.google.com/?q=#{lat[1]},#{long[1]}"
+          if coord_info.present?
+            lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
+            long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)
+            if !lat.nil? && !long.nil?
+              placeholder.render_options[:hyperlink] = "http://maps.google.com/?q=#{lat[1]},#{long[1]}"
+            end
           end
         end
       end
