@@ -9,7 +9,7 @@ module Word
         if params.downcase == 'true'
           coord_info = placeholder.field_value[1]
 
-          if coord_info.present?
+          if !coord_info.nil?
             lat = coord_info.match(/lat=((\d+|-\d)+\.\d+)/)
             long = coord_info.match(/long=((\d+|-\d)+\.\d+)/)
             if !lat.nil? && !long.nil?
