@@ -8,82 +8,79 @@ class ForLoopExpanderTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_FOR_LOOP = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'in_same_paragraph_for_loop_test.docx')
   IN_DIFFERENT_PARAGRAPH_FOR_LOOP = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'in_different_paragraph_for_loop_test.docx')
 
-  ##
-  # def test_get_placeholders
-  #   doc = Office::WordDocument.new(IN_SAME_PARAGRAPH_FOR_LOOP)
-  #   template = Word::Template.new(doc)
-  #   placeholders = template.get_placeholders
+  #
+  def test_get_placeholders
+    doc = Office::WordDocument.new(IN_SAME_PARAGRAPH_FOR_LOOP)
+    template = Word::Template.new(doc)
+    placeholders = template.get_placeholders
 
-  #   correct_placeholder_info = [{:placeholder_text=>"{% foreach field in fields.Group %}",
-  #                                 :paragraph_index=>2,
-  #                                 :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
-  #                                 :end_of_placeholder=>{:run_index=>4, :char_index=>2}},
-  #                               {:placeholder_text=>"{% endeach %}",
-  #                                 :paragraph_index=>2,
-  #                                 :beginning_of_placeholder=>{:run_index=>4, :char_index=>13},
-  #                                 :end_of_placeholder=>{:run_index=>6, :char_index=>2}}]
+    correct_placeholder_info = [{:placeholder_text=>"{% foreach field in fields.Group %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>0, :char_index=>0}, :end_of_placeholder=>{:run_index=>0, :char_index=>34}},
+ {:placeholder_text=>"{{ field.name }}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>1, :char_index=>1}, :end_of_placeholder=>{:run_index=>1, :char_index=>16}},
+ {:placeholder_text=>"{% endeach %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>2, :char_index=>7}, :end_of_placeholder=>{:run_index=>2, :char_index=>19}},
+ {:placeholder_text=>"{% foreach field in fields.Group %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>3, :char_index=>16}, :end_of_placeholder=>{:run_index=>5, :char_index=>17}},
+ {:placeholder_text=>"{{ field.age }}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>7, :char_index=>0}, :end_of_placeholder=>{:run_index=>9, :char_index=>2}},
+ {:placeholder_text=>"{% endeach %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>10, :char_index=>16}, :end_of_placeholder=>{:run_index=>10, :char_index=>28}}]
 
-  #   correct_placeholder_info.each do |placeholder_info|
-  #     target = placeholders.find{|p| p[:placeholder_text] == placeholder_info[:placeholder_text]}
-  #     assert target[:paragraph_index] == placeholder_info[:paragraph_index]
-  #     assert target[:beginning_of_placeholder] == placeholder_info[:beginning_of_placeholder]
-  #     assert target[:end_of_placeholder] == placeholder_info[:end_of_placeholder]
-  #   end
-  # end
+    placeholders.each do |p|
+      p.delete(:paragraph_object)
+    end
 
-  ##
-  # def test_loop_in_same_paragraph
-  #   file = File.new('test_save_simple_doc.docx', 'w')
-  #   file.close
-  #   filename = file.path
+    assert correct_placeholder_info == placeholders
+  end
 
-  #   doc = Office::WordDocument.new(IN_SAME_PARAGRAPH_FOR_LOOP)
-  #   template = Word::Template.new(doc)
-  #   template.render(
-  #     {'fields' =>
-  #       {'Group' => [
-  #         {'Q' => 'a'},
-  #         {'Q' => 'b'},
-  #         {'Q' => 'c'}
-  #       ]
-  #     }
-  #   })
-  #   template.word_document.save(filename)
+  #
+  def test_loop_in_same_paragraph
+    file = File.new('test_save_simple_doc.docx', 'w')
+    file.close
+    filename = file.path
 
-  #   assert File.file?(filename)
-  #   assert File.stat(filename).size > 0
+    doc = Office::WordDocument.new(IN_SAME_PARAGRAPH_FOR_LOOP)
+    template = Word::Template.new(doc)
+    template.render(
+      {'fields' =>
+        {'Group' => [
+          {'Q' => 'a'},
+          {'Q' => 'b'},
+          {'Q' => 'c'}
+        ]
+      }
+    }, {do_not_render: true})
+    template.word_document.save(filename)
 
-  #   correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_same_paragraph_for_loop_test.docx'))
-  #   our_render = Office::WordDocument.new(filename)
-  #   assert docs_are_equivalent?(correct, our_render)
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
 
-  #   File.delete(filename)
-  # end
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_same_paragraph_for_loop_test.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
 
-  ##
-  # def test_loop_in_different_paragraph_with_blank_group
-  #   file = File.new('test_save_simple_doc.docx', 'w')
-  #   file.close
-  #   filename = file.path
+    File.delete(filename)
+  end
 
-  #   doc = Office::WordDocument.new(IN_DIFFERENT_PARAGRAPH_FOR_LOOP)
-  #   template = Word::Template.new(doc)
-  #   template.render(
-  #     {'fields' =>
-  #       {'Group' => []
-  #     }
-  #   })
-  #   template.word_document.save(filename)
+  #
+  def test_loop_in_different_paragraph_with_blank_group
+    file = File.new('test_save_simple_doc.docx', 'w')
+    file.close
+    filename = file.path
 
-  #   assert File.file?(filename)
-  #   assert File.stat(filename).size > 0
+    doc = Office::WordDocument.new(IN_DIFFERENT_PARAGRAPH_FOR_LOOP)
+    template = Word::Template.new(doc)
+    template.render(
+      {'fields' =>
+        {'Group' => []
+      }
+    }, {do_not_render: true})
+    template.word_document.save(filename)
 
-  #   correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_different_paragraph_blank_group.docx'))
-  #   our_render = Office::WordDocument.new(filename)
-  #   assert docs_are_equivalent?(correct, our_render)
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
 
-  #   File.delete(filename)
-  # end
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_different_paragraph_blank_group.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
+
+    File.delete(filename)
+  end
 
   def test_loop_in_different_paragraph
     file = File.new('test_save_simple_doc.docx', 'w')
@@ -100,15 +97,13 @@ class ForLoopExpanderTest < Test::Unit::TestCase
           {'Q' => 'c'}
         ]
       }
-    })
+    }, {do_not_render: true})
     template.word_document.save(filename)
 
     assert File.file?(filename)
     assert File.stat(filename).size > 0
 
-    binding.pry
-
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_different_paragraph_for_loop_test.docx'))
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'correct_render', 'in_different_paragraphs.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
 

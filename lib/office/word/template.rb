@@ -69,8 +69,9 @@ module Word
           #TODO LATER
         # expand for loops
         expand_for_loops(paragraphs, data, options)
-
-        #render_section(paragraphs, data, options)
+        unless options[:do_not_render] == true
+          render_section(paragraphs, data, options)
+        end
       end
     end
 
