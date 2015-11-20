@@ -59,7 +59,14 @@ module Word
           start_paragraph = starts_with ? start_paragraph : start_paragraph.split_after_run(start_run)
         end
 
-        end_paragraph.split_after_run(end_run) if(start_paragraph.plain_text.gsub(" ", "").length > 0 && !ends_with)
+        if end_paragraph.plain_text.gsub(" ", "").length == 0
+          end_placeholder_paragraph = end_paragraph
+          index = document.paragraphs.index(end_paragraph)
+          end_paragraph = document.paragraphs[(index-1)]
+          document.remove_paragraph(end_placeholder_paragraph)
+        else
+          end_paragraph.split_after_run(end_run) if(!ends_with)
+        end
 
         start_paragraph_index = document.paragraphs.index(start_paragraph)
         end_paragraph_index = document.paragraphs.index(end_paragraph)
