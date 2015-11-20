@@ -452,6 +452,10 @@ module Office
       p_node.xpath("w:r").each { |r| @runs << Run.new(r, self) }
     end
 
+    def plain_text
+      runs.inject("") { |text, r| text += r.text unless r.text.nil?; text }
+    end
+
     # TODO Wrap styles up in a class
     def add_style(style)
       pPr_node = @node.add_child(@node.document.create_element("pPr"))

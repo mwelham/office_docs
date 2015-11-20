@@ -2,7 +2,7 @@ module Word
   module ForLoopExpanders
     class Base
       attr_accessor :main_doc, :data, :options
-      def initialize(main_doc, paragraphs, data, options = {})
+      def initialize(main_doc, data, options = {})
         self.main_doc = main_doc
         self.data = data
         self.options = options

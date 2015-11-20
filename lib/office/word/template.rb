@@ -70,7 +70,7 @@ module Word
         # expand for loops
         expand_for_loops(paragraphs, data, options)
 
-        render_section(paragraphs, data, options)
+        #render_section(paragraphs, data, options)
       end
     end
 
@@ -95,10 +95,10 @@ module Word
     def self.get_value_from_field_identifier(field_identifier, data, options={})
       result = data.with_indifferent_access
       field_recurse = field_identifier.split('.')
-      field_recurse.each do |identifier|
-        if result.is_a? Array
-          result = result.length == 1 ? result.first : {}
-        end
+      field_recurse.each_with_index do |identifier, i|
+        # if result.is_a? Array
+        #   result = result.length == 1 ? result.first : {}
+        # end
 
         result = result[identifier]
         if result == nil
