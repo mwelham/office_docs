@@ -16,6 +16,8 @@ module Word
     def self.build_option_object(option_text, placeholder)
       option = option_text.split(':').first.strip.downcase
       params = option_text.split(':')[1..-1].join(':').strip
+      params = remove_quote_marks(params)
+      params = unescape_escaped_quotes(params)
 
       #special case
       if /(\d+)x(\d+)/.match(option)
@@ -28,6 +30,24 @@ module Word
       else
         option_class.new(placeholder, params)
       end
+    end
+
+    def self.remove_quote_marks(option)
+      return option if option.blank?
+
+      if Placeholder.is_quote?(option[0]) && Placeholder.is_quote?(option[-1])
+        option = option[1..-2]
+      end
+      option
+    end
+
+    def self.unescape_escaped_quotes(option)
+      return option if option.blank?
+
+      ['“', '”', '"'].each do |quote|
+        option = option.gsub("\\#{quote}", quote)
+      end
+      option
     end
 
     def self.get_option_class(placeholder,option)
