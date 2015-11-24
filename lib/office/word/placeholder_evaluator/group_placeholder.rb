@@ -17,7 +17,7 @@ module Word
       if !self.final_value.nil?
         self.final_value
       else
-        field_options.each do |o|
+        field_options.sort_by(&:importance).reverse.each do |o|
           o.apply_option
         end
         self.final_value = if group_generation_options[:generation_method] == :list
@@ -32,7 +32,7 @@ module Word
 
     def parse_options(options_in_string_format)
       whole_options = split_options_on_commas(options_in_string_format)
-      option_objects = whole_options.map{|o| Word::GroupOption.build_option_object(o, self)}
+      option_objects = whole_options.map{|o| Word::GroupOption.build_option_object(o, self)}.compact
     end
 
     def create_list_for_group(form_xml_def, group_id, values, options = {}, indent = "")

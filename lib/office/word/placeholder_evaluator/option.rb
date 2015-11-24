@@ -7,6 +7,12 @@ module Word
     SPECIAL_CASE_MAP = {
     }
 
+    # Use these to sort, so more important options are run first
+    # Higher number is more important
+    def importance
+      10
+    end
+
     def self.build_option_object(option_text, placeholder)
       option = option_text.split(':').first.strip.downcase
       params = option_text.split(':')[1..-1].join(':').strip
@@ -16,8 +22,12 @@ module Word
         params = option
         option = placeholder.is_map_answer? ? "map_size" : "image_size"
       end
-
-      get_option_class(placeholder,option).new(placeholder, params)
+      option_class = get_option_class(placeholder,option)
+      if option_class.nil?
+        nil
+      else
+        option_class.new(placeholder, params)
+      end
     end
 
     def self.get_option_class(placeholder,option)
@@ -26,7 +36,10 @@ module Word
       begin
         option_class = "#{options_module}::#{option_class}".constantize
       rescue NameError
-        raise "Unknown option #{option} used in the placeholder for #{placeholder.field_identifier}"
+        #raise "Unknown option #{option} used in the placeholder for #{placeholder.field_identifier}"
+
+        #Ignoring bad options for now - maybe something to do in evaluate...
+        return nil
       end
     end
 

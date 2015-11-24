@@ -45,11 +45,12 @@ module Office
     end
 
     def parse_workbook_xml
-      @sheets_node = @workbook_part.xml.at_xpath("/xmlns:workbook/xmlns:sheets")
+      ns_prefix = Package.xpath_ns_prefix(@workbook_part.xml.root)
+      @sheets_node = @workbook_part.xml.at_xpath("/#{ns_prefix}:workbook/#{ns_prefix}:sheets")
       raise PackageError.new("Excel workbook '#{@filename}' is missing sheets container") if @sheets_node.nil?
 
       @sheets = []
-      @sheets_node.xpath("xmlns:sheet").each { |s| @sheets << Sheet.new(s, self) }
+      @sheets_node.xpath("#{ns_prefix}:sheet").each { |s| @sheets << Sheet.new(s, self) }
     end
 
     def add_sheet(name)
@@ -81,7 +82,7 @@ module Office
       return if sheet.nil?
       raise PackageError.new("sheet not found in workbook") unless @sheets.include? sheet
 
-      @sheets_node.at_xpath("./xmlns:sheet[@name='#{sheet.name}']").remove
+      @sheets_node.at_xpath("./#{Package.xpath_ns_prefix(@sheets_node)}:sheet[@name='#{sheet.name}']").remove
       remove_part(sheet.worksheet_part)
       @sheets.delete(sheet)
     end
@@ -110,7 +111,8 @@ module Office
       @id = sheet_node["sheetId"].to_i
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
 
-      data_node = @worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
+      ns_prefix = Package.xpath_ns_prefix(@worksheet_part.xml.root)
+      data_node = @worksheet_part.xml.at_xpath("/#{ns_prefix}:worksheet/#{ns_prefix}:sheetData")
       raise PackageError.new("Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data") if data_node.nil?
       @sheet_data = SheetData.new(data_node, self, workbook)
     end
@@ -145,7 +147,7 @@ module Office
       @workbook = workbook
 
       @rows = []
-      node.xpath("xmlns:row").each { |r| @rows << Row.new(r, workbook.shared_strings) }
+      node.xpath("#{Package.xpath_ns_prefix(node)}:row").each { |r| @rows << Row.new(r, workbook.shared_strings) }
     end
 
     def add_row(data)
@@ -201,7 +203,7 @@ module Office
       @spans = row_node["spans"]
 
       @cells = []
-      node.xpath("xmlns:c").each { |c| @cells << Cell.new(c, string_table) }
+      node.xpath("#{Package.xpath_ns_prefix(row_node)}:c").each { |c| @cells << Cell.new(c, string_table) }
     end
 
     def self.create_node(document, number, data, string_table)
@@ -311,14 +313,15 @@ module Office
     attr_accessor :node
 
     def initialize(part)
-      @node = part.xml.at_xpath("/xmlns:sst")
+      ns_prefix = Package.xpath_ns_prefix(part.xml.root)
+      @node = part.xml.at_xpath("/#{ns_prefix}:sst")
       # TODO Keep these up-to-date
       @count_attr = @node.attribute("count")
       @unique_count_attr = @node.attribute("uniqueCount")
 
       @strings_by_id = {}
       @strings_by_text = {}
-      node.xpath("xmlns:si").each { |si| parse_si_node(si) }
+      node.xpath("#{ns_prefix}:si").each { |si| parse_si_node(si) }
     end
 
     def parse_si_node(si)
@@ -366,7 +369,7 @@ module Office
     def initialize(si_node, id)
       @node = si_node
       @id = id
-      @text_node = si_node.at_xpath("xmlns:t")
+      @text_node = si_node.at_xpath("#{Package.xpath_ns_prefix(si_node)}:t")
       @cells = []
     end
 
