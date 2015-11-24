@@ -60,17 +60,39 @@ module Word
         # if start and end are in the same paragraph
         looper = Word::ForLoopExpanders::LoopInParagraph.new(main_doc, data, options)
         looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
-      elsif false
+      elsif placeholders_are_in_different_table_cells_in_same_row?(start_placeholder, end_placeholder)
         # else if start is in a table cell and end is in a different table cell
         # loop whole row
-      elsif false
+      elsif start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
+        raise "For loop start and end mismatch - start is in table row but no end"
       else
         # else its over paragraphs
         looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
         looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
       end
+    end
+
+    def placeholders_are_in_different_table_cells_in_same_row?(start_placeholder, end_placeholder)
+      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
+      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
+
+      start_placeholder_parent.name == 'tc' &&
+      end_placeholder_parent.name == 'tc' &&
+      start_placeholder_parent != end_placeholder_parent &&
+      start_placeholder_parent.parent == end_placeholder_parent.parent
+    end
+
+    def start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
+      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
+      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
+
+      return false if start_placeholder_parent.name != 'tc'
+
+      # First one is in a table cell - just need to make sure end is a tc and in the same row
+      end_placeholder_parent.name != 'tc' ||
+      start_placeholder_parent.parent != end_placeholder_parent.parent
     end
 
   end#endclass
