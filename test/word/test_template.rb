@@ -11,6 +11,7 @@ class TemplateTest < Test::Unit::TestCase
   BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'broken_replacement_test.docx')
   BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'really_big_template.docx')
   MENICON_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'menicon_template.docx')
+  TEST_QUOTE_MARKS_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'quote_mark_in_template_options.docx')
 
   TEMPLATE_ALL_OPTIONS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'Template_Test_Form.docx')
 
@@ -127,6 +128,26 @@ class TemplateTest < Test::Unit::TestCase
     assert File.stat(filename).size > 0
 
     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_template_all_options.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
+
+    File.delete(filename)
+  end
+
+  def test_quote_markes_in_options
+    file = File.new('test_quote_marks_template.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
+    template = Word::Template.new(doc)
+    template.render(test_template_all_options_test_data)
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
 

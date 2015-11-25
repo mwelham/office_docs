@@ -28,7 +28,7 @@ module Word
       if !self.final_value.nil?
         self.final_value
       else
-        field_options.each do |o|
+        field_options.sort_by(&:importance).reverse.each do |o|
           o.apply_option
         end
         self.final_value = self.field_value
@@ -82,6 +82,8 @@ module Word
           end
           ss.scan_until(/,/) #Just to get to the end of the section
           results << whole_filter.strip
+        elsif part.include?(':') && part.match(/[^\\][“”"]/)
+          results << get_whole_quoted_option(ss, part)
         else
           option = part.gsub(/[\[\],]/,'').strip
           results << option unless option.strip.blank?
@@ -92,6 +94,32 @@ module Word
         break if ss.eos?
       end
       results
+    end
+
+    def get_whole_quoted_option(ss, part)
+      whole_option = part
+      if whole_option[-1] == ',' && Placeholder.is_quote?(whole_option[-2])
+        whole_option = whole_option[0..-2]
+      end
+
+      while(!option_is_complete(whole_option))
+        next_part = ss.scan_until(/[“”"]/)
+        raise "No ending \" in option - first part #{whole_option}." if next_part.blank?
+        whole_option += next_part
+      end
+
+      ss.scan_until(/,/) #Just to get to the end of the section
+      whole_option.strip
+    end
+
+    def option_is_complete(text)
+      ends_in_quote = Placeholder.is_quote?(text[-1])
+      end_is_escaped = text[-2] == '\\'
+      !end_is_escaped && ends_in_quote
+    end
+
+    def self.is_quote?(char)
+      ['“', '”', '"'].any?{|q| q == char}
     end
 
   end
