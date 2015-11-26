@@ -1,5 +1,6 @@
 require 'office/word/for_loop_expanders/loop_in_paragraph'
 require 'office/word/for_loop_expanders/loop_over_paragraphs'
+require 'office/word/for_loop_expanders/loop_table_row'
 
 module Word
   class ForLoopExpander
@@ -63,6 +64,8 @@ module Word
       elsif placeholders_are_in_different_table_cells_in_same_row?(start_placeholder, end_placeholder)
         # else if start is in a table cell and end is in a different table cell
         # loop whole row
+        looper = Word::ForLoopExpanders::LoopTableRow.new(main_doc, data, options)
+        looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
       elsif start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
         # else if start is in a table cell but end is not in a table cell at all
         # raise error

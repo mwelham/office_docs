@@ -31,6 +31,13 @@ module Word
         field_data = Word::Template.get_value_from_field_identifier(data_pointer, data)
         {variable: variable, data_pointer: data_pointer, data: field_data}
       end
+
+      def replace_variable_in_placeholders_in_paragraphs(paragraphs, index, for_loop_placeholder_info, inbetween_placeholders)
+        paragraphs.each do |paragraph|
+          replace_variable_in_placeholders(index, for_loop_placeholder_info, inbetween_placeholders, paragraph)
+        end
+      end
+
     end
   end
 end

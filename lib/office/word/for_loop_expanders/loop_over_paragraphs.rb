@@ -84,12 +84,6 @@ module Word
         new_paragraph_set
       end
 
-      def replace_variable_in_placeholders_in_paragraphs(paragraphs, index, for_loop_placeholder_info, inbetween_placeholders)
-        paragraphs.each do |paragraph|
-          replace_variable_in_placeholders(index, for_loop_placeholder_info, inbetween_placeholders, paragraph)
-        end
-      end
-
 
     end
   end
