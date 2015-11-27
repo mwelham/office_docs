@@ -7,8 +7,8 @@ module Word
     #
 
     def get_width_and_height_from_params
-      edges = /(\d+)x(\d+)/.match(self.params)
-      raise "Invalid params for image_size option on #{placeholder.field_identifier}. Expects [width]x[height], got #{self.params}." if edges[1].nil? || edges[2].nil?
+      edges = /(\d+)[xX](\d+)/.match(self.params)
+      raise "Invalid params for image_size option on #{placeholder.field_identifier}. Expects [width]x[height], got #{self.params}." if edges.nil? || edges[1].nil? || edges[2].nil?
       width = edges[1].to_f
       height = edges[2].to_f
       [width,height]
