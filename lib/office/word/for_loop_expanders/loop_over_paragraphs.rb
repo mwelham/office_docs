@@ -8,38 +8,38 @@ module Word
       # loop paragraphs inbetween
 
       def expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
-        target_paragraphs = get_paragraphs(start_placeholder, end_placeholder)
-
-        container = target_paragraphs.first.document
+        container = start_placeholder[:paragraph_object].document
+        target_nodes = get_inbetween_nodes(start_placeholder, end_placeholder)
 
         #This is the 0 run of our loop.
         # Get a set of runs for the duplicate runs
-        duplicate_paragraphs = generate_new_paragraph_set(container, target_paragraphs)
+        duplicate_nodes = generate_node_set(target_nodes)
+
         for_loop_placeholder_info = parse_for_loop_placeholder(start_placeholder[:placeholder_text])
 
         field_data = for_loop_placeholder_info[:data].presence || []
         if field_data.length == 0
-          target_paragraphs.each do |paragraph|
-            container.remove_paragraph(paragraph)
-          end
+          target_nodes.each(&:remove)
         else
+          target_paragraphs = get_paragraphs_from_nodes(container, target_nodes)
           replace_variable_in_placeholders_in_paragraphs(target_paragraphs, 0, for_loop_placeholder_info, inbetween_placeholders)
-          last_paragraph = target_paragraphs.last
+          last_node = target_nodes.last
+
           field_data[1..-1].each_with_index do |data_set, i|
-            new_paragraph_set = generate_new_paragraph_set(container, duplicate_paragraphs)
+            new_node_set = generate_node_set(duplicate_nodes)
+            new_paragraph_set = get_paragraphs_from_nodes(container, new_node_set)
             replace_variable_in_placeholders_in_paragraphs(new_paragraph_set, i+1, for_loop_placeholder_info, inbetween_placeholders)
 
-            new_paragraph_set.each do |paragraph|
-              container.insert_new_paragraph_object_after_paragraph(last_paragraph, paragraph)
-              last_paragraph = paragraph
+            new_node_set.each do |node|
+              last_node.add_next_sibling(node)
+              last_node = node
             end
-            #last_paragraph = new_paragraph_set.last
+
           end
         end
-
       end
 
-      def get_paragraphs(start_placeholder, end_placeholder)
+      def get_inbetween_nodes(start_placeholder, end_placeholder)
         start_paragraph = start_placeholder[:paragraph_object]
         end_paragraph = end_placeholder[:paragraph_object]
         document = start_paragraph.document
@@ -68,22 +68,27 @@ module Word
           end_paragraph.split_after_run(end_run) if(!ends_with)
         end
 
-        start_paragraph_index = document.paragraphs.index(start_paragraph)
-        end_paragraph_index = document.paragraphs.index(end_paragraph)
-        document.paragraphs[start_paragraph_index..end_paragraph_index]
+        container = start_paragraph.node.parent
+        start_index = container.children.index(start_paragraph.node)
+        end_index = container.children.index(end_paragraph.node)
+        container.children[start_index..end_index]
       end
 
-      def generate_new_paragraph_set(container, paragraphs)
-        new_paragraph_set = []
+      def generate_node_set(nodes)
+        nodes.map(&:clone)
+      end
 
-        paragraphs.each do |p|
-          new_p = Office::Paragraph.new(p.node.clone, container)
-          new_paragraph_set << new_p
+      def get_paragraphs_from_nodes(container, nodes)
+        paragraphs = []
+        nodes.each do |node|
+          if node.name == 'p'
+            paragraphs << Office::Paragraph.new(node, container)
+          else
+            node.xpath(".//w:p").each { |p| paragraphs << Office::Paragraph.new(p, container) }
+          end
         end
-
-        new_paragraph_set
+        paragraphs
       end
-
 
     end
   end

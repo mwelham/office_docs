@@ -63,25 +63,25 @@ module Word
         paragraph_sets << footer.paragraphs
       end
 
-      paragraph_sets.each do |paragraphs|
-        # pre-render
-        # evaluate if statements
-          #TODO LATER
-        # expand for loops
-        expand_for_loops(paragraphs, data, options)
+      containers = [main_doc, main_doc.headers, main_doc.footers].flatten
+      containers.each do |container|
+
+        #TODO - IF_ELSE
+        expand_for_loops(container, data, options)
         unless options[:do_not_render] == true
-          render_section(paragraphs, data, options)
+          render_section(container, data, options)
         end
       end
     end
 
-    def expand_for_loops(paragraphs, data, options = {})
-      expander = Word::ForLoopExpander.new(main_doc, paragraphs, data, options)
-      expander.expand_for_loops
+    def expand_for_loops(container, data, options = {})
+      paragraphs = container.paragraphs
+      expander = Word::ForLoopExpander.new(main_doc, data, options)
+      expander.expand_for_loops(container)
     end
 
-    def render_section(paragraphs, data, options = {})
-      paragraphs.each_with_index do |paragraph, paragraph_index|
+    def render_section(container, data, options = {})
+      container.paragraphs.each_with_index do |paragraph, paragraph_index|
         Word::PlaceholderFinder.loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
           replacer = Word::PlaceholderReplacer.new(placeholder, word_document)
           replacement = replacer.replace_in_paragraph(paragraph, data, options)

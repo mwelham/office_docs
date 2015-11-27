@@ -4,28 +4,32 @@ require 'office/word/for_loop_expanders/loop_table_row'
 
 module Word
   class ForLoopExpander
-    attr_accessor :main_doc, :paragraphs, :data, :options, :placeholders
-    def initialize(main_doc, paragraphs, data, options = {})
+    attr_accessor :main_doc, :data, :options, :placeholders
+    def initialize(main_doc, data, options = {})
       self.main_doc = main_doc
-      self.paragraphs = paragraphs
       self.data = data
       self.options = options
     end
 
-    def expand_for_loops
+    def expand_for_loops(container)
       # Get placeholders in paragraphs
+      paragraphs = container.paragraphs
       self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
-      i = 0
-      while i < placeholders.length
-        start_placeholder = placeholders[i]
-        if start_placeholder[:placeholder_text].include?("foreach")
-          end_index = get_end_index(i)
-          expand_loop(i, end_index)
+      while there_are_for_loop_placeholders(placeholders)
+        i = 0
+        while i < placeholders.length
+          start_placeholder = placeholders[i]
+          if start_placeholder[:placeholder_text].include?("foreach")
+            end_index = get_end_index(i)
+            expand_loop(i, end_index)
 
-          i = end_index + 1
-        else
-          i += 1
+            i = end_index + 1
+          else
+            i += 1
+          end
         end
+        paragraphs = resync_container(container)
+        self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       end
 
       # i = 0
@@ -96,6 +100,15 @@ module Word
       # First one is in a table cell - just need to make sure end is a tc and in the same row
       end_placeholder_parent.name != 'tc' ||
       start_placeholder_parent.parent != end_placeholder_parent.parent
+    end
+
+    def resync_container(container)
+      container.parse_paragraphs(container.container_node)
+      paragraphs = container.paragraphs
+    end
+
+    def there_are_for_loop_placeholders(placeholders)
+      placeholders.any?{|p| p[:placeholder_text].include?("foreach") }
     end
 
   end#endclass

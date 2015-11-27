@@ -35,8 +35,6 @@ module Word
             last_row = new_row
           end
         end
-
-        container.parse_paragraphs(container.container_node)
       end
 
       def get_row(start_placeholder, end_placeholder)
@@ -61,14 +59,9 @@ module Word
       def get_paragraphs_from_row(container, row)
         container_node = container
         paragraphs = []
-        row.xpath(".//w:p").each { |p| paragraphs << Office::Paragraph.new(p, self) }
+        row.xpath(".//w:p").each { |p| paragraphs << Office::Paragraph.new(p, container_node) }
         paragraphs
       end
-
-
-
-
-
 
     end
   end
