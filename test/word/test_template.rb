@@ -154,6 +154,26 @@ class TemplateTest < Test::Unit::TestCase
     File.delete(filename)
   end
 
+  def test_quote_markes_in_options
+    file = File.new('test_quote_marks_template.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
+    template = Word::Template.new(doc)
+    template.render(test_template_all_options_test_data)
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'correct_render', 'test_quote_marks_template.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
+
+    File.delete(filename)
+  end
+
   private
 
   def test_template_all_options_test_data
