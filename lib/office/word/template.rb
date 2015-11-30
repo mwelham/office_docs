@@ -97,17 +97,42 @@ module Word
       result = data.with_indifferent_access
       field_recurse = field_identifier.split('.')
       field_recurse.each_with_index do |identifier, i|
-        # if result.is_a? Array
-        #   result = result.length == 1 ? result.first : {}
-        # end
+        # This part is if are trying to get a value from an array - because result is still the last result
+        # e.g. ArrayAnswer.Billy
+        # If there is only 1 thing we allow them to access it without array syntax
+        if result.is_a? Array
+          result = result.length == 1 ? result.first : {}
+        end
 
+        array_info_from_identifier = parse_array_info_from_identifier(identifier)
+        identifier = array_info_from_identifier[:identifier_without_array_info]
         result = result[identifier]
+
+        if array_info_from_identifier[:index] != nil
+          index = array_info_from_identifier[:index]
+          result = result[index] if result.is_a? Array
+        end
+
         if result == nil
           result = ""
           break
         end
       end
       result
+    end
+
+    def self.parse_array_info_from_identifier(identifier)
+      result = identifier.match(/.+\[(.+)\]/)
+
+      new_identifier = identifier
+      index = nil
+
+      if result
+        index = result[1].to_i
+        new_identifier = identifier.gsub(/\[(.+)\]/,'')
+      end
+
+      {index: index, identifier_without_array_info: new_identifier}
     end
 
   end

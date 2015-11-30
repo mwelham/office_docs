@@ -167,7 +167,7 @@ class TemplateTest < Test::Unit::TestCase
     assert File.file?(filename)
     assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'correct_render', 'test_quote_marks_template.docx'))
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
 
