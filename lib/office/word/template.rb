@@ -16,6 +16,7 @@
 require 'office/word/placeholder_finder'
 require 'office/word/placeholder_replacer'
 require 'office/word/for_loop_expander'
+require 'office/word/if_else_replacer'
 
 class InvalidTemplateError < StandardError
 end
@@ -65,9 +66,8 @@ module Word
 
       containers = [main_doc, main_doc.headers, main_doc.footers].flatten
       containers.each do |container|
-
-        #TODO - IF_ELSE
         expand_for_loops(container, data, options)
+        replace_if_else(container, data, options)
         unless options[:do_not_render] == true
           render_section(container, data, options)
         end
@@ -78,6 +78,12 @@ module Word
       paragraphs = container.paragraphs
       expander = Word::ForLoopExpander.new(main_doc, data, options)
       expander.expand_for_loops(container)
+    end
+
+    def replace_if_else(container, data, options = {})
+      paragraphs = container.paragraphs
+      expander = Word::IfElseReplacer.new(main_doc, data, options)
+      expander.replace_all_if_else(container)
     end
 
     def render_section(container, data, options = {})
