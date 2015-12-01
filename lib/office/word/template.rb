@@ -26,8 +26,6 @@ module Word
 
     attr_accessor :word_document, :main_doc, :errors
 
-
-
     def initialize(word_document)
       self.word_document = word_document
       self.main_doc = word_document.main_doc

@@ -13,7 +13,7 @@ class ForLoopExpanderTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_IF_ELSE = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'if_else', 'test_if_in_same_paragraph.docx')
 
   include IfElseInParagraphTest
-  #include IfElseOverParagraphsTest
+  include IfElseOverParagraphsTest
 
   #
   def test_get_placeholders
