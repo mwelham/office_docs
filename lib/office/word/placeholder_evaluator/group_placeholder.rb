@@ -91,11 +91,22 @@ module Word
       def create_table_for_group(form_xml_def, group_id, values, options = {})
         return "" if values.blank?
         table = {}
-        values.each do |v|
-          v.each do |id, answer|
-            full_id = "#{group_id}.#{id}"
-            title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
-            table[title] = [] unless table.has_key?(title)
+        headers = {}
+        # Set up headers
+        values.collect{|v| v.keys}.flatten.uniq.each do |answer_key|
+          full_id = "#{group_id}.#{answer_key}"
+          title = form_xml_def.blank? ? full_id : form_xml_def.get_field_label(full_id)
+          headers[answer_key] = {title: title, full_id: full_id}
+          table[title] ||= []
+        end
+
+        # Fill in values
+        values.each do |answer_set|
+          headers.each do |key, attributes|
+            title = attributes[:title]
+            full_id = attributes[:full_id]
+            answer = answer_set[key] || ""
+
             case
               when is_group_answer?(answer)
                 table[title] << create_table_for_group(form_xml_def, full_id, answer, options)
