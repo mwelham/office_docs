@@ -348,6 +348,10 @@ module Office
       parse_footers
     end
 
+    def xml_node
+      body_node
+    end
+
     def parse_xml
       xml_doc = @part.xml
       @body_node = xml_doc.at_xpath("/w:document/w:body")
@@ -422,7 +426,11 @@ module Office
       @header_node = part.xml.at_xpath("/w:hdr")
       raise PackageError.new("Word document '#{@filename}' is missing hdr root in header XML") if @header_node.nil?
       parse_paragraphs(@header_node)
-     end
+    end
+
+    def xml_node
+      header_node
+    end
   end
 
   class Footer < ParagraphContainer
@@ -437,6 +445,10 @@ module Office
       @footer_node = part.xml.at_xpath("/w:ftr")
       raise PackageError.new("Word document '#{@filename}' is missing ftr root in footer XML") if @footer_node.nil?
       parse_paragraphs(@footer_node)
+    end
+
+    def xml_node
+      footer_node
     end
   end
 
