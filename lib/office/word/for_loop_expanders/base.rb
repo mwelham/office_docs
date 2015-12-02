@@ -24,10 +24,12 @@ module Word
       end
 
       def parse_for_loop_placeholder(placeholder)
-        result = placeholder.gsub('{%','').gsub('%}','').match(/foreach (\w+) in (.+)/)
-        variable = result[1].strip
-        data_pointer = result[2].strip
-        raise "Invalid syntax for foreach placeholder #{placeholder}" if variable.blank? || data_pointer.blank?
+        result = placeholder.gsub('{%','').gsub('%}','').match(Word::ForLoopExpander::FOR_LOOP_START_MATCHER)
+        if result.present?
+          variable = result[1].strip
+          data_pointer = result[2].strip
+        end
+        raise "Invalid syntax for for loop placeholder #{placeholder}" if variable.blank? || data_pointer.blank?
         field_data = Word::Template.get_value_from_field_identifier(data_pointer, data)
         {variable: variable, data_pointer: data_pointer, data: field_data}
       end

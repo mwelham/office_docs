@@ -22,12 +22,32 @@ class ForLoopExpanderTest < Test::Unit::TestCase
     template = Word::Template.new(doc)
     placeholders = template.get_placeholders
 
-    correct_placeholder_info = [{:placeholder_text=>"{% foreach field in fields.Group %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>0, :char_index=>0}, :end_of_placeholder=>{:run_index=>0, :char_index=>34}},
- {:placeholder_text=>"{{ field.name }}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>1, :char_index=>1}, :end_of_placeholder=>{:run_index=>1, :char_index=>16}},
- {:placeholder_text=>"{% endeach %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>2, :char_index=>7}, :end_of_placeholder=>{:run_index=>2, :char_index=>19}},
- {:placeholder_text=>"{% foreach field in fields.Group %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>3, :char_index=>16}, :end_of_placeholder=>{:run_index=>5, :char_index=>17}},
- {:placeholder_text=>"{{ field.age }}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>7, :char_index=>0}, :end_of_placeholder=>{:run_index=>9, :char_index=>2}},
- {:placeholder_text=>"{% endeach %}", :paragraph_index=>2, :beginning_of_placeholder=>{:run_index=>10, :char_index=>16}, :end_of_placeholder=>{:run_index=>10, :char_index=>28}}]
+    correct_placeholder_info = [{:placeholder_text=>"{% for field in fields.Group %}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
+                                :end_of_placeholder=>{:run_index=>0, :char_index=>30}},
+                               {:placeholder_text=>"{{ field.name }}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>1, :char_index=>1},
+                                :end_of_placeholder=>{:run_index=>1, :char_index=>16}},
+                               {:placeholder_text=>"{% endfor %}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>2, :char_index=>7},
+                                :end_of_placeholder=>{:run_index=>4, :char_index=>2}},
+                               {:placeholder_text=>"{% for field in fields.Group %}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>5, :char_index=>16},
+                                :end_of_placeholder=>{:run_index=>7, :char_index=>17}},
+                               {:placeholder_text=>"{{ field.age }}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>8, :char_index=>1},
+                                :end_of_placeholder=>{:run_index=>8, :char_index=>15}},
+                               {:placeholder_text=>"{% endfor %}",
+                                :paragraph_index=>2,
+                                :beginning_of_placeholder=>{:run_index=>9, :char_index=>16},
+                                :end_of_placeholder=>{:run_index=>11, :char_index=>2}}]
+
+
 
     placeholders.each do |p|
       p.delete(:paragraph_object)

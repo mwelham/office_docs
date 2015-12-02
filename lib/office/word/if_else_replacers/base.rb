@@ -16,7 +16,7 @@ module Word
       def parse_if_else_placeholder(placeholder)
         result = placeholder.gsub('{%','').gsub('%}','').match(/if (.+)/)
         expression = result[1].strip.gsub(/[“”]/, "\"") if !result.nil?
-        raise "Invalid syntax for foreach placeholder #{placeholder}" if result.blank? || expression.blank?
+        raise "Invalid syntax for if placeholder #{placeholder}" if result.blank? || expression.blank?
         {expression: expression}
       end
 

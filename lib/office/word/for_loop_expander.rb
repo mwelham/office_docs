@@ -5,6 +5,10 @@ require 'office/word/for_loop_expanders/loop_table_row'
 module Word
   class ForLoopExpander
     attr_accessor :main_doc, :data, :options, :placeholders
+
+    FOR_LOOP_START_MATCHER = /for (\w+) in (.+)/
+    FOR_LOOP_END_MATCHER = /endfor/
+
     def initialize(main_doc, data, options = {})
       self.main_doc = main_doc
       self.data = data
@@ -19,7 +23,7 @@ module Word
         i = 0
         while i < placeholders.length
           start_placeholder = placeholders[i]
-          if start_placeholder[:placeholder_text].include?("foreach")
+          if start_placeholder[:placeholder_text].match(FOR_LOOP_START_MATCHER)
             end_index = get_end_index(i)
             expand_loop(i, end_index)
 
@@ -45,11 +49,11 @@ module Word
     def get_end_index(start_index)
       level = 0
       placeholders[(start_index+1)..-1].each_with_index do |p, j|
-        if p[:placeholder_text].include?("endeach") && level == 0
+        if p[:placeholder_text].match(FOR_LOOP_END_MATCHER) && level == 0
           return (start_index+1)+j
-        elsif p[:placeholder_text].include?("endeach") && level > 0
+        elsif p[:placeholder_text].match(FOR_LOOP_END_MATCHER) && level > 0
           level -= 1
-        elsif p[:placeholder_text].include?("foreach")
+        elsif p[:placeholder_text].match(FOR_LOOP_START_MATCHER)
           level += 1
         end
       end
@@ -108,7 +112,7 @@ module Word
     end
 
     def there_are_for_loop_placeholders(placeholders)
-      placeholders.any?{|p| p[:placeholder_text].include?("foreach") }
+      placeholders.any?{|p| p[:placeholder_text].match(FOR_LOOP_START_MATCHER) }
     end
 
   end#endclass
