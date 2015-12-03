@@ -4,6 +4,7 @@ module LoopOverParagraphsTest
   LOOP_IN_LOOP_IN_DIFFERENT_PARAGRAPH = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'test_loop_in_loop_in_different_paragraph.docx')
   LOOP_OVER_GRAPHIC = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'loop_over_graphic_test.docx')
   LOOP_OVER_LIST = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'loop_over_list_test.docx')
+  LOOP_OVER_IMAGE = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'loop_over_image.docx')
 
   COMPLEX_FOR_LOOP = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'complex_for_loop_word_template.docx')
 
@@ -200,6 +201,35 @@ module LoopOverParagraphsTest
     assert File.stat(filename).size > 0
 
     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'correct_render', 'loop_over_list_test.docx'))
+    our_render = Office::WordDocument.new(filename)
+
+    assert docs_are_equivalent?(correct, our_render)
+
+    File.delete(filename)
+  end
+
+  def test_loop_over_image
+    file = File.new('loop_over_image.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(LOOP_OVER_IMAGE)
+    template = Word::Template.new(doc)
+    template.render(
+      {'fields' =>
+        {'Group' => [
+          {'Q' => 'a'},
+          {'Q' => 'b'},
+          {'Q' => 'c'}
+        ]
+      }
+    }, {do_not_render: true})
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'correct_render', 'loop_over_image.docx'))
     our_render = Office::WordDocument.new(filename)
 
     assert docs_are_equivalent?(correct, our_render)
