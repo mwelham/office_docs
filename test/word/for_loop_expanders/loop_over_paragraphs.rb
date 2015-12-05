@@ -179,7 +179,7 @@ module LoopOverParagraphsTest
     File.delete(filename)
   end
 
-  def test_loop_over_graphic
+  def test_loop_over_list
     file = File.new('loop_over_list_test.docx', 'w')
     file.close
     filename = file.path
