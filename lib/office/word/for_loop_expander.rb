@@ -19,6 +19,8 @@ module Word
       # Get placeholders in paragraphs
       paragraphs = container.paragraphs
       self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
+      expanded_loops = false
+
       while there_are_for_loop_placeholders(placeholders)
         i = 0
         while i < placeholders.length
@@ -26,6 +28,7 @@ module Word
           if start_placeholder[:placeholder_text].match(FOR_LOOP_START_MATCHER)
             end_index = get_end_index(i)
             expand_loop(i, end_index)
+            expanded_loops = true
 
             i = end_index + 1
           else
@@ -36,7 +39,7 @@ module Word
         self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       end
 
-      fix_broken_docPr_nodes(container)
+      fix_broken_docPr_nodes(container) if expanded_loops
 
       # i = 0
       # While we have placeholders
@@ -123,7 +126,7 @@ module Word
       # When word repairs the files it just increments them... so we are just doing that...
       trouble_nodes = container.xml_node.xpath('//wp:docPr[@id!=""]')
       if trouble_nodes.count > 1
-        used_ids = container.body_node.xpath('//*[@id][@id!=""]').map{|n| n["id"].to_i}
+        used_ids = container.xml_node.xpath('//*[@id][@id!=""]').map{|n| n["id"].to_i}
         current_id = (used_ids.max || 0) + 1
         trouble_nodes.group_by{|n| n["id"]}.each do |id, nodes|
           next if nodes.count <= 1
