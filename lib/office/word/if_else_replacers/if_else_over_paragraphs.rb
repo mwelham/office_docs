@@ -11,7 +11,9 @@ module Word
         should_keep = evaluate_if(start_placeholder[:placeholder_text])
 
         if !should_keep
-          target_nodes.each(&:remove)
+          target_nodes.each do |node|
+            Word::Template.remove_node(node)
+          end
         end
       end
 
@@ -51,5 +53,6 @@ module Word
       end
 
     end
+
   end
 end

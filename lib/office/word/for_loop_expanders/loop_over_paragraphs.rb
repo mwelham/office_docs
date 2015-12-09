@@ -19,7 +19,9 @@ module Word
 
         field_data = for_loop_placeholder_info[:data].presence || []
         if field_data.length == 0
-          target_nodes.each(&:remove)
+          target_nodes.each do |node|
+            Word::Template.remove_node(node)
+          end
         else
           target_paragraphs = get_paragraphs_from_nodes(container, target_nodes)
           replace_variable_in_placeholders_in_paragraphs(target_paragraphs, 0, for_loop_placeholder_info, inbetween_placeholders)

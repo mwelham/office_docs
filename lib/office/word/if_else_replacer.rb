@@ -20,6 +20,7 @@ module Word
           start_placeholder = placeholders[i]
           if start_placeholder[:placeholder_text].include?("if ")
             end_index = get_end_index(i)
+            raise "Missing endif for if placeholder: #{start_placeholder[:placeholder_text]}" if end_index.nil?
             replace_if_else(i, end_index)
 
             i = end_index + 1
@@ -44,7 +45,7 @@ module Word
           level += 1
         end
       end
-      raise "if statement missing an end"
+      nil
     end
 
     def replace_if_else(start_index, end_index)

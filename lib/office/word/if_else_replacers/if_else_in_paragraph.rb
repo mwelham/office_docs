@@ -24,7 +24,7 @@ module Word
             paragraph.remove_run(run)
           end
           if paragraph.plain_text.gsub(/\s/, "").length == 0
-            paragraph.document.remove_paragraph(paragraph)
+            Word::Template.remove_node(paragraph.node)
           end
         end
 

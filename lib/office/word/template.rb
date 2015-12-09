@@ -139,5 +139,14 @@ module Word
       {index: index, identifier_without_array_info: new_identifier}
     end
 
+    def self.remove_node(node)
+      parent = node.parent
+      if node.name == 'p' && parent.name == 'tc' && parent.children.select{|c| c.name == 'p'}.count == 1
+        node.content = ""
+      else
+        node.remove
+      end
+    end
+
   end
 end
