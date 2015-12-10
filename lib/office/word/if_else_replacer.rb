@@ -59,7 +59,7 @@ module Word
       elsif if_else_are_in_different_container?(start_placeholder, end_placeholder)
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
-        raise "If start and end are in different containers"
+        raise "If start and end are in different containers for if #{start_placeholder[:placeholder_text]}"
       else
         # else its over paragraphs
         looper = Word::IfElseReplacers::IfElseOverParagraphs.new(main_doc, data, options)
@@ -68,8 +68,8 @@ module Word
     end
 
     def if_else_are_in_different_container?(start_placeholder, end_placeholder)
-      start_placeholder_parent = start_placeholder[:paragraph_object].document
-      end_placeholder_parent = end_placeholder[:paragraph_object].document
+      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
+      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
 
       start_placeholder_parent != end_placeholder_parent
     end

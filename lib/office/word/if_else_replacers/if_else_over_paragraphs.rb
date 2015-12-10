@@ -22,6 +22,10 @@ module Word
         end_paragraph = end_placeholder[:paragraph_object]
         document = start_paragraph.document
 
+        container = start_paragraph.node.parent
+        start_node = start_paragraph.node
+        end_node = end_paragraph.node
+
         starts_with = start_paragraph.plain_text.start_with?(start_placeholder[:placeholder_text])
         ends_with = end_paragraph.plain_text.end_with?(end_placeholder[:placeholder_text])
 
@@ -30,25 +34,27 @@ module Word
 
         if start_paragraph.plain_text.gsub(" ", "").length == 0
           start_placeholder_paragraph = start_paragraph
-          index = document.paragraphs.index(start_placeholder_paragraph)
-          start_paragraph = document.paragraphs[(index+1)]
+          index = container.children.index(start_node)
+          start_node = container.children[index + 1]
           document.remove_paragraph(start_placeholder_paragraph)
         else
           start_paragraph = starts_with ? start_paragraph : start_paragraph.split_after_run(start_run)
+          start_node = start_paragraph.node
         end
 
         if end_paragraph.plain_text.gsub(" ", "").length == 0
           end_placeholder_paragraph = end_paragraph
-          index = document.paragraphs.index(end_paragraph)
-          end_paragraph = document.paragraphs[(index-1)]
+          index = container.children.index(end_node)
+          end_node = container.children[index - 1]
           document.remove_paragraph(end_placeholder_paragraph)
         else
           end_paragraph.split_after_run(end_run) if(!ends_with)
+          end_node = end_paragraph.node
         end
 
-        container = start_paragraph.node.parent
-        start_index = container.children.index(start_paragraph.node)
-        end_index = container.children.index(end_paragraph.node)
+        start_index = container.children.index(start_node)
+        end_index = container.children.index(end_node)
+
         container.children[start_index..end_index]
       end
 
