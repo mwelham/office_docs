@@ -22,11 +22,20 @@ module Word
 
       def evaluate_expression(expression)
         left, operator, right = expression.split(' ')
+
+        # Special case
+        if left[0] == '!'
+          operator = '!'
+          left = left[1..-1]
+        end
+
         left = parse_input(left)
         right = parse_input(right)
         case operator
           when nil
             left.present?
+          when '!'
+            left.blank?
           when '=', '=='
             left == right
           when '!=', '<>'
