@@ -21,7 +21,7 @@ module Word
       end
 
       def evaluate_expression(expression)
-        left, operator, right = expression.split(' ')
+        left, operator, right = expression.split(' ').map(&:strip)
 
         # Special case
         if left[0] == '!'
