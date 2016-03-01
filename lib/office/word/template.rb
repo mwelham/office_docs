@@ -70,6 +70,8 @@ module Word
           render_section(container, data, options)
         end
       end
+
+      fixBrokenPRThings(containers)
     end
 
     def expand_for_loops(container, data, options = {})
@@ -93,6 +95,27 @@ module Word
           next_step[:run_index] = replacement[:next_run] if replacement[:next_run]
           next_step[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
           next_step
+        end
+      end
+    end
+
+    # This is some weirdness - but word gets angry if there are duplicate docPr objects.
+    # These come from graphic objects like lines.
+    # When word repairs the files it just increments them... so we are just doing that...
+    def fixBrokenPRThings(containers)
+      trouble_nodes = []
+      used_ids = []
+      containers.each do |container|
+        trouble_nodes += container.xml_node.xpath('//wp:docPr[@id!=""]')
+        used_ids += container.xml_node.xpath('//*[@id][@id!=""]').map{|n| n["id"].to_i}
+      end
+      current_id = (used_ids.max || 0) + 1
+      trouble_nodes.group_by{|n| n["id"]}.each do |id, nodes|
+        next if nodes.count <= 1
+        nodes[1..-1].each do |n|
+          n["id"] = current_id
+          n["name"] = n["name"].gsub(id.to_s, current_id.to_s)
+          current_id += 1
         end
       end
     end

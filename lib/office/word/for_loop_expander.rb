@@ -39,8 +39,6 @@ module Word
         self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       end
 
-      fix_broken_docPr_nodes(container) if expanded_loops
-
       # i = 0
       # While we have placeholders
         # Get first for start
@@ -118,25 +116,6 @@ module Word
 
     def there_are_for_loop_placeholders(placeholders)
       placeholders.any?{|p| p[:placeholder_text].match(FOR_LOOP_START_MATCHER) }
-    end
-
-    def fix_broken_docPr_nodes(container)
-      # This is some weirdness - but word gets angry if there are duplicate docPr objects.
-      # These come from graphic objects like lines.
-      # When word repairs the files it just increments them... so we are just doing that...
-      trouble_nodes = container.xml_node.xpath('//wp:docPr[@id!=""]')
-      if trouble_nodes.count > 1
-        used_ids = container.xml_node.xpath('//*[@id][@id!=""]').map{|n| n["id"].to_i}
-        current_id = (used_ids.max || 0) + 1
-        trouble_nodes.group_by{|n| n["id"]}.each do |id, nodes|
-          next if nodes.count <= 1
-          nodes[1..-1].each do |n|
-            n["id"] = current_id
-            n["name"] = n["name"].gsub(id.to_s, current_id.to_s)
-            current_id += 1
-          end
-        end
-      end
     end
 
   end#endclass
