@@ -40,6 +40,8 @@ module Word
             left == right
           when '!=', '<>'
             left != right
+          when "includes"
+            left.to_s.include? right.to_s
           else
             raise "Invalid if expression: #{expression}."
         end
