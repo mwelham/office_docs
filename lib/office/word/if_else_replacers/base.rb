@@ -21,7 +21,10 @@ module Word
       end
 
       def evaluate_expression(expression)
-        left, operator, right = expression.split(' ').map(&:strip)
+        split_expression = expression.split(' ')
+        left = split_expression[0].try(:strip)
+        operator = split_expression[1].try(:strip)
+        right = split_expression[2..-1].try(:join, ' ')
 
         # Special case
         if left[0] == '!'
@@ -31,6 +34,7 @@ module Word
 
         left = parse_input(left)
         right = parse_input(right)
+
         case operator
           when nil
             left.present?
