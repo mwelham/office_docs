@@ -29,6 +29,7 @@ module Word
             paragraph.remove_run(run)
           end
         else
+          raise "Trying to loop over a field that does not appear to be a repeat group #{start_placeholder[:placeholder_text]}." if !field_data.is_a?(Array)
           replace_variable_in_placeholders(0, for_loop_placeholder_info, inbetween_placeholders, paragraph, inbetween_runs)
           (field_data[1..-1] || []).each_with_index do |data_set, i|
             new_run_set = generate_new_run_set(paragraph, duplicate_runs)

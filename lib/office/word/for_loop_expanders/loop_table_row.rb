@@ -20,6 +20,7 @@ module Word
         if field_data.length == 0
           # do nothing - placeholders will get cleared
         else
+          raise "Trying to loop over a field that does not appear to be a repeat group #{start_placeholder[:placeholder_text]}." if !field_data.is_a?(Array)
           # Get paragraphs in existing row
           # Do row 0 replace
           paragraphs = get_paragraphs_from_row(container, row)

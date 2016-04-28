@@ -23,6 +23,8 @@ module Word
             Word::Template.remove_node(node)
           end
         else
+          raise "Trying to loop over a field that does not appear to be a repeat group #{start_placeholder[:placeholder_text]}." if !field_data.is_a?(Array)
+
           target_paragraphs = get_paragraphs_from_nodes(container, target_nodes)
           replace_variable_in_placeholders_in_paragraphs(target_paragraphs, 0, for_loop_placeholder_info, inbetween_placeholders)
           last_node = target_nodes.last
