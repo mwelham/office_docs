@@ -9,7 +9,7 @@ Dir[File.join(File.dirname(__FILE__) + '/if_else_replacers', "**/*.rb")].each do
   require f
 end
 
-class ForLoopExpanderTest < Test::Unit::TestCase
+class IfElseReplacerTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_IF_ELSE = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'if_else', 'test_if_in_same_paragraph.docx')
 
   include IfElseInParagraphTest

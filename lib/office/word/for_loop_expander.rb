@@ -2,8 +2,12 @@ require 'office/word/for_loop_expanders/loop_in_paragraph'
 require 'office/word/for_loop_expanders/loop_over_paragraphs'
 require 'office/word/for_loop_expanders/loop_table_row'
 
+require 'office/word/placeholder_position_check_methods'
+
 module Word
   class ForLoopExpander
+    include PlaceholderPositionCheckMethods
+
     attr_accessor :main_doc, :data, :options, :placeholders
 
     FOR_LOOP_START_MATCHER = /for (\w+) in (.+)/
@@ -80,38 +84,12 @@ module Word
       elsif start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
-        raise "For loop start and end mismatch - start is in table row but no end"
+        raise "For loop start and end mismatch - start is in table row but no end: #{start_placeholder[:placeholder_text]}"
       else
         # else its over paragraphs
         looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
         looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
       end
-    end
-
-    def placeholders_are_in_different_table_cells_in_same_row?(start_placeholder, end_placeholder)
-      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
-      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
-
-      start_placeholder_parent.name == 'tc' &&
-      end_placeholder_parent.name == 'tc' &&
-      start_placeholder_parent != end_placeholder_parent &&
-      start_placeholder_parent.parent == end_placeholder_parent.parent
-    end
-
-    def start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
-      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
-      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
-
-      return false if start_placeholder_parent.name != 'tc'
-
-      # First one is in a table cell - just need to make sure end is a tc and in the same row
-      end_placeholder_parent.name != 'tc' ||
-      start_placeholder_parent.parent != end_placeholder_parent.parent
-    end
-
-    def resync_container(container)
-      container.parse_paragraphs(container.container_node)
-      paragraphs = container.paragraphs
     end
 
     def there_are_for_loop_placeholders(placeholders)

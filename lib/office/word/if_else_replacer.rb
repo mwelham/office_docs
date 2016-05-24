@@ -1,9 +1,17 @@
 require 'office/word/if_else_replacers/if_else_in_paragraph'
 require 'office/word/if_else_replacers/if_else_over_paragraphs'
 
+require 'office/word/placeholder_position_check_methods'
+
 module Word
   class IfElseReplacer
+    include PlaceholderPositionCheckMethods
+
     attr_accessor :main_doc, :data, :options, :placeholders
+
+    IF_ELSE_START_MATCHER = /\s*if .+/
+    IF_ELSE_END_MATCHER = /endif/
+
     def initialize(main_doc, data, options = {})
       self.main_doc = main_doc
       self.data = data
@@ -18,7 +26,7 @@ module Word
         i = 0
         while i < placeholders.length
           start_placeholder = placeholders[i]
-          if start_placeholder[:placeholder_text].include?("if ")
+          if start_placeholder[:placeholder_text].match(IF_ELSE_START_MATCHER)
             end_index = get_end_index(i)
             raise "Missing endif for if placeholder: #{start_placeholder[:placeholder_text]}" if end_index.nil?
             replace_if_else(i, end_index)
@@ -37,11 +45,11 @@ module Word
     def get_end_index(start_index)
       level = 0
       placeholders[(start_index+1)..-1].each_with_index do |p, j|
-        if p[:placeholder_text].include?("endif") && level == 0
+        if p[:placeholder_text].match(IF_ELSE_END_MATCHER) && level == 0
           return (start_index+1)+j
-        elsif p[:placeholder_text].include?("endif") && level > 0
+        elsif p[:placeholder_text].match(IF_ELSE_END_MATCHER) && level > 0
           level -= 1
-        elsif p[:placeholder_text].include?("if ")
+        elsif p[:placeholder_text].match(IF_ELSE_START_MATCHER)
           level += 1
         end
       end
@@ -56,7 +64,14 @@ module Word
         # if start and end are in the same paragraph
         looper = Word::IfElseReplacers::IfElseInParagraph.new(main_doc, data, options)
         looper.replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
-      elsif if_else_are_in_different_container?(start_placeholder, end_placeholder)
+      elsif placeholders_are_in_different_table_cells_in_same_row?(start_placeholder, end_placeholder)
+        looper = Word::IfElseReplacers::IfElseTableRow.new(main_doc, data, options)
+        looper.replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
+      elsif start_placeholders_is_in_table_cell_but_end_is_not_in_row?(start_placeholder, end_placeholder)
+        # else if start is in a table cell but end is not in a table cell at all
+        # raise error
+        raise "If statement start and end mismatch - start is in table row but no end: #{start_placeholder[:placeholder_text]}"
+      elsif placeholders_are_in_different_containers?(start_placeholder, end_placeholder)
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
         raise "If start and end are in different containers for if #{start_placeholder[:placeholder_text]}"
@@ -67,20 +82,8 @@ module Word
       end
     end
 
-    def if_else_are_in_different_container?(start_placeholder, end_placeholder)
-      start_placeholder_parent = start_placeholder[:paragraph_object].node.parent
-      end_placeholder_parent = end_placeholder[:paragraph_object].node.parent
-
-      start_placeholder_parent != end_placeholder_parent
-    end
-
-    def resync_container(container)
-      container.parse_paragraphs(container.container_node)
-      paragraphs = container.paragraphs
-    end
-
     def there_are_if_else_placeholders?(placeholders)
-      placeholders.any?{|p| p[:placeholder_text].include?("if ") }
+      placeholders.any?{|p| p[:placeholder_text].match(IF_ELSE_START_MATCHER) }
     end
 
   end#endclass
