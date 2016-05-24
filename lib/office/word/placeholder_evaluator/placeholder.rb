@@ -14,10 +14,11 @@ end
 
 module Word
   class Placeholder
-    attr_accessor :field_identifier, :field_value, :field_options, :render_options, :final_value
+    attr_accessor :field_identifier, :field_value, :options_string, :field_options, :render_options, :final_value
     def initialize(field_identifier, field_value, options_string)
       self.field_identifier = field_identifier
       self.field_value = field_value
+      self.options_string = options_string
       self.field_options = parse_options(options_string)
 
       self.render_options = {}
@@ -98,9 +99,6 @@ module Word
 
     def get_whole_quoted_option(ss, part)
       whole_option = part
-      if whole_option[-1] == ',' && Placeholder.is_quote?(whole_option[-2])
-        whole_option = whole_option[0..-2]
-      end
 
       while(!option_is_complete(whole_option))
         next_part = ss.scan_until(/[“”"]/)
@@ -108,14 +106,18 @@ module Word
         whole_option += next_part
       end
 
+      if whole_option[-1] == ',' && Placeholder.is_quote?(whole_option[-2])
+        whole_option = whole_option[0..-2]
+      end
+
       ss.scan_until(/,/) #Just to get to the end of the section
       whole_option.strip
     end
 
     def option_is_complete(text)
-      ends_in_quote = Placeholder.is_quote?(text[-1])
-      end_is_escaped = text[-2] == '\\'
-      !end_is_escaped && ends_in_quote
+      start_of_quote = text.index(/[^\\][“”"]/) + 1
+      end_of_quote = text[(start_of_quote+1)..-1].index(/[^\\][“”"]/)
+      end_of_quote.present?
     end
 
     def self.is_quote?(char)
