@@ -2,7 +2,7 @@ require 'office/word/for_loop_expanders/base'
 
 module Word
   module IfElseReplacers
-    class IfElseTableRow < Word::ForLoopExpanders::Base
+    class IfElseTableRow < Word::IfElseReplacers::Base
 
       def replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
         container = start_placeholder[:paragraph_object].document

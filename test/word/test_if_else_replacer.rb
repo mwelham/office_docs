@@ -14,6 +14,7 @@ class IfElseReplacerTest < Test::Unit::TestCase
 
   include IfElseInParagraphTest
   include IfElseOverParagraphsTest
+  include IfElseTableRowTest
 
   #
   def test_get_placeholders

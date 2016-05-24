@@ -1,5 +1,6 @@
 require 'office/word/if_else_replacers/if_else_in_paragraph'
 require 'office/word/if_else_replacers/if_else_over_paragraphs'
+require 'office/word/if_else_replacers/if_else_table_row'
 
 require 'office/word/placeholder_position_check_methods'
 
