@@ -10,7 +10,7 @@ module Word
 
     attr_accessor :main_doc, :data, :options, :placeholders
 
-    IF_ELSE_START_MATCHER = /\s*if .+/
+    IF_ELSE_START_MATCHER = /\W(if)/
     IF_ELSE_END_MATCHER = /endif/
 
     def initialize(main_doc, data, options = {})
