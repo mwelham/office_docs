@@ -1,3 +1,5 @@
+require 'liquid'
+
 module Word
   module IfElseReplacers
     class Base
@@ -21,57 +23,28 @@ module Word
       end
 
       def evaluate_expression(expression)
-        split_expression = expression.split(' ')
-        left_raw = split_expression[0].try(:strip)
-        operator = split_expression[1].try(:strip)
-        right_raw = split_expression[2..-1].try(:join, ' ')
+        expression = expression.gsub(/\s=\s/," == ")
+        expression = expression.gsub(/!(?<word>[\w\.]+)/,'\k<word> == null')
+        expression = expression.gsub(/\sincludes\s/, ' contains ')
 
-        # Special case
-        if left_raw[0] == '!'
-          operator = '!'
-          left_raw = left_raw[1..-1]
-        end
+        liquid_if = ::Liquid::If.send(:new,'if',expression,{})
+        condition = liquid_if.instance_variable_get("@blocks").first
+        context = Liquid::Context.new(sanitize_data(data))
+        result = condition.evaluate(context)
+        result != false && result.present?
+      end
 
-        left = parse_input(left_raw)
-        right = parse_input(right_raw)
-
-        result = case operator
-          when nil
-            left.present?
-          when '!'
-            left.blank?
-          when '=', '=='
-            left == right
-          when '!=', '<>'
-            left != right
-          when "includes"
-            left.to_s.include? right.to_s
+      def sanitize_data(hash)
+        hash.each do |k, v|
+          if v.is_a?(Hash)
+            hash[k] = sanitize_data(v)
+          elsif v.is_a?(Array)
+            hash[k] = v.map(&:presence)
           else
-            raise "Invalid if expression: #{expression}."
+            hash[k] = v.presence
+          end
         end
-
-        result
-      end
-
-      def parse_input(input)
-        return nil if input.nil?
-        case
-        when is_number?(input)
-          Float(input)
-        when is_data?(input)
-          Word::Template.get_value_from_field_identifier(input, data)
-        else
-          input.strip.gsub("\"","")
-        end
-      end
-
-      def is_number? string
-        true if Float(string) rescue false
-      end
-
-      def is_data? string
-        !string.include?("\"") &&
-        data.keys.include?(string.split('.').first)
+        hash
       end
 
     end
