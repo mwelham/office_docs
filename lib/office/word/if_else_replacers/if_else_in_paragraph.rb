@@ -10,8 +10,8 @@ module Word
       def replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
         paragraph = start_placeholder[:paragraph_object]
 
-        start_run = paragraph.replace_first_with_empty_runs(start_placeholder[:placeholder_text]).last
-        end_run = paragraph.replace_first_with_empty_runs(end_placeholder[:placeholder_text]).first
+        end_run = replace_placeholder_with_blank_runs(end_placeholder)
+        start_run = replace_placeholder_with_blank_runs(start_placeholder)
 
         from_run = paragraph.runs.index(start_run) + 1
         to_run = paragraph.runs.index(end_run) - 1
@@ -28,6 +28,15 @@ module Word
           end
         end
 
+      end
+
+      def replace_placeholder_with_blank_runs(placeholder)
+        paragraph = placeholder[:paragraph_object]
+        start_run_index = placeholder[:beginning_of_placeholder][:run_index]
+        start_char_index = placeholder[:beginning_of_placeholder][:char_index]
+        start_index = paragraph.get_index_of_text_in_paragraph(start_run_index, start_char_index)
+
+        paragraph.replace_with_empty_run(start_index, placeholder[:placeholder_text].length)
       end
     end
   end

@@ -551,6 +551,15 @@ module Office
       empty_runs
     end
 
+    def get_index_of_text_in_paragraph(run_index, char_index)
+      if run_index == 0
+        char_index
+      else
+        total_index_before_run = @runs[0..(run_index-1)].map{|r| r.text.to_s.length }.sum
+        total_index_before_run + char_index
+      end
+    end
+
     def replace_with_empty_run(index, length)
       replaced = replace_in_runs(index, length, "")
       first_run = replaced[0]

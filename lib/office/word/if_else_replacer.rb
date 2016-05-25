@@ -19,6 +19,14 @@ module Word
       self.options = options
     end
 
+    # Have to resync after each if/else replacement because of the way the if/else in paragraph works.
+    #TODO - instead of resyncing the whole container just resync the paragraphs and placeholders affected.
+    # Do it in replace_if_else - get the start and end paragraphs, uniq them
+    # Get the placeholders in those paragraphs - delete them
+    # Reget the placeholders in those paragraphs
+    # Add them to the placeholders list
+    # Sort the list
+
     def replace_all_if_else(container)
       # Get placeholders in paragraphs
       paragraphs = container.paragraphs
@@ -31,14 +39,13 @@ module Word
             end_index = get_end_index(i)
             raise "Missing endif for if placeholder: #{start_placeholder[:placeholder_text]}" if end_index.nil?
             replace_if_else(i, end_index)
-
-            i = end_index + 1
+            paragraphs = resync_container(container)
+            self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
+            break
           else
             i += 1
           end
         end
-        paragraphs = resync_container(container)
-        self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       end
 
     end
