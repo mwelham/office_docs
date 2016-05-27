@@ -30,6 +30,8 @@ module Word
         liquid_if = ::Liquid::If.send(:new,'if',expression,{})
         condition = liquid_if.instance_variable_get("@blocks").first
         context_data = sanitize_data(data)
+        context_data["yes"] = "yes"
+        context_data["no"] = "no"
         context = Liquid::Context.new(context_data)
         result = condition.evaluate(context)
         result != false && result.present?
