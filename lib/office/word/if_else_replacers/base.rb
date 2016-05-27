@@ -29,22 +29,24 @@ module Word
 
         liquid_if = ::Liquid::If.send(:new,'if',expression,{})
         condition = liquid_if.instance_variable_get("@blocks").first
-        context = Liquid::Context.new(sanitize_data(data))
+        context_data = sanitize_data(data)
+        context = Liquid::Context.new(context_data)
         result = condition.evaluate(context)
         result != false && result.present?
       end
 
       def sanitize_data(hash)
+        sanitized_hash = {}
         hash.each do |k, v|
           if v.is_a?(Hash)
-            hash[k] = sanitize_data(v)
+            sanitized_hash[k] = sanitize_data(v)
           elsif v.is_a?(Array)
-            hash[k] = v.map{|value| sanitize_value(value)}
+            sanitized_hash[k] = v.map{|value| sanitize_value(value)}
           else
-            hash[k] = sanitize_value(v)
+            sanitized_hash[k] = sanitize_value(v)
           end
         end
-        hash
+        sanitized_hash
       end
 
       def sanitize_value(value)
