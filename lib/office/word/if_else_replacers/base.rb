@@ -39,12 +39,21 @@ module Word
           if v.is_a?(Hash)
             hash[k] = sanitize_data(v)
           elsif v.is_a?(Array)
-            hash[k] = v.map(&:presence)
+            hash[k] = v.map{|value| sanitize_value(value)}
           else
-            hash[k] = v.presence
+            hash[k] = sanitize_value(v)
           end
         end
         hash
+      end
+
+      def sanitize_value(value)
+        case value.class.to_s
+        when "Magick::Image"
+          value.to_s
+        else
+          value.presence
+        end
       end
 
     end
