@@ -44,7 +44,11 @@ module Word
           if v.is_a?(Hash)
             sanitized_hash[k] = sanitize_data(v)
           elsif v.is_a?(Array)
-            sanitized_hash[k] = v.map{|value| sanitize_value(value)}
+            if v.length > 1
+              sanitized_hash[k] = v.map{|value| sanitize_value(value)}
+            else
+              sanitized_hash[k] = sanitize_value(v.first)
+            end
           else
             sanitized_hash[k] = sanitize_value(v)
           end
