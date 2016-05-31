@@ -4,6 +4,7 @@ module IfElseOverParagraphsTest
   IF_ELSE_INCLUDES = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'if_else_includes.docx')
   IF_USING_IMAGE = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'if_using_image.docx')
   IF_SINGLE_QUOTE = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'if_single_quote.docx')
+  IF_NUMBER_COMPARISON = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'if_number_comparison.docx')
 
   #DIFFERENT PARAGRAPH LOOPS
   #
@@ -138,6 +139,33 @@ module IfElseOverParagraphsTest
     assert File.stat(filename).size > 0
 
     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_single_quote.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
+  ensure
+    File.delete(filename)
+  end
+
+  def test_if_single_quote
+    file = File.new('if_number_comparison.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(IF_NUMBER_COMPARISON)
+    template = Word::Template.new(doc)
+    template.render(
+      {'fields' =>
+        {
+          'a' => '1.5',
+          'b' => '30',
+          'c' => '24.566'
+        }
+      }, {do_not_render: true})
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_number_comparison.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
   ensure

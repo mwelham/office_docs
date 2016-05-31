@@ -57,12 +57,19 @@ module Word
       end
 
       def sanitize_value(value)
-        case value.class.to_s
-        when "Magick::Image"
+        case
+        when value.class.to_s == "Magick::Image"
           value.to_s
+        when is_number?(value)
+          value.to_f
         else
           value.presence
         end
+      end
+
+      def is_number? string
+        return false if string.blank?
+        true if Float(string) rescue false
       end
 
     end
