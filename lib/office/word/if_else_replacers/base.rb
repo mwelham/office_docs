@@ -62,6 +62,8 @@ module Word
           value.to_s
         when is_number?(value)
           value.to_f
+        when value.is_a?(Hash)
+          sanitize_data(value)
         else
           value.presence
         end
