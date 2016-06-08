@@ -271,7 +271,45 @@ module LoopOverParagraphsTest
     our_render = Office::WordDocument.new(filename)
 
     assert docs_are_equivalent?(correct, our_render)
+  ensure
+    File.delete(filename)
+  end
 
+  def test_complex_loop_with_render
+    file = File.new('complex_for_loop_word_template_with_render.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(COMPLEX_FOR_LOOP)
+    template = Word::Template.new(doc)
+    template.render(
+      {'fields' => {"Inspector_Name"=>"Dr Matt",
+       "Sites"=>
+        [{"Name"=>"Site A",
+          "Number_of_cool_things_at_the_site"=>"42",
+          "Checks"=>
+           [{"Check"=>"First Option", "Tools_found"=>[{"Tool_Name"=>"Bob"}, {"Tool_Name"=>"Hammer"}]},
+            {"Check"=>"2", "Tools_found"=>[{"Tool_Name"=>"Shovel"}]},
+            {"Check"=>"3"},
+            {"Check"=>"4", "Tools_found"=>[{"Tool_Name"=>"A"}, {"Tool_Name"=>"B"}, {"Tool_Name"=>"C"}, {"Tool_Name"=>"D"}]}],
+          "Employees"=>
+           [{"Name"=>"Pop", "Rating"=>"Good"},
+            {"Name"=>"Cap", "Rating"=>"Average"}]},
+         {"Name"=>"Site B",
+          "Number_of_cool_things_at_the_site"=>"2",
+          "Checks"=>[{"Check"=>"6", "Tools_found"=>[{"Tool_Name"=>"Pew"}, {"Tool_Name"=>"Shoe"}]}]}]
+          }
+        },{do_not_render: false})
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'correct_render', 'complex_for_loop_word_template_with_render.docx'))
+    our_render = Office::WordDocument.new(filename)
+
+    assert docs_are_equivalent?(correct, our_render)
+  ensure
     File.delete(filename)
   end
 end

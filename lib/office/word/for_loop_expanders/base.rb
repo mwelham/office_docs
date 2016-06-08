@@ -13,7 +13,12 @@ module Word
           placeholder_variable_matcher = /#{for_loop_placeholder_info[:variable]}\./
           placeholder = p[:placeholder_text]
           if placeholder.match(placeholder_variable_matcher)
-            new_placeholder = placeholder.gsub(placeholder_variable_matcher,"#{for_loop_placeholder_info[:data_pointer]}[#{index}].")
+            new_placeholder = if for_loop_placeholder_info[:data].length > 1
+              placeholder.gsub(placeholder_variable_matcher,"#{for_loop_placeholder_info[:data_pointer]}[#{index}].")
+            else
+              placeholder.gsub(placeholder_variable_matcher,"#{for_loop_placeholder_info[:data_pointer]}.")
+            end
+
             if inbetween_runs
               paragraph.replace_all_with_text(placeholder, new_placeholder, inbetween_runs)
             else
