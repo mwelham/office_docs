@@ -14,6 +14,7 @@ class TemplateTest < Test::Unit::TestCase
   TEST_QUOTE_MARKS_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'quote_mark_in_template_options.docx')
 
   TEMPLATE_ALL_OPTIONS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'Template_Test_Form.docx')
+  TEST_ARABIC_DATE_TIME = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'test_arabic_date_time.docx')
 
   def test_get_placeholders
     doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
@@ -168,6 +169,30 @@ class TemplateTest < Test::Unit::TestCase
     assert File.stat(filename).size > 0
 
     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
+    our_render = Office::WordDocument.new(filename)
+    assert docs_are_equivalent?(correct, our_render)
+
+    File.delete(filename)
+  end
+
+  def test_parse_arabic_datetime
+    file = File.new('test_arabic_date_time.docx', 'w')
+    file.close
+    filename = file.path
+
+    doc = Office::WordDocument.new(TEST_ARABIC_DATE_TIME)
+    template = Word::Template.new(doc)
+    template.render({
+        'fields' => {
+          'a' => '١٦:٥٩:٠٠+٠٢٠٠'
+        }
+      })
+    template.word_document.save(filename)
+
+    assert File.file?(filename)
+    assert File.stat(filename).size > 0
+
+    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
 
