@@ -661,6 +661,14 @@ module Office
       run.node.remove
       runs.delete_at(r_index)
     end
+
+    def is_blank?
+      plain_text.gsub(/\s/, "").length == 0 && !has_sym_nodes?
+    end
+
+    def has_sym_nodes?
+      runs.any?{|r| r.node.xpath('w:sym').length > 0}
+    end
   end
 
   class Run

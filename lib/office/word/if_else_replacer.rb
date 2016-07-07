@@ -68,6 +68,7 @@ module Word
       start_placeholder = placeholders[start_index]
       end_placeholder = placeholders[end_index]
       inbetween_placeholders = placeholders[(start_index+1)..(end_index-1)]
+
       if start_placeholder[:paragraph_index] == end_placeholder[:paragraph_index]
         # if start and end are in the same paragraph
         looper = Word::IfElseReplacers::IfElseInParagraph.new(main_doc, data, options)

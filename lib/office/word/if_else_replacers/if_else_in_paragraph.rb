@@ -23,7 +23,8 @@ module Word
           inbetween_runs.each do |run|
             paragraph.remove_run(run)
           end
-          if paragraph.plain_text.gsub(/\s/, "").length == 0
+
+          if paragraph.is_blank?
             Word::Template.remove_node(paragraph.node)
           end
         end
