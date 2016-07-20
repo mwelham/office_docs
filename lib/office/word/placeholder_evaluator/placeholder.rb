@@ -30,7 +30,11 @@ module Word
         self.final_value
       else
         field_options.sort_by(&:importance).reverse.each do |o|
-          o.apply_option
+          begin
+            o.apply_option
+          rescue => e
+            raise "Error applying option #{o.class.to_s.underscore.humanize} to field #{self.field_identifier}"
+          end
         end
         self.final_value = self.field_value
       end
