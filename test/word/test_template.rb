@@ -195,7 +195,7 @@ class TemplateTest < Test::Unit::TestCase
     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
     our_render = Office::WordDocument.new(filename)
     assert docs_are_equivalent?(correct, our_render)
-
+  ensure
     File.delete(filename)
   end
 
