@@ -33,7 +33,7 @@ module Word
           begin
             o.apply_option
           rescue => e
-            raise "Error applying option #{o.class.to_s.underscore.humanize} to field #{self.field_identifier}"
+            raise "Error applying option #{o.class.to_s.underscore.humanize} to field #{self.field_identifier} - #{e.inspect}"
           end
         end
         self.final_value = self.field_value
