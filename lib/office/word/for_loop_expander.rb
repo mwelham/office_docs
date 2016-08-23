@@ -85,6 +85,10 @@ module Word
         # else if start is in a table cell but end is not in a table cell at all
         # raise error
         raise "For loop start and end mismatch - start is in table row but no end: #{start_placeholder[:placeholder_text]}"
+      elsif placeholders_are_in_different_containers?(start_placeholder, end_placeholder)
+        # else if start is in a table cell but end is not in a table cell at all
+        # raise error
+        raise "If start and end are in different containers for if #{start_placeholder[:placeholder_text]}"
       else
         # else its over paragraphs
         looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
