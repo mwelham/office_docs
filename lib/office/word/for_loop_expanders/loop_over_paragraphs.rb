@@ -62,6 +62,9 @@ module Word
           start_placeholder_paragraph = start_paragraph
           index = container.children.index(start_node)
           start_node = container.children[index + 1]
+
+          raise "Error for loop '#{start_placeholder[:placeholder_text]}'. No content between for loop start and end. Please add some content or add some extra spacing between start, content and end." if start_node == end_node
+
           document.remove_paragraph(start_placeholder_paragraph)
         else
           start_paragraph = starts_with ? start_paragraph : start_paragraph.split_after_run(start_run)
