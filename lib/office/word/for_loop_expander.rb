@@ -92,7 +92,7 @@ module Word
       else
         # else its over paragraphs
         looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
-        looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
+        looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
       end
     end
 

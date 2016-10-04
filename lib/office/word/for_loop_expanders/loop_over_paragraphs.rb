@@ -6,8 +6,9 @@ module Word
 
       # break paragraphs on start + end
       # loop paragraphs inbetween
-
-      def expand_loop(start_placeholder, end_placeholder, inbetween_placeholders)
+      attr_accessor :placeholders
+      def expand_loop(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
+        self.placeholders = placeholders
         container = start_placeholder[:paragraph_object].document
         target_nodes = get_inbetween_nodes(start_placeholder, end_placeholder)
 
@@ -77,7 +78,9 @@ module Word
           end_node = container.children[index - 1]
           document.remove_paragraph(end_placeholder_paragraph)
         else
-          end_paragraph.split_after_run(end_run) if(!ends_with)
+          other_dependent_placeholders = placeholders.select{|p| p[:paragraph_object] == end_paragraph && p != end_placeholder}
+          new_end = end_paragraph.split_after_run(end_run) if(!ends_with)
+          other_dependent_placeholders.each{|p| p[:paragraph_object] = new_end}
           end_node = end_paragraph.node
         end
 
