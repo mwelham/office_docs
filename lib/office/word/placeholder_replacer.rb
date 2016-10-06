@@ -26,6 +26,7 @@ module Word
         paragraph.replace_all_with_text(source_text, replacement)
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = paragraph.replace_all_with_empty_runs(source_text)
+        local_options[:document_section] = paragraph.document
         runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(replacement, local_options)) }
       else
         runs = paragraph.replace_all_with_empty_runs(source_text)

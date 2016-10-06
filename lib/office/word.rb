@@ -110,18 +110,20 @@ module Office
     end
 
     def create_image_run_fragment(image, options = {})
-      prefix = ["", @main_doc.part.path_components, "media", "image"].flatten.join('/')
+      document_section = options[:document_section].presence || @main_doc
+      document_section.make_sure_section_has_relationships!
+      prefix = ["", document_section.part.path_components, "media", "image"].flatten.join('/')
       identifier = unused_part_identifier(prefix)
       extension = "#{image.format}".downcase
 
       part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
-      relationship_id = @main_doc.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
+      relationship_id = document_section.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
 
-      image_fragment = Run.create_image_fragment(@main_doc.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+      image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
 
       hyperlink = options[:hyperlink]
       if hyperlink.present?
-        hyperlink_relationship_id = @main_doc.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
+        hyperlink_relationship_id = document_section.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
         image_fragment.gsub!("</wp:docPr>", %|<a:hlinkClick xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" r:id="#{hyperlink_relationship_id}"/></wp:docPr>|)
       end
       image_fragment
@@ -332,6 +334,20 @@ module Office
       Logger.debug_dump "<<<"
       Logger.debug_dump ""
     end
+
+    def make_sure_section_has_relationships!
+      if !part.has_relationships?
+        prefix = ["", main_doc.part.path_components, "_rels", ""].flatten.join('/')
+        identifier = part.name.split('/').last
+        extension = "rels"
+        relationships_xml = %|
+          <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+          </Relationships>
+        %|
+        rels_part = main_doc.parent.add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(relationships_xml), "application/vnd.openxmlformats-package.relationships+xml")
+        rels_part.map_relationships(main_doc.parent)
+      end
+    end
   end
 
   class MainDocument < ParagraphContainer
@@ -339,6 +355,7 @@ module Office
     attr_accessor :body_node
     attr_accessor :headers
     attr_accessor :footers
+    attr_accessor :parent
 
     def initialize(word_doc, part)
       @parent = word_doc
@@ -431,6 +448,14 @@ module Office
     def xml_node
       header_node
     end
+
+    def find_unused_drawing_object_id
+      largest_unused_in_xml = (@header_node.xpath('//wp:docPr').map { |docPr| docPr[:id].to_i }.max || 0) + 1
+      # It's possible to batch create drawing objects and insert them into the doc
+      # in one go. So we also need to track the largest id we've issued so far.
+      @last_created_unused_id = [largest_unused_in_xml, (@last_created_unused_id || 0) + 1].max
+      @last_created_unused_id
+    end
   end
 
   class Footer < ParagraphContainer
@@ -449,6 +474,14 @@ module Office
 
     def xml_node
       footer_node
+    end
+
+    def find_unused_drawing_object_id
+      largest_unused_in_xml = (@footer_node.xpath('//wp:docPr').map { |docPr| docPr[:id].to_i }.max || 0) + 1
+      # It's possible to batch create drawing objects and insert them into the doc
+      # in one go. So we also need to track the largest id we've issued so far.
+      @last_created_unused_id = [largest_unused_in_xml, (@last_created_unused_id || 0) + 1].max
+      @last_created_unused_id
     end
   end
 
