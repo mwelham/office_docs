@@ -70,9 +70,14 @@ module Word
 
         if end_paragraph.plain_text.gsub(" ", "").length == 0
           end_placeholder_paragraph = end_paragraph
-          index = container.children.index(end_node)
-          end_node = container.children[index - 1]
-          document.remove_paragraph(end_placeholder_paragraph)
+          if start_node == end_node #nothing inbetween
+            document.remove_paragraph(end_placeholder_paragraph)
+            return []
+          else
+            index = container.children.index(end_node)
+            end_node = container.children[index - 1]
+            document.remove_paragraph(end_placeholder_paragraph)
+          end
         else
           other_dependent_placeholders = placeholders.select{|p| p[:paragraph_object] == end_paragraph && p != end_placeholder}
           new_end = end_paragraph.split_after_run(end_run) if(!ends_with)

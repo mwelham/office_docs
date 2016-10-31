@@ -3,6 +3,7 @@ require 'date'
 require 'office_docs'
 require 'equivalent-xml'
 require 'pry'
+require 'helpers/template_test_helper'
 
 # require all the options
 Dir[File.join(File.dirname(__FILE__) + '/for_loop_expanders', "**/*.rb")].each do |f|
@@ -12,6 +13,7 @@ end
 class ForLoopExpanderTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_FOR_LOOP = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'in_same_paragraph_for_loop_test.docx')
 
+  include TemplateTestHelper
   include LoopInParagraphTest
   include LoopOverParagraphsTest
   include LoopTableRowTest

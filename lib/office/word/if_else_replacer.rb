@@ -87,7 +87,7 @@ module Word
       else
         # else its over paragraphs
         looper = Word::IfElseReplacers::IfElseOverParagraphs.new(main_doc, data, options)
-        looper.replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
+        looper.replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
       end
     end
 

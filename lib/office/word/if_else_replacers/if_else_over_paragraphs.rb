@@ -3,8 +3,10 @@ require 'office/word/if_else_replacers/base'
 module Word
   module IfElseReplacers
     class IfElseOverParagraphs < Word::IfElseReplacers::Base
+      attr_accessor :placeholders
 
-      def replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders)
+      def replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
+        self.placeholders = placeholders
         container = start_placeholder[:paragraph_object].document
         target_nodes = get_inbetween_nodes(start_placeholder, end_placeholder)
 
@@ -44,11 +46,19 @@ module Word
 
         if end_paragraph.plain_text.gsub(" ", "").length == 0
           end_placeholder_paragraph = end_paragraph
-          index = container.children.index(end_node)
-          end_node = container.children[index - 1]
-          document.remove_paragraph(end_placeholder_paragraph)
+
+          if start_node == end_node #nothing inbetween
+            document.remove_paragraph(end_placeholder_paragraph)
+            return []
+          else
+            index = container.children.index(end_node)
+            end_node = container.children[index - 1]
+            document.remove_paragraph(end_placeholder_paragraph)
+          end
         else
-          end_paragraph.split_after_run(end_run) if(!ends_with)
+          other_dependent_placeholders = placeholders.select{|p| p[:paragraph_object] == end_paragraph && p != end_placeholder}
+          new_end = end_paragraph.split_after_run(end_run) if(!ends_with)
+          other_dependent_placeholders.each{|p| p[:paragraph_object] = new_end}
           end_node = end_paragraph.node
         end
 

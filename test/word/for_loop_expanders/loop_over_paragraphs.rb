@@ -1,4 +1,6 @@
 module LoopOverParagraphsTest
+  require 'helpers/template_test_helper'
+
   IN_DIFFERENT_PARAGRAPH_FOR_LOOP = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'in_different_paragraph_for_loop_test.docx')
   IN_DIFFERENT_PARAGRAPH_FOR_LOOP_COMPLEX = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'in_different_paragraph_complex_loop_test.docx')
   LOOP_IN_LOOP_IN_DIFFERENT_PARAGRAPH = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'test_loop_in_loop_in_different_paragraph.docx')
@@ -311,5 +313,15 @@ module LoopOverParagraphsTest
     assert docs_are_equivalent?(correct, our_render)
   ensure
     File.delete(filename)
+  end
+
+  def test_blank_loop
+    path_to_template = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'test_blank_loop_in_different_paragraph.docx')
+    path_to_correct_render = File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'for_loops', 'correct_render', 'test_blank_loop_in_different_paragraph.docx')
+    render_params = {
+      'fields' => {
+      }
+    }
+    check_template(path_to_template, path_to_correct_render, {render_params: render_params})
   end
 end

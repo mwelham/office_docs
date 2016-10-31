@@ -15,6 +15,8 @@ module TemplateTestHelper
     assert File.file?(filename)
     assert File.stat(filename).size > 0
 
+    binding.pry if options[:pry]
+
     correct = Office::WordDocument.new(path_to_correct_render)
     our_render = Office::WordDocument.new(filename)
 
