@@ -140,7 +140,7 @@ module Word
           result = result[index] if result.is_a? Array
         end
 
-        if result == nil
+        if result.nil?
           result = ""
           break
         end
