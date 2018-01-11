@@ -64,7 +64,7 @@ module Word
           level += 1
         end
       end
-      raise "For each missing an end"
+      raise "Missing endfor for 'for each' placeholder: #{placeholders[start_index][:placeholder_text]}"
     end
 
     def expand_loop(start_index, end_index)
