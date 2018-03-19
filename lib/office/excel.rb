@@ -7,6 +7,7 @@ module Office
   class ExcelWorkbook < Package
     attr_accessor :workbook_part
     attr_accessor :shared_strings
+    attr_accessor :styles
     attr_accessor :sheets
 
     def initialize(filename)
@@ -16,6 +17,7 @@ module Office
       raise PackageError.new("Excel workbook package '#{@filename}' has no workbook part") if @workbook_part.nil?
 
       parse_shared_strings
+      parse_styles
       parse_workbook_xml
     end
 
@@ -42,6 +44,11 @@ module Office
     def parse_shared_strings
       shared_strings_part = @workbook_part.get_relationship_targets(EXCEL_SHARED_STRINGS_TYPE).first
       @shared_strings = SharedStringTable.new(shared_strings_part) unless shared_strings_part.nil?
+    end
+
+    def parse_styles
+      styles_part = @workbook_part.get_relationship_targets(EXCEL_STYLES_TYPE).first
+      @styles = StyleSheet.new(styles_part) unless styles_part.nil?
     end
 
     def parse_workbook_xml
@@ -147,13 +154,13 @@ module Office
       @workbook = workbook
 
       @rows = []
-      node.xpath("#{Package.xpath_ns_prefix(node)}:row").each { |r| @rows << Row.new(r, workbook.shared_strings) }
+      node.xpath("#{Package.xpath_ns_prefix(node)}:row").each { |r| @rows << Row.new(r, workbook.shared_strings, workbook.styles) }
     end
 
     def add_row(data)
       row_node = Row.create_node(@node.document, @rows.length + 1, data, workbook.shared_strings)
       @node.add_child(row_node)
-      @rows << Row.new(row_node, workbook.shared_strings)
+      @rows << Row.new(row_node, workbook.shared_strings, workbook.styles)
     end
 
     def to_csv(separator)
@@ -196,14 +203,14 @@ module Office
     attr_accessor :spans
     attr_accessor :cells
 
-    def initialize(row_node, string_table)
+    def initialize(row_node, string_table, styles)
       @node = row_node
 
       @number = row_node["r"].to_i - 1
       @spans = row_node["spans"]
 
       @cells = []
-      node.xpath("#{Package.xpath_ns_prefix(row_node)}:c").each { |c| @cells << Cell.new(c, string_table) }
+      node.xpath("#{Package.xpath_ns_prefix(row_node)}:c").each { |c| @cells << Cell.new(c, string_table, styles) }
     end
 
     def self.create_node(document, number, data, string_table)
@@ -235,16 +242,19 @@ module Office
     attr_accessor :node
     attr_accessor :location
     attr_accessor :style
+    attr_accessor :style_id
     attr_accessor :data_type
     attr_accessor :value_node
     attr_accessor :shared_string
 
-    def initialize(c_node, string_table)
+    def initialize(c_node, string_table, styles)
       @node = c_node
       @location = c_node["r"]
-      @style = c_node["s"]
+      @style_id = c_node["s"]
       @data_type = c_node["t"]
 
+      @style = (styles.present? and !@style_id.blank?) ? styles.xf_by_id(@style_id) : nil
+      
       # Originally did this, but was incredibly slow:
       #@value_node = c_node.at_xpath("xmlns:v")
       @value_node = nil
@@ -306,6 +316,93 @@ module Office
     def value
       return nil if @value_node.nil?
       is_string? ? @shared_string.text : @value_node.content
+    end
+
+    def formatted_value
+      return nil if @value_node.nil?
+      return @shared_string.text if is_string?
+
+      unformatted_value = @value_node.content
+      return nil if unformatted_value.nil?
+
+      # ECMA-376 Part 1 section 18.8.30 numFmt (Number Format) - p1767
+      case @style.try(:number_format_id)
+      when "0"  #    General
+        as_decimal(value)
+      when "1"  #    0
+        as_integer(value)
+      when "2"  #    0.00
+        as_decimal(value)
+      when "3"  #    #,##0
+        as_integer(value)
+      when "4"  #    #,##0.00
+        as_decimal(value)
+      when "9"  #    0%
+        as_decimal(value)
+      when "10" #    0.00%
+        as_decimal(value)
+      when "11" #    0.00E+00
+        as_decimal(value)
+      #when "12" #    # ?/?
+      #when "13" #    # ??/??
+      when "14" #    mm-dd-yy
+        as_date(value)
+      when "15" #    d-mmm-yy
+        as_date(value)
+      when "16" #    d-mmm
+        as_date(value)
+      when "17" #    mmm-yy
+        as_date(value)
+      when "18" #    h:mm AM/PM
+        as_time(value)
+      when "19" #    h:mm:ss AM/PM
+        as_time(value)
+      when "20" #    h:mm
+        as_time(value)
+      when "21" #    h:mm:ss
+        as_time(value)
+      when "22" #    m/d/yy h:mm
+        as_datetime(value)
+      when "37" #    #,##0 ;(#,##0)
+        as_decimal(value)
+      when "38" #    #,##0 ;[Red](#,##0)
+        as_decimal(value)
+      when "39" #    #,##0.00;(#,##0.00)
+        as_decimal(value)
+      when "40" #    #,##0.00;[Red](#,##0.00)
+        as_decimal(value)
+      when "45" #    mm:ss
+        as_time(value)
+      when "46" #    [h]:mm:ss
+        as_time(value)
+      when "47" #    mmss.0
+        as_time(value)
+      when "48" #    ##0.0E+0
+        as_decimal(value)
+      #when "49" #    @
+      else
+        value
+      end
+    end
+
+    def as_decimal(value)
+      value.to_f
+    end
+
+    def as_integer(value)
+      value.to_i
+    end
+
+    def as_datetime(value)
+      DateTime.new(1900, 1, 1, 0, 0, 0) + value.to_f - 2
+    end
+
+    def as_date(value)
+      DateTime.new(1900, 1, 1, 0, 0, 0) + value.to_i - 2
+    end
+
+    def as_time(value)
+      as_datetime(value).to_time
     end
   end
 
@@ -379,6 +476,33 @@ module Office
 
     def add_cell(cell)
       @cells << cell
+    end
+  end
+
+  class StyleSheet
+    attr_accessor :node
+
+    def initialize(part)
+      ns_prefix = Package.xpath_ns_prefix(part.xml.root)
+      @node = part.xml.at_xpath("/#{ns_prefix}:styleSheet")
+      @xfs = node.xpath("#{ns_prefix}:cellXfs").children.map { |xf| CellXF.new(xf) }
+    end
+
+    def xf_by_id(id)
+      @xfs[id.to_i]
+    end
+  end
+
+  class CellXF
+    attr_accessor :node
+    attr_accessor :number_format_id
+    attr_accessor :apply_number_format
+
+    def initialize(xf_node)
+      @node = xf_node
+      @xf_id = xf_node['xfId']
+      @number_format_id = xf_node['numFmtId']
+      @apply_number_format = xf_node['applyNumberFormat']
     end
   end
 end
