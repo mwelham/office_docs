@@ -324,64 +324,66 @@ module Office
 
       unformatted_value = @value_node.content
       return nil if unformatted_value.nil?
+    
+      return unformatted_value if @style.try(:apply_number_format) != '1'
 
       # ECMA-376 Part 1 section 18.8.30 numFmt (Number Format) - p1767
       case @style.try(:number_format_id)
       when "0"  #    General
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "1"  #    0
-        as_integer(value)
+        as_integer(unformatted_value)
       when "2"  #    0.00
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "3"  #    #,##0
-        as_integer(value)
+        as_integer(unformatted_value)
       when "4"  #    #,##0.00
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "9"  #    0%
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "10" #    0.00%
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "11" #    0.00E+00
-        as_decimal(value)
+        as_decimal(unformatted_value)
       #when "12" #    # ?/?
       #when "13" #    # ??/??
       when "14" #    mm-dd-yy
-        as_date(value)
+        as_date(unformatted_value)
       when "15" #    d-mmm-yy
-        as_date(value)
+        as_date(unformatted_value)
       when "16" #    d-mmm
-        as_date(value)
+        as_date(unformatted_value)
       when "17" #    mmm-yy
-        as_date(value)
+        as_date(unformatted_value)
       when "18" #    h:mm AM/PM
-        as_time(value)
+        as_time(unformatted_value)
       when "19" #    h:mm:ss AM/PM
-        as_time(value)
+        as_time(unformatted_value)
       when "20" #    h:mm
-        as_time(value)
+        as_time(unformatted_value)
       when "21" #    h:mm:ss
-        as_time(value)
+        as_time(unformatted_value)
       when "22" #    m/d/yy h:mm
-        as_datetime(value)
+        as_datetime(unformatted_value)
       when "37" #    #,##0 ;(#,##0)
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "38" #    #,##0 ;[Red](#,##0)
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "39" #    #,##0.00;(#,##0.00)
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "40" #    #,##0.00;[Red](#,##0.00)
-        as_decimal(value)
+        as_decimal(unformatted_value)
       when "45" #    mm:ss
-        as_time(value)
+        as_time(unformatted_value)
       when "46" #    [h]:mm:ss
-        as_time(value)
+        as_time(unformatted_value)
       when "47" #    mmss.0
-        as_time(value)
+        as_time(unformatted_value)
       when "48" #    ##0.0E+0
-        as_decimal(value)
+        as_decimal(unformatted_value)
       #when "49" #    @
       else
-        value
+        unformatted_value
       end
     end
 
