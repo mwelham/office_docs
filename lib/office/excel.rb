@@ -228,13 +228,17 @@ module Office
       row_node
     end
 
-    def to_ary
+    def cells_padded_to_column_number
       ary = []
       @cells.each do |c|
-        ary.push("") until ary.length > c.column_num
-        ary[c.column_num] = c.value
+        ary.push(nil) until ary.length > c.column_num
+        ary[c.column_num] = c
       end
       ary
+    end
+
+    def to_ary
+      cells_padded_to_column_number.map { |c| c.try(:value) || '' }
     end
   end
 
