@@ -1,5 +1,5 @@
 require 'nokogiri' # docs at http://nokogiri.org
-require 'RMagick'  # docs at http://studio.imagemagick.org/RMagick/doc
+require 'rmagick'  # docs at http://studio.imagemagick.org/RMagick/doc
 require 'office/constants'
 require 'office/errors'
 require 'office/logger'
