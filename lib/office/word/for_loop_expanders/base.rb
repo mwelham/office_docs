@@ -10,7 +10,7 @@ module Word
 
       def replace_variable_in_placeholders(index, for_loop_placeholder_info, placeholders, paragraph, inbetween_runs=nil)
         placeholders.each do |p|
-          placeholder_variable_matcher = /#{for_loop_placeholder_info[:variable]}\./
+          placeholder_variable_matcher = /\b#{for_loop_placeholder_info[:variable]}\./
           placeholder = p[:placeholder_text]
           if placeholder.match(placeholder_variable_matcher)
             new_placeholder = if for_loop_placeholder_info[:data].length > 1
