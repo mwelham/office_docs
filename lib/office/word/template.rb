@@ -54,6 +54,7 @@ module Word
     #
 
     def render(data, options = {})
+      # TODO this doesn't seem to do anything?
       paragraph_sets = [main_doc.paragraphs]
       main_doc.headers.each do |header|
         paragraph_sets << header.paragraphs

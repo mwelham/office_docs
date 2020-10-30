@@ -21,6 +21,7 @@ module Word
 
       source_text = placeholder[:placeholder_text]
 
+      # TODO This is identical to code in lib/office/word.rb:82 Office::WordDocument#replace_all
       case
       when replacement.is_a?(String)
         paragraph.replace_all_with_text(source_text, replacement)
