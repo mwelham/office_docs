@@ -32,7 +32,7 @@ module Office
     end
 
     def set_relationships(relationships_part)
-      raise "multiple relationship parts for '#{@name}'" unless @relationships.nil?
+      raise "multiple relationship parts for '#{@name}'" if instance_variable_defined?(:@relationships)
       @relationships = relationships_part
     end
 
@@ -58,7 +58,7 @@ module Office
     end
 
     def remove_relationships(part)
-      return if self == part || @relationships.nil?
+      return if self == part || !instance_variable_defined?(:@relationships)
       @relationships.remove(part)
     end
 
