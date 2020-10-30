@@ -47,15 +47,15 @@ module Office
     def cells_padded_to_column_number
       ary = []
       cells.each do |c|
-        ary.push(nil) until ary.length > c.column_num
-        ary[c.column_num] = c
+        ary.push(nil) until ary.length > c.location.coli
+        ary[c.location.coli] = c
       end
       ary
     end
 
     def to_ary
-      # why might c be nil here?, and surely you'd want to keep it nil rather than ''?
-      cells_padded_to_column_number.map { |c| c.try(:value) || '' }
+      # TODO why might c be nil here?, and surely you'd want to keep it nil rather than ''?
+      cells_padded_to_column_number.map { |c| c&.value || '' }
     end
   end
 

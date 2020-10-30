@@ -40,4 +40,12 @@ describe :ExcelNumberFormatsTest do
     assert (rows[4].cells[4].formatted_value - 4.4).abs < 0.00001
     assert (rows[5].cells[4].formatted_value - 5.5).abs < 0.00001
   end
+
+  it '2d access' do
+    book = Office::ExcelWorkbook.new(SIMPLE_DATA_TYPES_WORKBOOK_PATH)
+    sheet = book.sheets.first
+
+    sheet[0,1].formatted_value.should == Date.new(2001, 1, 1)
+    sheet[4,5].formatted_value.should == 5.5
+  end
 end

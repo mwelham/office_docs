@@ -153,4 +153,11 @@ describe 'ExcelWorkbooksTest' do
     assert_equal book.sheets.first.sheet_data.rows[2].cells[0].value, "Person 0002"
     assert_equal book.sheets.first.sheet_data.rows[2].cells[1].value, "20"
   end
+
+  it 'manipulates a cell' do
+    book = Office::ExcelWorkbook.blank_workbook
+    sheet = book.sheets.first
+    cell = sheet[100,100]
+    cell.should be_a(Office::LazyCell)
+  end
 end
