@@ -1,2 +1,5 @@
 .rvmrc
 office_docs.tmproj
+Gemfile.lock
+docs
+scratch
