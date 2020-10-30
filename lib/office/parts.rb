@@ -6,7 +6,7 @@ require 'office/logger'
 
 module Office
   class Part
-    attr_accessor :name
+    attr_reader :name
     attr_accessor :zip_entry_name # original case-sensitive non-rooted name (when available)
     attr_accessor :content_type
 
