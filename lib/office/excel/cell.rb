@@ -107,8 +107,10 @@ module Office
       end
 
       # create c node and set its value
-      c_node = sheet.node.document.create_element 'c', r: location.to_s
-      build_c_node c_node, obj, inline_string: true
+      c_node = build_c_node \
+        sheet.node.document.create_element(?c, r: location.to_s),
+        obj,
+        inline_string: true
 
       # TODO can we always just add to the end of the c children, or must they be in r order?
       row_node << c_node

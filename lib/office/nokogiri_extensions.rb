@@ -73,3 +73,12 @@ end
 class Nokogiri::XML::NodeSet
   def deconstruct; to_a end
 end
+
+class Nokogiri::XML::Document
+  # convenience for create_element followed by builder
+  def build_element name, &bld_blk
+    create_element 'r' do |node|
+      Nokogiri::XML::Builder.with node, &bld_blk
+    end
+  end
+end

@@ -90,7 +90,7 @@ describe 'ExcelWorkbooksTest' do
 
   it 'uses Builder to replace element tree' do
     # can also just call methods on bld, but might need to set context first
-    bld = Nokogiri::XML::Builder.with replacement_r = dx.create_element('r') do |bld|
+    r_node = mini_shared_string_doc.build_element 'r' do |bld|
       bld.rPr do
         bld.sz val: 10
         bld.rFont val: 'Arial'
