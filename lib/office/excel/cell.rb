@@ -3,7 +3,9 @@ require 'date'
 module Office
   module CellNodes
     # will probably eventually need a style_index parameter
-    def build_c_node target_node, obj, inline_string: true
+    def build_c_node target_node, obj, string_table: nil
+      raise 'must be a c node' unless target_node.name == ?c
+
       # create replacement node for different types
       case obj
 
@@ -29,7 +31,19 @@ module Office
         target_node[:s] = 0 # general style
 
       when String
-        if inline_string
+        if string_table
+          string_table_index = Integer(value_node.text)
+          raise "Wrongly does not do copy-on-write"
+          # This is the <si><t>...</t></si> node in the string table
+          v_t_node = string_table.node.children[string_table_index].children.first
+          # replace the children, ie the text content of <t>
+          v_t_node.children = obj.to_s
+
+          # TODO set style and type
+
+          # TODO will probably be needed
+          # string_table.invalidate string_table_index
+        else
           # clear children
           target_node.children = ''
           # need a <is><t> ... structure
@@ -42,18 +56,6 @@ module Office
           target_node[:t] = 'inlineStr'
           target_node[:s] = 0 # general style
 
-        else
-          string_table_index = Integer(value_node.text)
-          raise "Wrongly does not do copy-on-write"
-          # This is the <si><t>...</t></si> node in the string table
-          v_t_node = string_table.node.children[string_table_index].children.first
-          # replace the children, ie the text content of <t>
-          v_t_node.children = obj.to_s
-
-          # TODO set style and type
-
-          # TODO will probably be needed
-          # string_table.invalidate string_table_index
         end
 
       when Numeric
@@ -96,8 +98,6 @@ module Office
     def empty?; true end
 
     def value=(obj)
-      # TODO what happens when obj is nil
-
       # fetch the row node with the required r index
       # 4.5841491874307395e-05 for xpath and pretty much invariant for rowi =~ 1..24
       # 3.0879721976816656e-06 for sheet.sheet_data.rows.find{|r| r.number == location.rowi+1}
@@ -122,8 +122,7 @@ module Office
       # create c node and set its value
       c_node = build_c_node \
         sheet.node.document.create_element(?c, r: location.to_s),
-        obj,
-        inline_string: true
+        obj
 
       # TODO can we always just add to the end of the c children, or must they be in r order?
       row_node << c_node
@@ -213,12 +212,12 @@ module Office
     end
 
     # set the value of this cell from the ruby value
-    # TODO do we really want this here? it adds  all the lazy
+    # TODO do we really want this here? it adds all the lazy
     def value= obj, inline_string: true
       # build the node completely before replacing it
       replace_node = node.dup
 
-      build_c_node replace_node, obj, inline_string: inline_string
+      build_c_node replace_node, obj, string_table: (!inline_string && string_table)
 
       # location must be invariant
       raise "original location #{location} does not match new location #{target_node[:r]}" unless node[:r] == replace_node[:r]
