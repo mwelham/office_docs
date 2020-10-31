@@ -3,6 +3,7 @@ require_relative '../lib/office/constants'
 require_relative '../lib/office/nokogiri_extensions'
 
 require_relative 'spec_helper'
+require_relative 'xml_fixtures'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe 'ExcelWorkbooksTest' do
@@ -11,6 +12,8 @@ describe 'ExcelWorkbooksTest' do
   let :simple do
     Office::ExcelWorkbook.new WORKBOOK_PATH
   end
+
+  include XmlFixtures
 
   it 'replaces one cell' do
     sheet = simple.sheets.first
@@ -45,134 +48,7 @@ describe 'ExcelWorkbooksTest' do
     end
   end
 
-  let :mini_shared_string_xml do
-    <<~XML
-    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-    <sst uniqueCount="46" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-      <!-- text only in string -->
-      <si>
-        <t xml:space="preserve">Pump Information</t>
-      </si>
-      <!-- single placeholder only in string -->
-      <si>
-        <t xml:space="preserve">{{horizontal}}</t>
-      </si>
-      <!-- multiple placeholder in one string -->
-      <si>
-        <t xml:space="preserve">This pump moves {{flow_rate}} {{flow_rate_units}}.</t>
-      </si>
-      <!-- placeholder with formatting -->
-      <si>
-        <r>
-          <rPr>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">very </t>
-        </r>
-        <r>
-          <rPr>
-            <b val="true"/>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">{{important}}</t>
-        </r>
-        <r>
-          <rPr>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve"> </t>
-        </r>
-        <r>
-          <rPr>
-            <i val="true"/>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">thing</t>
-        </r>
-      </si>
-      <!-- placeholder broken across elements -->
-      <si>
-        <r>
-          <rPr>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">{{</t>
-        </r>
-        <r>
-          <rPr>
-            <b val="true"/>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">broken</t>
-        </r>
-        <r>
-          <rPr>
-            <sz val="10"/>
-            <rFont val="Arial"/>
-            <family val="2"/>
-            <charset val="1"/>
-          </rPr>
-          <t xml:space="preserve">_place}}</t>
-        </r>
-      </si>
-    </sst>
-    XML
-  end
-
-  let :mini_shared_string_doc do
-    Nokogiri::XML.parse mini_shared_string_xml
-  end
-
-  let :mini_ts_only do
-    ["Pump Information", "{{horizontal}}", "This pump moves {{flow_rate}} {{flow_rate_units}}."]
-  end
-
-  it 'Nokogiri::Searchable#nspath' do
-    dx = mini_shared_string_doc
-    t = dx.nspath '/~sst/~si/~t'
-    t.size.should == 3
-    t.map(&:text).should == mini_ts_only
-  end
-
-  it 'Nokogiri::Searchable#nspath relative' do
-    dx = mini_shared_string_doc
-    t = dx.nspath '~sst/~si/~t'
-    t.size.should == 3
-    t.map(&:text).should == mini_ts_only
-  end
-
-  it 'Nokogiri::Searchable#nspath works for Node' do
-    dx = mini_shared_string_doc
-    # note use of relative xpaths
-    sst = dx.nspath('~sst').first
-    t = sst.nspath '~si/~t'
-    t.size.should == 3
-    t.map(&:text).should == mini_ts_only
-  end
-
-  xit 'Nokogiri::Searchable#nspath works for namespace:Node'
-
   it 'placeholders in shared strings' do
-    dx = mini_shared_string_doc
-
     vs = {
       horizontal: 'prone',
       flow_rate: 15,
@@ -183,9 +59,7 @@ describe 'ExcelWorkbooksTest' do
 
     plrx = %r|{{(?<place_name>.*?)}}|
 
-    # search will construct the xmlns namespace, otherwise we would have to pass it in for plain dx.xpath
-    # Nokogiri thinks this is a css path (no leading /), so it auto-prepends the namespace to each element
-    dx.nspath('/~sst/~si').each do |si|
+    mini_shared_string_doc.nspath('/~sst/~si').each do |si|
       # need Array because Node#search returns a NodeSet
       replace_node, plain_text =
       case si.search('t')
@@ -211,12 +85,10 @@ describe 'ExcelWorkbooksTest' do
       replace_node.children = replacement
     end
 
-    dx.nspath('/~sst/~si/~t').text.should == 'Pump InformationproneThis pump moves 15 m3/sec.very Le Grand Fromage thingVenterstad'
+    mini_shared_string_doc.nspath('/~sst/~si/~t').text.should == 'Pump InformationproneThis pump moves 15 m3/sec.very Le Grand Fromage thingVenterstad'
   end
 
   it 'uses Builder to replace element tree' do
-    dx = mini_shared_string_doc
-
     # can also just call methods on bld, but might need to set context first
     bld = Nokogiri::XML::Builder.with replacement_r = dx.create_element('r') do |bld|
       bld.rPr do
@@ -228,16 +100,15 @@ describe 'ExcelWorkbooksTest' do
       bld.t 'Felix', 'xml:space': 'preserve'
     end
 
-    last_si = dx.nspath('/~sst/~si').last
-    last_si.children = replacement_r
-    r_ts = dx.nspath('~sst/~si/~r/~t')
+    last_si = mini_shared_string_doc.nspath('/~sst/~si').last
+    last_si.children = r_node
+    r_ts = mini_shared_string_doc.nspath('~sst/~si/~r/~t')
     r_ts.last.text.should == 'Felix'
     r_ts.size.should == 5
   end
 
   xit 'pry context' do
-    dx = mini_shared_string_doc
-    node = dx.nspath('/~sst/~si').last
+    node = mini_shared_string_doc.nspath('/~sst/~si').last
 
     binding.pry
   end
