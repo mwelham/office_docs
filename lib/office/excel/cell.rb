@@ -29,33 +29,32 @@ module Office
         target_node[:s] = 0 # general style
 
       when String
-        case inline_string
-          when true
-            # clear children
-            target_node.children = ''
-            # need a <is><t> ... structure
-            # must NOT have a v
-            Nokogiri::XML::Builder.with target_node do
-              is do
-                t obj.to_s
-              end
+        if inline_string
+          # clear children
+          target_node.children = ''
+          # need a <is><t> ... structure
+          # must NOT have a v
+          Nokogiri::XML::Builder.with target_node do
+            is do
+              t obj.to_s
             end
-            target_node[:t] = 'inlineStr'
-            target_node[:s] = 0 # general style
-
-          when false
-            string_table_index = Integer(value_node.text)
-            raise "Wrongly does not do copy-on-write"
-            # This is the <si><t>...</t></si> node in the string table
-            v_t_node = string_table.node.children[string_table_index].children.first
-            # replace the children, ie the text content of <t>
-            v_t_node.children = obj.to_s
-
-            # TODO set style and type
-
-            # TODO will probably be needed
-            # string_table.invalidate string_table_index
           end
+          target_node[:t] = 'inlineStr'
+          target_node[:s] = 0 # general style
+
+        else
+          string_table_index = Integer(value_node.text)
+          raise "Wrongly does not do copy-on-write"
+          # This is the <si><t>...</t></si> node in the string table
+          v_t_node = string_table.node.children[string_table_index].children.first
+          # replace the children, ie the text content of <t>
+          v_t_node.children = obj.to_s
+
+          # TODO set style and type
+
+          # TODO will probably be needed
+          # string_table.invalidate string_table_index
+        end
 
       when Numeric
         target_node.children = target_node.document.create_element 'v', obj.to_s
@@ -66,11 +65,13 @@ module Office
         raise "dunno how to convert #{obj.inspect}"
 
       end
+
+      target_node
     end
   end
 
-  # Intended as a placeholder for a cell, but don't add nodes to the xml until
-  # we're given a value.
+  # Intended as a placeholder for a cell, but does not add nodes to the xml
+  # until it's given a value.
   class LazyCell
     include CellNodes
 
@@ -98,8 +99,20 @@ module Office
       # TODO what happens when obj is nil
 
       # fetch the row node with the required r index
-      # TODO use nspath and ~ instead of xmlns
-      row_node, = sheet.node.xpath("//xmlns:row[@r=#{location.rowi+1}]")
+      # 4.5841491874307395e-05 for xpath and pretty much invariant for rowi =~ 1..24
+      # 3.0879721976816656e-06 for sheet.sheet_data.rows.find{|r| r.number == location.rowi+1}
+      # So maybe have sheet cache rows so cells for the same row don't repeatedly look up the row node
+      # but when to invalidate cache?
+      # 2.638180076610297e-05 xpath without the [@r=] clause
+      #
+      # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
+      #   using the sheet dimension to calculate offset
+      # on core i7
+      #
+      # TODO could possibly optimise by storing the row node in the lazy cell on
+      # creation, since anyway that part of the node has to check whether the
+      # row exists.
+      row_node, = sheet.node.xpath "/xmlns:worksheet/xmlns:sheetData/xmlns:row[@r=#{location.rowi+1}]"
       if row_node.nil?
         # create row_node, then add cell in appropriate place
         # do all larger rows have their c@r children refs updated?
@@ -167,13 +180,11 @@ module Office
 
     def value_node
       # Originally did this, but was incredibly slow:
-      #@value_node = c_node.at_xpath("xmlns:v")
-
-      # faster
-      # @value_node = c_node.at_css("v")
-
-      # TODO test again when nspath can handle non-document nodes
-      # binding.pry
+      #@value_node = node.at_xpath("xmlns:v")
+      # As of 30-Oct-2020, the difference seems to be that at_xpath is about 15x slower than find
+      # find     2.7548958314582705e-06
+      # at_xpath 4.0650357003323730e-05
+      # at_css      5.8584785833954814e-05
 
       # fastest
       @value_node ||= node.elements.find { |e| e.name == 'v' }

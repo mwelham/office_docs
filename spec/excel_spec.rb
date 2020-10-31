@@ -193,8 +193,11 @@ describe 'ExcelWorkbooksTest' do
       sheet.dimension = sheet.calculate_dimension
       sheet.dimension.should == 'A5:K24'
 
-      simple.save '/tmp/res.xlsx'
-      `localc /tmp/res.xlsx`
+      Dir.mktmpdir do |dir|
+        filename = File.join dir, 'result.xlsx'
+        simple.save filename
+        # `localc #{filename}`
+      end
     end
   end
 end
