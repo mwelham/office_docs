@@ -15,8 +15,10 @@ module Office
     attr_reader :id
     attr_reader :worksheet_part
     attr_reader :sheet_data
+    attr_reader :workbook
 
     def initialize(sheet_node, workbook)
+      @workbook = workbook
       @workbook_node = sheet_node
       @name = sheet_node['name']
       @id = Integer sheet_node['sheetId']
@@ -92,6 +94,9 @@ module Office
       end
 
       # uh-oh now we have to shuffle all larger rows up by insert_range.height and adjust their cell refs to match
+      #
+      # NOTE we can't assume that row nodes are in the same order as their r=
+      # attributes, and we can't assume that rows have contiguous r= attributes.
       # TODO this will break formulas and ranges referring to these cells
       larger_number_rows = sheet_data.node.xpath "xmlns:row[@r >= #{insert_range.top_left.row_r}]"
       larger_number_rows.each do |row_node|
@@ -105,6 +110,9 @@ module Office
           cell[:r] = Location.new(cell[:r]) + [0, insert_range.height]
         end
       end
+
+      # tell sheet data to recalculate next time
+      sheet_data.invalidate
 
       # Create new row nodes and return them
       insert_range.each_row_r.map do |row_r|
@@ -146,7 +154,7 @@ module Office
         self[ Location[coli, rowi] ]
 
       in [String => a1_location]
-        self[ *Location.new(a1_location) ]
+        self[ Location.new(a1_location) ]
 
       in [Location => loc]
         case sheet_data.rows
@@ -231,7 +239,10 @@ module Office
       @node = node
       @sheet = sheet
       @workbook = workbook
+    end
 
+    def invalidate
+      @rows = nil
     end
 
     def rows
