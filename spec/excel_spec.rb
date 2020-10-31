@@ -113,13 +113,6 @@ describe 'ExcelWorkbooksTest' do
     binding.pry
   end
 
-  it 'multiple xmlns' do
-    require 'office/word'
-    word = Office::WordDocument.new File.join(__dir__, '../test/content/add_tables_target.docx')
-    pdoc = word.get_part "/word/document.xml"
-    pdoc.xml.namespaces.should be_any
-  end
-
   let :simple do
     Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
   end
