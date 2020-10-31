@@ -47,7 +47,7 @@ module Office
     end
 
     def dimension_node
-      # this is about 1.2 - 3 times faster
+      # this is about 1.2 - 3 times faster, but optimising this is not worthwhile here.
       # node.children.first.children.find{|n| n.name == 'dimension'}
       node.xpath('xmlns:worksheet/xmlns:dimension').first
     end
@@ -61,8 +61,8 @@ module Office
     end
 
     def calculate_dimension
-      # unfortunately this always instantiates the entire NodeSet, which we don't need.
-      # start with existing dimension, and contract or expand it to fit the actual cells.
+      # Start with existing dimension, and contract or expand it to fit the actual cells.
+      # TODO unfortunately nokogiri always instantiates the entire NodeSet, which we don't need.
       min, max = sheet_data.node.xpath('xmlns:row/xmlns:c/@r').lazy.inject(dimension.to_a) do |(min,max),r_attr|
         loc = Office::Location.new(r_attr.text)
         # contract and extend min and max, respectively
@@ -71,19 +71,53 @@ module Office
       Range.new min, max
     end
 
-    # location is a Office::Location instance
-    def insert_row location
-      last_row, = sheet_data.node.xpath('xmlns:row[position() = last()]')
-      # remember location.rowi is 0-based, row@r is 1-based
-      if location.row_r > Integer(last_row[:r])
-        # just use default attrbute values. Hopefully that will be OK :-]
-        row_node = node.document.create_element "row", r: location.row_r
-        # can append a sibling after last_row
-        last_row.add_next_sibling row_node
+    # Insert new rows just before the specified location/range.
+    #
+    # arg is_a Office::Range (several rows, or one row), or is_a Office::Location (insert 1 row)
+    #
+    # New row nodes will be returned. As an Array, not as a NodeSet.
+    #
+    # New row nodes will have only the r= attribute.
+    #
+    # TODO return actual row nodes inserted, range of locations inserted, or both?
+    def insert_rows insert_here
+      # convert a Location to a Range
+      insert_range = case insert_here
+      when Office::Location
+        Range.new insert_here, insert_here
+      when Office::Range
+        insert_here
       else
-        # uh-oh now we have to shuffle all larger rows up by 1 and adjust their cell refs
-        # TODO will spreadsheetMl accept row@r numbers that are not strictly in order?
-        binding.pry
+        raise "wut!? insert rows where!? #{insert_here.inspect}"
+      end
+
+      # uh-oh now we have to shuffle all larger rows up by insert_range.height and adjust their cell refs to match
+      # TODO this will break formulas and ranges referring to these cells
+      larger_number_rows = sheet_data.node.xpath "xmlns:row[@r >= #{insert_range.top_left.row_r}]"
+      larger_number_rows.each do |row_node|
+        # increase r for the row_node by the insert_range height
+        row_node[:r] = Integer(row_node[:r]) + insert_range.height
+
+        # Correspondingly increase r for each of the cells in the row.
+        # Iterating through direct children is faster than using xpath.
+        row_node.children.each do |cell|
+          next unless cell.name == ?c
+          cell[:r] = Location.new(cell[:r]) + [0, insert_range.height]
+        end
+      end
+
+      # Create new row nodes and return them
+      insert_range.each_row_r.map do |row_r|
+        # Yes, this actually works, because <row r=val> val can be
+        # out-of-order in the xml and localc will handle that.
+        #
+        # Presumably Excel will also be fine with it..?
+        #
+        # returns new node added
+        sheet_data.node.add_child(sheet_data.node.document.create_element 'row', r: row_r)
+
+        # code to keep the rows in order, which is a more onerous constraint to meet
+        #   maybe_existing_row.add_previous_sibling(sheet_data.node.document.create_element 'row', r: row_r)
       end
     end
 

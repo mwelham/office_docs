@@ -32,6 +32,19 @@ module Office
       @bot_rite.rowi - top_left.rowi + 1
     end
 
+    # yield each row_r to blk (NOTE 1-based not zero-based)
+    def each_row_r &blk
+      return enum_for :each_row_r unless block_given?
+      (top_left.row_r..bot_rite.row_r).each &blk
+    end
+
+    # yield each col index to blk
+    # So
+    def each_coli &blk
+      return enum_for :each_coli unless block_given?
+      (top_left.coli..bot_rite.coli).each &blk
+    end
+
     def to_s
       @range_str ||= "#{top_left.to_s}:#{bot_rite.to_s}"
     end

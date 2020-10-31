@@ -112,11 +112,11 @@ module Office
       # TODO could possibly optimise by storing the row node in the lazy cell on
       # creation, since anyway that part of the node has to check whether the
       # row exists.
-      row_node, = sheet.node.xpath "/xmlns:worksheet/xmlns:sheetData/xmlns:row[@r=#{location.rowi+1}]"
+      row_node, = sheet.node.xpath "/xmlns:worksheet/xmlns:sheetData/xmlns:row[@r=#{location.row_r}]"
       if row_node.nil?
         # create row_node, then add cell in appropriate place
         # do all larger rows have their c@r children refs updated?
-        row_node = sheet.insert_row location
+        row_node = sheet.insert_rows location
       end
 
       # create c node and set its value

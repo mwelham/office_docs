@@ -158,6 +158,43 @@ describe 'ExcelWorkbooksTest' do
       CSV.parse data
     end
 
+    it 'insert rows with tabular data' do
+      sheet = simple.sheets.first
+      doc = sheet.worksheet_part.xml
+      start_cell = sheet['A18']
+      start_cell.value.should =~ /tabular/
+
+      # make the title range into normal cells
+      title_range = sheet.merge_ranges.find{|range| range.cover? start_cell.location}
+      title_range.should_not be_nil
+      sheet.delete_merge_range title_range
+
+      # just insert after the {{}} cell for now, will come back and replace first row and insert the rest
+      range = Office::Range.new(start_cell.location + [0,1], start_cell.location + [records.first.size,records.size])
+      inserted_rows = sheet.insert_rows(range)
+
+      # TODO optimise this by creating a map from inserted_rows
+      # and/or allowing Cell to work on a fragment as well as on the full sheet.
+      # and/or allowing the Sheet#[] to work on a nodeset of rows.
+      # which means having indexing be more flexible than an array of Row instances.
+      records.each_with_index do |data_row, rowix|
+        data_row.each_with_index do |val, colix|
+          location = start_cell.location + [colix, rowix+1]
+          sheet[location].value = Integer(val) rescue val
+        end
+      end
+
+      sheet.dimension = sheet.calculate_dimension
+
+      # show the result
+      Dir.mktmpdir do |dir|
+        filename = File.join dir, 'insert.xlsx'
+        simple.save filename
+        saved = Office::ExcelWorkbook.new filename
+        `localc #{filename}`
+      end
+    end
+
     it 'replaces a range with tabular data' do
       sheet = simple.sheets.first
       doc = sheet.worksheet_part.xml
@@ -187,17 +224,22 @@ describe 'ExcelWorkbooksTest' do
       # TODO update sheet range. Need to find largest cell reference number. Oof.
       # possibly grab current range, extend by loc_track, but then still need to check for rows bumped by insertion
       # unless every row insertion / row deletion / lazy cell insertion tracks the current range.
-      # Hmmm.
+      # Hmmm. Just do it brute-force for now.
       sheet.dimension.should == 'A5:K22'
       sheet.calculate_dimension.should == 'A5:K24'
       sheet.dimension = sheet.calculate_dimension
       sheet.dimension.should == 'A5:K24'
 
+      # show the document
       Dir.mktmpdir do |dir|
-        filename = File.join dir, 'result.xlsx'
+        filename = File.join dir, 'overwrite.xlsx'
         simple.save filename
         # `localc #{filename}`
       end
     end
+
+    it "appends rows to end if they don't exist"
+    it "inserts rows if necessary"
+    it "creates new empty row if it doesn't exist"
   end
 end
