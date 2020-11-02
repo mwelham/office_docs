@@ -15,16 +15,21 @@ describe 'ExcelWorkbooksTest' do
 
   include XmlFixtures
 
+  def reload_workbook workbook, filename = nil, &blk
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, (filename || File.basename(workbook.filename))
+      workbook.save filename
+      yield Office::ExcelWorkbook.new(filename)
+    end
+  end
+
   it 'replaces one cell' do
     sheet = simple.sheets.first
     cell = sheet.each_cell.first
     cell.value = "This is the new pump"
 
-    Dir.mktmpdir do |dir|
-      filename = File.join dir, 'simple.xlsx'
-      simple.save filename
-      workbook = Office::ExcelWorkbook.new filename
-      saved_cell = workbook.sheets.first.each_cell.first
+    reload_workbook sheet.workbook do |book|
+      saved_cell = book.sheets.first.each_cell.first
       saved_cell.value.should == cell.value
       saved_cell.node.object_id.should_not == cell.node.object_id
     end
@@ -40,11 +45,9 @@ describe 'ExcelWorkbooksTest' do
       cell.value = "R-#{place_name.capitalize}"
     end
 
-    Dir.mktmpdir do |dir|
-      filename = File.join dir, 'simple.xlsx'
-      simple.save filename
-      workbook = Office::ExcelWorkbook.new filename
-      workbook.sheets.first.each_cell.filter(&:place?).should be_empty
+    reload_workbook sheet.workbook, 'replacements.xlsx' do |book|
+      book.sheets.first.each_cell.filter(&:place?).should be_empty
+      # `localc --nologo #{book.filename}`
     end
   end
 
@@ -179,12 +182,8 @@ describe 'ExcelWorkbooksTest' do
 
       sheet.dimension = sheet.calculate_dimension
 
-      # show the result
-      Dir.mktmpdir do |dir|
-        filename = File.join dir, 'insert.xlsx'
-        simple.save filename
-        saved = Office::ExcelWorkbook.new filename
-        `localc #{filename}`
+      reload_workbook sheet.workbook, 'insert.xlsx' do |book|
+        # `localc --nologo #{book.filename}`
       end
     end
 
@@ -223,11 +222,8 @@ describe 'ExcelWorkbooksTest' do
       sheet.dimension = sheet.calculate_dimension
       sheet.dimension.should == 'A5:K24'
 
-      # show the document
-      Dir.mktmpdir do |dir|
-        filename = File.join dir, 'overwrite.xlsx'
-        simple.save filename
-        # `localc #{filename}`
+      reload_workbook sheet.workbook, 'overwrite.xlsx' do |book|
+        # `localc --nologo #{book.filename}`
       end
     end
 
