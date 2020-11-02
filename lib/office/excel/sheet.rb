@@ -73,6 +73,20 @@ module Office
       Range.new min, max
     end
 
+    # create a Office::Range from Location (or maybe later string A1 and string A1:Z26)
+    # convert a Location to a Range
+    # TODO maybe also handle strings A1 and A1:Z26
+    def to_range obj
+      case obj
+      when Office::Location
+        Office::Range.new obj, obj
+      when Office::Range
+        obj
+      else
+        raise "wut!? do what with what rows where!? #{insert_here.inspect}"
+      end
+    end
+
     # Insert new rows just before the specified location/range.
     #
     # arg is_a Office::Range (several rows, or one row), or is_a Office::Location (insert 1 row)
@@ -83,15 +97,7 @@ module Office
     #
     # TODO return actual row nodes inserted, range of locations inserted, or both?
     def insert_rows insert_here
-      # convert a Location to a Range
-      insert_range = case insert_here
-      when Office::Location
-        Range.new insert_here, insert_here
-      when Office::Range
-        insert_here
-      else
-        raise "wut!? insert rows where!? #{insert_here.inspect}"
-      end
+      insert_range = to_range insert_here
 
       # uh-oh now we have to shuffle all larger rows up by insert_range.height and adjust their cell refs to match
       #
