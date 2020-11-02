@@ -149,7 +149,7 @@ describe 'ExcelWorkbooksTest' do
       1751,65,1,79,3,4.5,23,4500,50,"424,403,389","121,124,128"
     CSV
 
-    let :records do
+    let :dataset do
       require 'csv'
       CSV.parse data
     end
@@ -157,17 +157,26 @@ describe 'ExcelWorkbooksTest' do
     it 'insert rows with tabular data' do
       sheet = simple.sheets.first
       doc = sheet.worksheet_part.xml
-      start_cell = sheet['A18']
-      start_cell.value.should =~ /tabular/
+
+      placeholder_cell = sheet['A18']
+      placeholder_cell.value.should =~ /tabular/
 
       # make the title range into normal cells
-      title_range = sheet.merge_ranges.find{|range| range.cover? start_cell.location}
+      title_range = sheet.merge_ranges.find{|range| range.cover? placeholder_cell.location}
       title_range.should_not be_nil
       sheet.delete_merge_range title_range
 
-      # just insert after the {{}} cell for now, will come back and replace first row and insert the rest
-      range = Office::Range.new(start_cell.location + [0,1], start_cell.location + [records.first.size,records.size])
-      inserted_rows = sheet.insert_rows(range)
+      headers, *records = dataset
+
+      # overwrite header row
+      headers.each_with_index do |header_value,colix|
+        insert_location = placeholder_cell.location + [colix, 0]
+        sheet[insert_location].value = header_value
+      end
+
+      # insert blank rows for data, from row after headers
+      insert_range = Office::Range.new(placeholder_cell.location + [0,1], placeholder_cell.location + [records.first.size,records.size])
+      inserted_rows = sheet.insert_rows(insert_range)
 
       # TODO optimise this by creating a map from inserted_rows
       # and/or allowing Cell to work on a fragment as well as on the full sheet.
@@ -175,11 +184,12 @@ describe 'ExcelWorkbooksTest' do
       # which means having indexing be more flexible than an array of Row instances.
       records.each_with_index do |data_row, rowix|
         data_row.each_with_index do |val, colix|
-          location = start_cell.location + [colix, rowix+1]
+          location = insert_range.top_left + [colix, rowix]
           sheet[location].value = Integer(val) rescue val
         end
       end
 
+      # update sheet dimension
       sheet.dimension = sheet.calculate_dimension
 
       reload_workbook sheet.workbook, 'insert.xlsx' do |book|
@@ -190,28 +200,40 @@ describe 'ExcelWorkbooksTest' do
     it 'replaces a range with tabular data' do
       sheet = simple.sheets.first
       doc = sheet.worksheet_part.xml
-      # TODO fix nspath to use xmlns if >1 namespace
+
       # TODO put most of this in Sheet#replace_tabular
-      start_cell = sheet['A18']
-      start_cell.value.should =~ /tabular/
-      range = sheet.merge_ranges.find{|range| range.cover? start_cell.location}
+      placeholder_cell = sheet['A18']
+      placeholder_cell.value.should =~ /tabular/
+      range = sheet.merge_ranges.find{|range| range.cover? placeholder_cell.location}
       range.should_not be_nil
 
-      loc_track = start_cell.location.dup
+      headers, *records = dataset
+
+      # insert header
+      headers.each_with_index do |header_value,colix|
+        insert_location = placeholder_cell.location + [colix, 0]
+        sheet[insert_location].value = header_value
+      end
+
+      # overwrite data values after header
+      record_location = placeholder_cell.location + [0,1]
       records.each_with_index do |data_row, rowix|
         # check that range matches data
         data_row.size <= range.width or raise "data too long for #{range}: (#{data_row.size})#{data_row.inspect}"
         data_row.each_with_index do |val, colix|
-          loc_track = location = start_cell.location + [colix, rowix]
+          location = record_location + [colix, rowix]
           # TODO insert second and subsequent rows
           # TODO why does SheetData cache rows?
           # TODO what's the difference between .value = and []= ? The latter would not require LazyCell
+          # also [] and []= could apply to rows, but we're kinda using sheet.sheet_data.rows for that
           sheet[location].value = Integer(val) rescue val
         end
       end
 
-      # remove merge cells
-      sheet.delete_merge_range range
+      # make the title range into normal cells
+      title_range = sheet.merge_ranges.find{|range| range.cover? placeholder_cell.location}
+      title_range.should_not be_nil
+      sheet.delete_merge_range title_range
 
       # TODO update sheet range. Need to find largest cell reference number. Oof.
       # possibly grab current range, extend by loc_track, but then still need to check for rows bumped by insertion
