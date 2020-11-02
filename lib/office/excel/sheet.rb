@@ -135,6 +135,49 @@ module Office
       end
     end
 
+    # delete the specified set of rows
+    #
+    # delete_these is either a Location or a Office::Range
+    #
+    # TODO this is substantially the same as insert rows, except for operators and comparators
+    #
+    # TODO this does two iterations through the entire sheetData/row nodes.
+    # Could reduce that with caching.
+    def delete_rows delete_these
+      delete_range = to_range delete_these
+
+      # find all rows to be deleted. Range is inclusive.
+      delete_rows = sheet_data.node.xpath "xmlns:row[@r >= #{delete_range.top_left.row_r}][@r <= #{delete_range.bot_rite.row_r}]"
+
+      # find all larger rows and decrease
+      larger_number_rows = sheet_data.node.xpath "xmlns:row[@r > #{delete_range.bot_rite.row_r}]"
+      larger_number_rows.each do |row_node|
+        # increase r for the row_node by the delete_range height
+        row_number = Integer(row_node[:r]) - delete_range.height
+        row_node[:r] = row_number
+
+        # Correspondingly increase r for each of the cells in the row.
+        # Iterating through direct children is faster than using xpath.
+        row_node.children.each do |cell|
+          next unless cell.name == ?c
+          # No need to recalculate the row number here, because we already know it.
+          # But we need to keep the column index.
+          colst, _rowst = Location.parse_a1 cell[:r]
+          cell[:r] = Location.of_r colst, row_number
+        end
+      end
+
+      # tell sheet data to recalculate next time
+      sheet_data.invalidate
+
+      # TODO remove/update mergeCells referring to these deleted rows
+      # TODO update dimension. OR maybe this should be an external operation?
+      # TODO update formulas referring to rows moved
+
+      # remove the row nodes
+      delete_rows.unlink
+    end
+
     # possibly this family of merge_cells calls should have some kind of wrapper class
     def merge_cells
       worksheet_part.xml.nspath 'xmlns:worksheet/xmlns:mergeCells'

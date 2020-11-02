@@ -231,4 +231,23 @@ describe 'ExcelWorkbooksTest' do
     it "inserts rows if necessary"
     it "creates new empty row if it doesn't exist"
   end
+
+  describe 'row operations' do
+    describe '#insert_rows'
+    describe '#delete_rows' do
+      it 'deletes range' do
+        sheet = simple.sheets.first
+
+        range = Office::Range.new 'A5:I17'
+        sheet.delete_rows range
+        sheet.dimension = sheet.calculate_dimension
+        sheet.sheet_data.rows.count.should == 5
+        # TODO verify that both cells and rows are renumbered correctly
+
+        reload_workbook sheet.workbook, 'delete.xlsx' do |book|
+          # `localc --nologo #{book.filename}`
+        end
+      end
+    end
+  end
 end
