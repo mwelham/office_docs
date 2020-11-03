@@ -32,17 +32,38 @@ module Office
       @bot_rite.rowi - top_left.rowi + 1
     end
 
-    # yield each row_r to blk (NOTE 1-based not zero-based)
+    # yield each row_r to blk
+    #
+    # NOTE 1-based not zero-based
     def each_row_r &blk
       return enum_for :each_row_r unless block_given?
       (top_left.row_r..bot_rite.row_r).each &blk
     end
 
     # yield each col index to blk
-    # So
     def each_coli &blk
       return enum_for :each_coli unless block_given?
       (top_left.coli..bot_rite.coli).each &blk
+    end
+
+    def each_by_row &blk
+      return enum_for :each_by_row unless block_given?
+
+      (top_left.rowi..bot_rite.rowi).each do |rowix|
+        (top_left.coli..bot_rite.coli).each do |colix|
+          yield Location[colix,rowix]
+        end
+      end
+    end
+
+    def each_by_col &blk
+      return enum_for :each_by_col unless block_given?
+
+      (top_left.coli..bot_rite.coli).each do |colix|
+        (top_left.rowi..bot_rite.rowi).each do |rowix|
+          yield Location[colix,rowix]
+        end
+      end
     end
 
     def to_s
