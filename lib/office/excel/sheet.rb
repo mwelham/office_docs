@@ -38,6 +38,22 @@ module Office
       @sheet_data.to_csv(separator)
     end
 
+    def new_to_csv(separator = ',')
+      csv = CSV.new '', col_sep: separator, quote_char: ?'
+      dimension.each_row do |row_range|
+        row_data = row_range.each_by_row.map do |loc|
+          # because every time this will search for cells from the beginning
+          cell = self[loc]
+          cell.formatted_value unless cell.empty?
+        end
+        csv << row_data
+      end
+      csv.string
+    end
+
+    # alias to_csv forward_to_csv
+    alias to_csv new_to_csv
+
     # TODO what does this do, exactly? Yes OK, it adds a node. But what node? To where? For what purpose?
     def self.add_node(parent_node, name, sheet_id, relationship_id)
       sheet_node = parent_node.document.create_element("sheet")
@@ -202,6 +218,25 @@ module Office
       to_delete.unlink
       merge_cells_node[:count] = merge_cells_node.children.count
       to_delete
+    end
+
+    def row_at loc
+      # invalidate this
+      @row_cache ||= Array.new
+      @row_cache[loc.rowi] ||= begin
+        # fetch the row node and build cell nodes immediately
+        # otherwise self[loc] usages re-search row cell nodes in a row sequentially from the beginning each time
+        row_node = data_node.xpath("xmlns:row[@r=#{loc.row_r}]")
+        # NOTE we assume that cells have r= attributes that are in order and contiguous
+        row_node.children.map do |cell_node|
+          cell = Cell.new cell_node, workbook.shared_strings, workbook.styles
+          [cell.location.coli, cell]
+        end.to_h
+      end
+    end
+
+    def invalidate_row_cache
+      @row_cache = Array.new
     end
 
     def [](*args)
