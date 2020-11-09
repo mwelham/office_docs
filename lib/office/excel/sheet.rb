@@ -273,8 +273,32 @@ module Office
       end
     end
 
-    def each_cell by = :row, &blk
-      return enum_for :each_cell, by unless block_given?
+    # The fastest way to provide all actual cells.
+    #
+    # Intended for finding placeholders. If you want to do this by row/col,
+    # consider Location.new and Sheet#[]
+    #
+    # This does not guarantee that they will be in row/col or col/row order.
+    # Does not guarantee that cells or rows will be contiguous, even if they are in order.
+    def each_cell_by_node &blk
+      # TODO change __method__ to :each_cell once testing settles down
+      return enum_for __method__ unless block_given?
+      # sheet_data.node.children.each do |row_node|
+      #   row_node.children.each do |c_node|
+      #       yield Cell.new c_node, workbook.shared_strings, workbook.styles
+      #   end
+      # end
+
+      # comparable to nested each, but slightly cleaner
+      # TODO what happens with really huge spreadsheets here?
+      sheet_data.node.xpath('xmlns:row/xmlns:c').each do |c_node|
+        yield Cell.new c_node, workbook.shared_strings, workbook.styles
+      end
+    end
+
+    # iterates by sheet_data.rows : Array<Row>
+    def each_row_cell by = :row, &blk
+      return enum_for __method__, by unless block_given?
 
       case by
       when :row
@@ -283,6 +307,9 @@ module Office
         raise NotImplementedError, 'iterating cells by column not supported yet'
       end
     end
+
+    alias each_cell each_row_cell
+    # alias each_cell each_cell_by_node
 
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end
