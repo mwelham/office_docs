@@ -3,7 +3,7 @@ require 'date'
 module Office
   module CellNodes
     # will probably eventually need a style_index parameter
-    def build_c_node target_node, obj, string_table: nil
+    module_function def build_c_node target_node, obj, string_table: nil
       raise 'must be a c node' unless target_node.name == ?c
 
       # create replacement node for different types
@@ -21,14 +21,16 @@ module Office
         target_node[:t] = ?b
         target_node[:s] = 0 # general style
 
+      # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
       when Date
         epoch = DateTime.new 1900, 1, 1, 0, 0, 0
         span = Integer obj - epoch # otherwise its a Rational
         # dunno why, but its used in as_date conversions
         span += 2
         target_node.children = target_node.document.create_element 'v', span.to_s
-        target_node[:t] = ?d
-        target_node[:s] = 0 # general style
+        # IT's a bit weird that there is a ?d in the spec for dates, but it's not used.
+        target_node[:t] = ?n
+        target_node[:s] = 15 # generic date
 
       when String
         if string_table
@@ -97,6 +99,9 @@ module Office
 
     def empty?; true end
 
+    # always nil
+    def value; end
+
     def value=(obj)
       # fetch the row node with the required r index
       # 4.5841491874307395e-05 for xpath and pretty much invariant for rowi =~ 1..24
@@ -139,23 +144,24 @@ module Office
     attr_reader :string_table
     attr_reader :styles
 
-    attr_reader :location
-    attr_reader :data_type
-    attr_reader :style_id
-
     def initialize(c_node, string_table, styles)
       @node = c_node
       @string_table = string_table
       @styles = styles
+    end
 
-      # TODO have to make these lazy, and reset memos in value=
-      @location = Location.new c_node[:r]
-
+    def data_type
       # convert to symbol now because it's 10x faster for comparisons later
-      @data_type = c_node[:t]&.to_sym
+      @data_type ||= node[:t]&.to_sym
+    end
 
+    def style_id
       # this defines date/int/string format (presumably as well as colour and bold/italic/underline etc?)
-      @style_id = c_node[:s]
+      @style_id ||= node[:s]
+    end
+
+    def location
+      @location ||= Location.new node[:r]
     end
 
     def style
@@ -186,6 +192,7 @@ module Office
       # at_css      5.8584785833954814e-05
 
       # fastest
+      # TODO does not handle inline strings
       @value_node ||= node.elements.find { |e| e.name == 'v' }
     end
 
@@ -194,7 +201,7 @@ module Office
     end
 
     def is_string?
-      data_type == :s
+      shared? || inline?
     end
 
     alias string? is_string?
@@ -211,72 +218,114 @@ module Office
       formatted_value
     end
 
-    # set the value of this cell from the ruby value
-    # TODO do we really want this here? it adds all the lazy
+    # Set the value of this cell from the ruby value
+    # makes an effort to replace the node contents only (ie the c node itself does not change)
+    # makes an effort to be atomic, so partial failures will make no change.
     def value= obj, inline_string: true
       # build the node completely before replacing it
-      replace_node = node.dup
+      save_node = node.dup
 
-      build_c_node replace_node, obj, string_table: (!inline_string && string_table)
+      # clear node
+      node.children.unlink
 
-      # location must be invariant
-      raise "original location #{location} does not match new location #{target_node[:r]}" unless node[:r] == replace_node[:r]
-
-      # replace fails with "Cannot reparent node"
-      # node.replace replace_node
-
-      # so do it the long way
-      node.add_previous_sibling replace_node
-      node.unlink
-      @node = replace_node
+      # rebuild
+      build_c_node node, obj, string_table: (!inline_string && string_table)
 
       # reset memos
       @value_node = nil
       @data_type = nil
       @style_id = nil
+      remove_instance_variable :@placeholder if instance_variable_defined? :@placeholder
+    rescue
+      # restore partially built node
+      node.children = save_node.children
+      raise
     end
 
-    # does this cell contain a placeholder?
-    def place?
+    def placeholder
+      # to invalidate this, use remove_instance_variable
       if instance_variable_defined? :@placeholder
         @placeholder
       else
-        @placeholder = string? && to_ruby =~ /\{\{.*\}\}/
+        value = case
+        when shared?
+          to_ruby
+        when inline?
+          # TODO should dig down to the actual <t> cell; and handle text runs
+          node.text
+        end
+
+        return false unless value
+        value =~ /(\{\{.*\}\})/
+        @placeholder = $1
       end
     end
+
+    def empty?; !value end
 
     def self.create_node(document, row_number, index, value, string_table)
       cell_node = document.create_element('c')
-      cell_node[:r] = Location[index,row_number].to_s
+      cell_node[:r] = Location[index, row_number-1] # NOTE row_number not row_index
 
-      # TODO can do this in one call - create_element takes all necessary args
-      value_node = document.create_element('v')
-      cell_node.add_child(value_node)
-
-      unless value.nil? or value.to_s.empty?
-        if value.is_a? Numeric
-          value_node.content = value
-        else
-          cell_node[:t] = 's'
-          value_node.content = string_table.id_for_text(value.to_s)
-        end
-      end
-
+      # TODO pass string_table. Right now we're just using inline
+      CellNodes.build_c_node cell_node, value
       cell_node
     end
 
+    # TODO I think there need to be (at least) two value accessors:
+    #
+    # to represent ruby values (maybe #value, or #to_ruby)
+    #   1) enum Ruby = String | Float | Integer | Boolean | Date | Time | DateTime | Nil
+    #
+    # and to represent the <c t=> values (maybe #content, because it's what's inside the cell or ml_value for Markup Language Value)
+    #  2) enum cell_value = Boolean(v) | Date(integer_seconds|float_seconds) | Error(msg) | InlineString(str) | Number(n) | SharedString(str) | FormulaStr(str)
+    #
+    # formatted_value conflates formatting with type, especially Date & Time
+    # and it's really a ui_value, or display_value which effectively truncates precision.
+    # But formatted_value contains important type information.
     def value
-      is_string? ? shared_string.text : value_node&.content
+      # binding.pry if shared? && shared_string.node.text != shared_string.text
+
+      # shared? ? shared_string.text : value_node&.content
+      # shared? ? shared_string.node.text : value_node&.text
+      # when shared_string.node has runs, this breaks
+      if string?
+        case
+        when shared?
+          # TODO this does not handle runs in shared strings
+          shared_string.text
+
+        when inline?
+          # TODO I think this doesn't handle runs
+          node.xpath('xmlns:is/xmlns:t').text
+
+        else
+          raise 'This is a non-shared, non-inline string...?'
+        end
+      else
+        value_node&.content
+      end
     end
 
+    # Again running into conflation of the type/object and the format
     def formatted_value
-      return unless value_node
-      return shared_string.text if is_string?
+      return shared_string.node.text if shared?
+      return value if inline?
 
-      unformatted_value = value_node.content
+      unformatted_value = value
       return nil unless unformatted_value
 
-      return unformatted_value if style&.apply_number_format != '1'
+      if style&.apply_number_format != '1'
+        return case data_type
+        when :n
+          int = unformatted_value.to_i
+          flt = unformatted_value.to_f
+          if int == flt then int else flt end
+
+        when :d; as_date(unformatted_value) # NOTE really don't know if this will actually work
+        else; unformatted_value
+        end
+      end
 
       # TODO lookup in Array or hash would be much faster
       # or maybe use ranges?
@@ -358,7 +407,9 @@ module Office
     end
 
     private def as_date(value)
-      DateTime.new(1900, 1, 1, 0, 0, 0) + value.to_i - 2
+      # This was originally DateTime, and I don't know why it wasn't just Date
+      # Date.new(1900, 1, 1, 0, 0, 0) + value.to_i - 2
+      Date.new(1900, 1, 1) + value.to_i - 2
     end
 
     private def as_time(value)
