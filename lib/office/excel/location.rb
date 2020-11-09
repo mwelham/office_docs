@@ -4,21 +4,22 @@ module Office
   # Convert to/from strings and [0,0] numeric indices
   class Location
     # constructor for 'A1' style strings
-    # col_row_fns is for internal use only.
     #
     # NOTE you could pass in a garbage location_string and nothing would go
     # wrong until you tried to do something other than to_s.
-    def initialize location_string, col_row_fns: nil
+    def initialize location_string
       @location_string = location_string&.dup&.freeze
-      @col_row_fns = col_row_fns
     end
 
     # Constructor for 2x integers. Should really be positive integers, otherwise
     # weird things will happen.
+    # This constructor takes about 0.4 µs on my i7
     def self.[](coli, rowi)
       # make sure these meet the type constraints, fail early if not
-      coli, rowi = Integer(coli), Integer(rowi)
-      new nil, col_row_fns: [->{coli}, ->{rowi}]
+      new(nil).tap do |inst|
+        inst.instance_variable_set :@coli, Integer(coli)
+        inst.instance_variable_set :@rowi, Integer(rowi)
+      end
     end
 
     # This constructor is special-purpose for constructing
@@ -28,16 +29,35 @@ module Office
     # colst must be [A-Z]+
     # rowst must be 1-based and can be Integer or String
     def self.of_r colst, rowst
-      # make sure these meet the type constraints, fail early if not
-      rowi = Integer rowst
-      coli = Integer col_index(colst.to_s)
-
-      new nil, col_row_fns: [->{coli}, ->{rowi - 1}]
+      self[ Integer(col_index(colst.to_s)), Integer(rowst) - 1 ]
     end
 
     # useful for reduce and other operations requiring a unit element
     def self.unit
-      new nil, col_row_fns: [->{0}, ->{0}]
+      @unit ||= self[0,0]
+    end
+
+    # These two are probably a bit dangerous and will break things
+    def self.smallest
+      @smallest ||= new(nil).tap do |inst|
+        inst.instance_variable_set :@coli, -Float::INFINITY
+        inst.instance_variable_set :@rowi, -Float::INFINITY
+
+        def inst.location_string
+          "-∞"
+        end
+      end
+    end
+
+    def self.largest
+      @largest ||= new(nil).tap do |inst|
+        inst.instance_variable_set :@coli, Float::INFINITY
+        inst.instance_variable_set :@rowi, Float::INFINITY
+
+        def inst.location_string
+          "∞∞"
+        end
+      end
     end
 
     def location_string
@@ -106,6 +126,15 @@ module Office
       else
         raise "#{self.class} dunno how to extend by #{deltas.inspect}"
       end
+    end
+
+    # allow these to function as hash keys, since they're value objects.
+    def hash
+      @hash ||= [self.class,rowi,coli].hash
+    end
+
+    def eql? rhs
+      to_a.eql? rhs.to_a
     end
 
     # Returns a new Location modified by args,

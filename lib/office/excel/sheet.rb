@@ -71,22 +71,33 @@ module Office
     end
 
     def dimension
-      Office::Range.new dimension_node[:ref]
+      # TODO /:/ =~ is nearly as fast
+      @dimension ||=
+      if dimension_node[:ref].include?(?:)
+        # TODO there must be a better way to handle this
+        Office::Range.new dimension_node[:ref]
+      else
+        # sometimes for blank worksheets, dimension_node[:ref] == 'A1'
+        calculate_dimension
+      end
     end
 
     def dimension= range
       dimension_node[:ref] = range.to_s
+      @dimension = nil
     end
 
     def calculate_dimension
-      # Start with existing dimension, and contract or expand it to fit the actual cells.
+      # Start with largest and smallest, and contract or expand it to fit the actual cells.
+      # Would be nice to start with existing dimension, but it's sometimes not correct.
       # TODO unfortunately nokogiri always instantiates the entire NodeSet, which we don't need.
-      min, max = sheet_data.node.xpath('xmlns:row/xmlns:c/@r').lazy.inject(dimension.to_a) do |(min,max),r_attr|
+      # TODO what assumptions hold wrt row and cell ordering? Might be able to use only first and last cells for each row, ¿instead of largest and smallest?
+      min, max = sheet_data.node.xpath('xmlns:row/xmlns:c/@r').lazy.inject [Location.largest, Location.smallest] do |(min,max),r_attr|
         loc = Office::Location.new(r_attr.text)
         # contract and extend min and max, respectively
         [(min & loc), (max | loc)]
       end
-      Range.new min, max
+      Office::Range.new min, max
     end
 
     # create a Office::Range from Location (or maybe later string A1 and string A1:Z26)
@@ -194,7 +205,6 @@ module Office
       sheet_data.invalidate
 
       # TODO remove/update mergeCells referring to these deleted rows
-      # TODO update dimension. OR maybe this should be an external operation?
       # TODO update formulas referring to rows moved
 
       # remove the row nodes
@@ -236,6 +246,7 @@ module Office
     end
 
     def invalidate_row_cache
+      @dimension = nil
       @row_cache = Array.new
     end
 

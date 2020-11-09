@@ -1,10 +1,12 @@
 module Office
   # Algebra for B4:H22 rectangular ranges
+  # TODO maybe name it Rectangle instead of Range?
   class Range
     attr_reader :top_left
     attr_reader :bot_rite
 
     def initialize *args
+      # TODO how to handle a malformed range like 'A1' which is what seems to happen with blank workbooks
       case args
       in [String => range_str]
         # construct from string
@@ -15,6 +17,14 @@ module Office
       else
         raise "dunno how to create #{self.class} from #{args.inspect}"
       end
+    end
+
+    def self.unit
+      new Location.unit, Location.unit
+    end
+
+    def count
+      width * height
     end
 
     # where location is an Office::Location
@@ -46,6 +56,29 @@ module Office
       (top_left.coli..bot_rite.coli).each &blk
     end
 
+    # yield each row index to blk
+    def each_rowi &blk
+      return enum_for :each_rowi unless block_given?
+      (top_left.rowi..bot_rite.rowi).each &blk
+    end
+
+    # yield a range for each row
+    def each_row &blk
+      return enum_for :each_row unless block_given?
+      (top_left.rowi..bot_rite.rowi).each do |rowix|
+        yield self.class.new Location[top_left.coli,rowix], Location[bot_rite.coli,rowix]
+      end
+    end
+
+    # yield a range for each column
+    def each_col &blk
+      return enum_for :each_col unless block_given?
+      (top_left.coli..bot_rite.coli).each do |colix|
+        yield self.class.new Location[colix,top_left.rowi], Location[colix,bot_rite.rowi]
+      end
+    end
+
+    # yield all locations, row-wise
     def each_by_row &blk
       return enum_for :each_by_row unless block_given?
 
@@ -56,6 +89,7 @@ module Office
       end
     end
 
+    # yield all locations, column-wise
     def each_by_col &blk
       return enum_for :each_by_col unless block_given?
 
@@ -77,6 +111,6 @@ module Office
 
     def to_a; [top_left, bot_rite]; end
 
-    def inspect; [top_left.inspect, bot_rite.inspect].inspect; end
+    def inspect; [top_left.inspect, bot_rite.inspect] end
   end
 end
