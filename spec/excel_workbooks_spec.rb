@@ -29,43 +29,30 @@ describe 'ExcelWorkbooksTest' do
   end
 
   it :test_create_workbook do
+    values = [
+      [ "Name", "Age", "Favorite Virus", "Trustworthiness", "Spirit Animal" ],
+      [ "Alfred", 45, "Marburg", 2.54, nil ],
+      [ "Carry", 6, "Measles", 0.09, "" ],
+      [ "Mitch", 23, "Yellow fever", 77 ],
+      [ "Brenda", 99, "Coxsackie", 7.2, "Hedgehog" ],
+      [ "Greg", 345, "Rinderpest", -3.1, "Possum" ],
+      [ "Nathan", 23, "Hepatitis C", 1.3, "" ],
+      [ "Wilma", 21, "Canine distemper", 8.89, "Crocodylocapillaria longiovata" ],
+      [ "Arnie", 1, "Corona", 0.0012, "Careless Honey Badger" ],
+      [ "Phil", 0, "Dengue", 34.5 ],
+    ]
     book = Office::ExcelWorkbook.blank_workbook
     sheet = book.sheets.first
+    values.each{|ary| sheet.add_row ary }
 
-    sheet.add_row [ "Name", "Age", "Favorite Virus", "Trustworthiness", "Spirit Animal" ]
-    sheet.add_row [ "Alfred", 45, "Marburg", 2.54, nil ]
-    sheet.add_row [ "Carry", 6, "Measles", 0.09, "" ]
-    sheet.add_row [ "Mitch", 23, "Yellow fever", 77 ]
-    sheet.add_row [ "Brenda", 99, "Coxsackie", 7.2, "Hedgehog" ]
-    sheet.add_row [ "Greg", 345, "Rinderpest", -3.1, "Possum" ]
-    sheet.add_row [ "Nathan", 23, "Hepatitis C", 1.3, "" ]
-    sheet.add_row [ "Wilma", 21, "Canine distemper", 8.89, "Crocodylocapillaria longiovata" ]
-    sheet.add_row [ "Arnie", 1, "Corona", 0.0012, "Careless Honey Badger" ]
-    sheet.add_row [ "Phil", 0, "Dengue", 34.5 ]
+    assert_equal sheet.each_cell.map(&:formatted_value), values.flatten
 
-    expected_csv = <<~EOC
-      Name,Age,Favorite Virus,Trustworthiness,Spirit Animal
-      Alfred,45,Marburg,2.54,
-      Carry,6,Measles,0.09,
-      Mitch,23,Yellow fever,77,
-      Brenda,99,Coxsackie,7.2,Hedgehog
-      Greg,345,Rinderpest,-3.1,Possum
-      Nathan,23,Hepatitis C,1.3,
-      Wilma,21,Canine distemper,8.89,Crocodylocapillaria longiovata
-      Arnie,1,Corona,0.0012,Careless Honey Badger
-      Phil,0,Dengue,34.5,
-    EOC
-
-    assert_equal sheet.to_csv, expected_csv
-
-    file = Tempfile.new('test_create_workbook')
-    file.close
-    filename = file.path
-
-    book.save(filename)
-    assert_equal Office::ExcelWorkbook.new(filename).sheets.first.to_csv, expected_csv
-
-    file.delete
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'previous-blank.xlsx'
+      book.save(filename)
+      saved_book = Office::ExcelWorkbook.new(filename)
+      assert_equal saved_book.sheets.first.each_cell.map(&:formatted_value), values.flatten
+    end
   end
 
   it :test_from_data do
@@ -82,7 +69,8 @@ describe 'ExcelWorkbooksTest' do
 
     book_1 = Office::ExcelWorkbook.from_data(data)
     book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
-    assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+    # assert_equal book_1.sheets.first.forward_to_csv, book_2.sheets.first.forward_to_csv
+    assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
   end
 
   it :test_sheet_creation do
