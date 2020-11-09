@@ -14,7 +14,6 @@ module Office
     attr_reader :name
     attr_reader :id
     attr_reader :worksheet_part
-    attr_reader :sheet_data
     attr_reader :workbook
 
     def initialize(sheet_node, workbook)
@@ -23,19 +22,27 @@ module Office
       @name = sheet_node['name']
       @id = Integer sheet_node['sheetId']
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
+    end
 
-      ns_prefix = Package.xpath_ns_prefix(@worksheet_part.xml.root)
-      data_node = @worksheet_part.xml.at_xpath("/#{ns_prefix}:worksheet/#{ns_prefix}:sheetData")
-      raise PackageError, "Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data" if data_node.nil?
-      @sheet_data = SheetData.new(data_node, self, workbook)
+    def data_node
+      @data_node ||= begin
+        ns_prefix = Package.xpath_ns_prefix(worksheet_part.xml.root)
+        node = worksheet_part.xml.at_xpath("/#{ns_prefix}:worksheet/#{ns_prefix}:sheetData")
+        raise PackageError, "Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data" if node.nil?
+        node
+      end
+    end
+
+    def sheet_data
+      @sheet_data ||= SheetData.new(data_node, self, workbook)
     end
 
     def add_row(data)
-      @sheet_data.add_row(data)
+      sheet_data.add_row(data)
     end
 
-    def to_csv(separator = ',')
-      @sheet_data.to_csv(separator)
+    def forward_to_csv(separator = ',')
+      sheet_data.to_csv(separator)
     end
 
     def new_to_csv(separator = ',')
