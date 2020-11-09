@@ -124,6 +124,8 @@ module Office
 
     def resolve_target_part(package, owner_name)
       full_name = @target_name[0] == "/" ? @target_name : owner_name[0, owner_name.rindex("/") + 1] + @target_name
+      # sometimes full_name has .. in it, so use expand_path to resolve that
+      full_name = File.expand_path full_name
       @target_part = package.get_part(full_name)
       Logger.warn "Failed to resolve relationship target '#{@target_name}' for '#{owner_name}'" if @target_part.nil?
     end
