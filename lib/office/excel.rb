@@ -122,12 +122,13 @@ module Office
     def initialize(si_node, id)
       @node = si_node
       @id = id
-      @text_node = si_node.at_xpath("#{Package.xpath_ns_prefix(si_node)}:t")
+      # // is slower but we need to handle text runs
+      @text_node = si_node.xpath(".//#{Package.xpath_ns_prefix(si_node)}:t")
       @cells = []
     end
 
     def text
-      text_node.nil? ? nil : text_node.content
+      text_node&.text
     end
 
     def add_cell(cell)
