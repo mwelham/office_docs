@@ -153,6 +153,7 @@ module Office
 
       # tell sheet data to recalculate next time
       sheet_data.invalidate
+      invalidate_row_cache
 
       # Create new row nodes and return them
       insert_range.each_row_r.map do |row_r|
@@ -203,6 +204,7 @@ module Office
 
       # tell sheet data to recalculate next time
       sheet_data.invalidate
+      invalidate_row_cache
 
       # TODO remove/update mergeCells referring to these deleted rows
       # TODO update formulas referring to rows moved
@@ -230,18 +232,22 @@ module Office
       to_delete
     end
 
+    # auto-caches row so much faster for things that sequentially access several cells in a row.
     def row_at loc
-      # invalidate this
       @row_cache ||= Array.new
       @row_cache[loc.rowi] ||= begin
-        # fetch the row node and build cell nodes immediately
-        # otherwise self[loc] usages re-search row cell nodes in a row sequentially from the beginning each time
-        row_node = data_node.xpath("xmlns:row[@r=#{loc.row_r}]")
-        # NOTE we assume that cells have r= attributes that are in order and contiguous
-        row_node.children.map do |cell_node|
-          cell = Cell.new cell_node, workbook.shared_strings, workbook.styles
-          [cell.location.coli, cell]
-        end.to_h
+        # Fetch the row node and build cell nodes immediately, otherwise
+        # self[loc] usages re-search row cell nodes in a row sequentially from
+        # the beginning each time.
+        row_node, = data_node.xpath("xmlns:row[@r=#{loc.row_r}]")
+
+        if row_node
+          # NOTE we assume that cells have r= attributes that are in order and contiguous
+          row_node.element_children.map do |cell_node|
+            cell = Cell.new cell_node, workbook.shared_strings, workbook.styles
+            [cell.location.coli, cell]
+          end.to_h
+        end
       end
     end
 
@@ -259,27 +265,8 @@ module Office
         self[ Location.new(a1_location) ]
 
       in [Location => loc]
-        case sheet_data.rows
-        when NilClass
-          LazyCell.new self, loc
-        else
-          # need or_else pattern for this to be nice
-          if (rows = sheet_data.rows).empty?
-            # no rows yet
-            LazyCell.new self, loc
-          else
-            # TODO fugly if else
-            # Remember that r.number is zero-based and so it loc.rowi
-            # I predict confusion about this...
-            cells = rows.find{|r| r.number == loc.rowi}&.cells
-            if cells&.any?
-              cells.find{|c| c.location == loc} || LazyCell.new(self, loc) # cell doesn't exist
-            else
-              # row doesn't exist
-              LazyCell.new self, loc
-            end
-          end
-        end
+        cell_node = row_at(loc)&.dig(loc.coli)
+        cell_node || LazyCell.new(self, loc)
 
       else
         raise "don't know how to get cell from #{location.inspect}"
