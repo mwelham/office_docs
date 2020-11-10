@@ -35,6 +35,22 @@ describe 'ExcelWorkbooksTest' do
     end
   end
 
+  let :placeholders do
+    ["{{horizontal}}", "{{manufacturer}}", "{{yes}}", "{{shop_or_serial}}", "{{model_number}}", "{{vertical}}", "{{no}}", "{{gpm}}", "{{rated_head_foot_psi}}", "{{net_psi}}", "{{rated_rpm}}", "very {{important}} thing", "{{broken_place}}", "{{streams|tabular}}"]
+  end
+
+  it 'finds placeholders - generic' do
+    book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
+    place_cells = book.sheets.first.each_cell.filter(&:placeholder)
+    place_cells.map(&:value).should == placeholders
+  end
+
+  it '#each_placeholder' do
+    book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
+    sheet = book.sheets.first
+    sheet.each_placeholder.map(&:value).should == placeholders
+  end
+
   it 'replaces placeholders' do
     simple = Office::ExcelWorkbook.new WORKBOOK_PATH
     sheet = simple.sheets.first
@@ -46,7 +62,7 @@ describe 'ExcelWorkbooksTest' do
     end
 
     reload_workbook sheet.workbook, 'replacements.xlsx' do |book|
-      book.sheets.first.each_cell.filter(&:place?).should be_empty
+      book.sheets.first.each_placeholder.to_a.should be_empty
       # `localc --nologo #{book.filename}`
     end
   end

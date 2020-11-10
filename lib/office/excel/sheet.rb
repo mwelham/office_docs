@@ -318,6 +318,16 @@ module Office
     alias each_cell each_row_cell
     # alias each_cell each_cell_by_node
 
+    # Create a separate method for this, because there may be a more optimal way
+    # of finding placeholders.
+    def each_placeholder &blk
+      return enum_for __method__ unless block_given?
+
+      each_cell do |cell|
+        yield cell if cell.placeholder
+      end
+    end
+
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end
 
