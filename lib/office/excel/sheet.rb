@@ -1,3 +1,5 @@
+require 'csv'
+
 require 'office/package'
 require 'office/constants'
 require 'office/errors'
@@ -41,25 +43,25 @@ module Office
       sheet_data.add_row(data)
     end
 
-    def forward_to_csv(separator = ',')
+    # Excel-compatible csv, which is a little different to standard csv.
+    def to_excel_csv(separator = ',')
       sheet_data.to_csv(separator)
     end
 
-    def new_to_csv(separator = ',')
+    def range_to_csv(range: dimension, separator: ',')
       csv = CSV.new '', col_sep: separator, quote_char: ?'
-      dimension.each_row do |row_range|
-        row_data = row_range.each_by_row.map do |loc|
-          # because every time this will search for cells from the beginning
-          cell = self[loc]
-          cell.formatted_value unless cell.empty?
-        end
-        csv << row_data
+      colix = range.top_left.coli
+      range.each_rowi do |rowix|
+        cell_map = row_at Location[colix, rowix]
+        csv << cell_map.values.map(&:formatted_value)
       end
       csv.string
     end
 
-    # alias to_csv forward_to_csv
-    alias to_csv new_to_csv
+    # alias to_csv to_excel_csv
+    def to_csv(separator = ?,)
+      range_to_csv range: dimension, separator: separator
+    end
 
     # TODO what does this do, exactly? Yes OK, it adds a node. But what node? To where? For what purpose?
     def self.add_node(parent_node, name, sheet_id, relationship_id)
@@ -303,6 +305,12 @@ module Office
       end
     end
 
+    def sub range
+      # TODO implement this to fetch a nodeset of rows each with cell filtering
+      # and otherwise all the sheet machinery. So possibly just generalise Sheet to handle
+      # a nodeset instead of a single node
+    end
+
     # iterates by sheet_data.rows : Array<Row>
     def each_row_cell by = :row, &blk
       return enum_for __method__, by unless block_given?
@@ -425,15 +433,22 @@ module Office
     def to_csv(separator)
       data = []
       column_count = 0
+
       rows.each do |r|
+        # pad for missing rows where r.number is discontinguous from last r.number
         data.push([]) until data.length > r.number
+        # assign this row
         data[r.number] = r.to_ary
+        # update column count
         column_count = [column_count, data[r.number].length].max
       end
+
+      # pad all columns to equal length based on column count
       data.each { |d| d.push("") until d.length == column_count }
 
       csv = ""
       data.each do |d|
+        # quote items containing separator
         items = d.map { |i| i.index(separator).nil? ? i : "'#{i}'" }
         csv << items.join(separator) << "\n"
       end

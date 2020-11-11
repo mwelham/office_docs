@@ -19,8 +19,8 @@ describe 'ExcelWorkbooksTest' do
 
   it :test_simple_csv_export do
     book = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
-    assert_equal book.sheets.first.to_csv, "Heading A,Heading B,Heading C\nAlpha,,\nBravo,123,\n,,a;b;c;d\n"
-    assert_equal book.sheets.first.to_csv(';'), "Heading A;Heading B;Heading C\nAlpha;;\nBravo;123;\n;;'a;b;c;d'\n"
+    assert_equal book.sheets.first.to_excel_csv, "Heading A,Heading B,Heading C\nAlpha,,\nBravo,123,\n,,a;b;c;d\n"
+    assert_equal book.sheets.first.to_excel_csv(';'), "Heading A;Heading B;Heading C\nAlpha;;\nBravo;123;\n;;'a;b;c;d'\n"
   end
 
   it :test_parse_large_workbook do
@@ -71,7 +71,6 @@ describe 'ExcelWorkbooksTest' do
 
     book_1 = Office::ExcelWorkbook.from_data(data)
     book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
-    # assert_equal book_1.sheets.first.forward_to_csv, book_2.sheets.first.forward_to_csv
     assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
   end
 
