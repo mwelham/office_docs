@@ -14,12 +14,12 @@ module Office
         target_node.children.unlink
 
         # remove all attributes except r which specifies A1 reference
-        target_node.attribute_nodes.each{|attr| attr.unlink unless attr.name == ?r }
+        target_node.attribute_nodes.each{|attr| attr.unlink unless attr.name == ?r || attr.name == ?s}
 
       when true, false
         target_node.children = target_node.document.create_element 'v', (obj ? ?1 : ?0)
         target_node[:t] = ?b
-        target_node[:s] = 0 # general style
+        target_node[:s] ||= 0 # general style
 
       # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
       when Date
@@ -30,7 +30,7 @@ module Office
         target_node.children = target_node.document.create_element 'v', span.to_s
         # IT's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] = 15 # generic date
+        target_node[:s] ||= 15 # generic date
 
       when String
         if string_table
@@ -56,14 +56,14 @@ module Office
             end
           end
           target_node[:t] = 'inlineStr'
-          target_node[:s] = 0 # general style
+          target_node[:s] ||= 0 # general style
 
         end
 
       when Numeric
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] = 0 # general
+        target_node[:s] ||= 0 # general
 
       else
         raise "dunno how to convert #{obj.inspect}"
