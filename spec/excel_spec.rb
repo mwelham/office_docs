@@ -105,6 +105,22 @@ describe 'ExcelWorkbooksTest' do
     end
   end
 
+  describe 'cell operations' do
+    it 'lazy cell' do
+      book = Office::ExcelWorkbook.blank_workbook
+      sheet = book.sheets.first
+      cell = sheet[100,100]
+      cell.should be_a(Office::LazyCell)
+    end
+
+    it 'iterates cells' do
+      book = Office::ExcelWorkbook.new SIMPLE_TEST_WORKBOOK_PATH
+      sheet = book.sheets.first
+      sheet.each_cell.map(&:data_type).should == [:s, :s, :s, :s, :s, nil, :s]
+      sheet.each_cell.map(&:formatted_value).should ==["Heading A", "Heading B", "Heading C", "Alpha", "Bravo", "123", "a;b;c;d"]
+    end
+  end
+
   describe 'tabular data' do
     let :dataset do
       [

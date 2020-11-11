@@ -4,11 +4,11 @@ require 'office_docs'
 describe :ExcelNumberFormatsTest do
   SIMPLE_DATA_TYPES_WORKBOOK_PATH = File.join(__dir__, '..', 'test', 'content', 'simple_data_types.xlsx')
 
-  it :test_data_types_parsing do
-    book = Office::ExcelWorkbook.new(SIMPLE_DATA_TYPES_WORKBOOK_PATH)
-    sheet = book.sheets.first
-    rows = sheet.sheet_data.rows
+  let :book do Office::ExcelWorkbook.new SIMPLE_DATA_TYPES_WORKBOOK_PATH end
+  let :sheet do book.sheets.first end
+  let :rows do sheet.sheet_data.rows end
 
+  it :test_data_types_parsing do
     assert_equal rows[1].cells[0].formatted_value, Date.new(2001, 1, 1)
     assert_equal rows[2].cells[0].formatted_value, Date.new(2002, 2, 2)
     assert_equal rows[3].cells[0].formatted_value, Date.new(2003, 3, 3)
