@@ -242,22 +242,31 @@ module Office
       raise
     end
 
+    # contains the first placeholder. There might be more than one.
     def placeholder
       # to invalidate this, use remove_instance_variable
       if instance_variable_defined? :@placeholder
         @placeholder
       else
-        value = case
+        placeholder = case
         when shared?
           to_ruby
+
         when inline?
           # TODO should dig down to the actual <t> cell; and handle text runs
           node.text
+
+        # Formulas do this, so maybe the formula has a string value
+        when data_type = 'str'
+          self.value
+
         end
 
-        return false unless value
-        value =~ /\{\{(.*)\}\}/
-        @placeholder = $1
+        @placeholder =
+        if placeholder
+          placeholder =~ /\{\{(.*?)\}\}/
+          $1
+        end
       end
     end
 
