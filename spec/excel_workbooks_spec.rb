@@ -5,12 +5,8 @@ require_relative 'spec_helper'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe 'ExcelWorkbooksTest' do
-  SIMPLE_TEST_WORKBOOK_PATH = File.join __dir__, '/../test/content/simple_test.xlsx'
-  LARGE_TEST_WORKBOOK_PATH = File.join __dir__, '/../test/content/large_test.xlsx'
-  OPENXML_TEST_WORKBOOK_PATH = File.join __dir__, '/../test/content/openxml_generated.xlsx'
-
   it :test_parse_simple_workbook do
-    Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
   end
 
   it :test_blank_workbook do
@@ -18,13 +14,13 @@ describe 'ExcelWorkbooksTest' do
   end
 
   it :test_simple_csv_export do
-    book = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    book = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
     assert_equal book.sheets.first.to_excel_csv, "Heading A,Heading B,Heading C\nAlpha,,\nBravo,123,\n,,a;b;c;d\n"
     assert_equal book.sheets.first.to_excel_csv(';'), "Heading A;Heading B;Heading C\nAlpha;;\nBravo;123;\n;;'a;b;c;d'\n"
   end
 
   it :test_parse_large_workbook do
-    book = Office::ExcelWorkbook.new(LARGE_TEST_WORKBOOK_PATH)
+    book = Office::ExcelWorkbook.new(BookFiles::LARGE_TEST)
     assert_equal book.sheets.length, 2
     assert book.sheets.first.to_csv.length > 1000
     assert book.sheets.last.to_csv.length > 1000
@@ -59,18 +55,18 @@ describe 'ExcelWorkbooksTest' do
 
   it :test_from_data do
     book_1 = nil
-    File.open(SIMPLE_TEST_WORKBOOK_PATH) { |f| book_1 = Office::ExcelWorkbook.from_data(f.read) }
-    book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    File.open(BookFiles::SIMPLE_TEST) { |f| book_1 = Office::ExcelWorkbook.from_data(f.read) }
+    book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
     assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
   end
 
   it :test_to_data do
-    data = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH).to_data
+    data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
     assert !data.nil?
     assert data.length > 0
 
     book_1 = Office::ExcelWorkbook.from_data(data)
-    book_2 = Office::ExcelWorkbook.new(SIMPLE_TEST_WORKBOOK_PATH)
+    book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
     assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
   end
 
@@ -128,7 +124,7 @@ describe 'ExcelWorkbooksTest' do
   end
 
   it :test_parsing_openxml_generated do
-    book = Office::ExcelWorkbook.new(OPENXML_TEST_WORKBOOK_PATH)
+    book = Office::ExcelWorkbook.new(BookFiles::OPENXML_GENERATED)
     assert_equal book.sheets.count, 1
     assert_equal book.sheets.first.name, "Sheet 1"
     assert_equal book.sheets.first.sheet_data.rows.count, 3

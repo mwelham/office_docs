@@ -9,10 +9,8 @@ require_relative 'xml_fixtures'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe 'ExcelWorkbooksTest' do
-  WORKBOOK_PATH = File.join __dir__, '/../test/content/simple-placeholders.xlsx'
-
   let :simple do
-    Office::ExcelWorkbook.new WORKBOOK_PATH
+    Office::ExcelWorkbook.new BookFiles::SIMPLE_PLACEHOLDERS
   end
 
   include XmlFixtures
@@ -114,10 +112,10 @@ describe 'ExcelWorkbooksTest' do
     end
 
     it 'iterates cells' do
-      book = Office::ExcelWorkbook.new SIMPLE_TEST_WORKBOOK_PATH
+      book = Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST
       sheet = book.sheets.first
       sheet.each_cell.map(&:data_type).should == [:s, :s, :s, :s, :s, nil, :s]
-      sheet.each_cell.map(&:formatted_value).should ==["Heading A", "Heading B", "Heading C", "Alpha", "Bravo", "123", "a;b;c;d"]
+      sheet.each_cell.map(&:formatted_value).should ==["Heading A", "Heading B", "Heading C", "Alpha", "Bravo", 123, "a;b;c;d"]
     end
   end
 

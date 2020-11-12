@@ -16,3 +16,12 @@ class RSpec::Core::ExampleGroup
     pred.should be_truthy
   end
 end
+
+module BookFiles
+  (Pathname(__dir__) + "../test/content").children.each do |path|
+    next unless path.to_s.end_with? '.xlsx'
+    const_name = path.basename('.xlsx').to_s.gsub(/[[:punct:]]/, ?_).upcase
+    const_set const_name, path.realpath.to_s
+  end
+end
+
