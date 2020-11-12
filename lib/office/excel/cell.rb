@@ -413,17 +413,21 @@ module Office
       value.to_i
     end
 
+    DATE_TIME_EPOCH = DateTime.new(1900, 1, 1, 0, 0, 0) - 2
+    DATE_EPOCH = Date.new(1900, 1, 1) - 2
+
     private def as_datetime(value)
-      DateTime.new(1900, 1, 1, 0, 0, 0) + value.to_f - 2
+      DATE_TIME_EPOCH + value.to_f
     end
 
     private def as_date(value)
       # This was originally DateTime, and I don't know why it wasn't just Date
       # Date.new(1900, 1, 1, 0, 0, 0) + value.to_i - 2
-      Date.new(1900, 1, 1) + value.to_i - 2
+      DATE_EPOCH + value.to_i
     end
 
     private def as_time(value)
+      # to_time seems quite slow compared to other date/time conversions
       as_datetime(value).to_time
     end
   end
