@@ -1,3 +1,5 @@
+require 'hash_wrap'
+
 require_relative '../lib/office/excel'
 require_relative '../lib/office/constants'
 require_relative '../lib/office/nokogiri_extensions'
@@ -35,6 +37,11 @@ describe 'ExcelWorkbooksTest' do
     end
   end
 
+  let :field_data do
+    require 'yaml'
+    HashWrap.new YAML.load_file 'test/content/placeholder-data.yml'
+  end
+
   let :placeholders do
     ["{{horizontal}}", "{{manufacturer}}", "{{yes}}", "{{shop_or_serial}}", "{{model_number}}", "{{vertical}}", "{{no}}", "{{gpm}}", "{{rated_head_foot_psi}}", "{{net_psi}}", "{{rated_rpm}}", "very {{important}} thing", "{{broken_place}}", "{{streams|tabular}}"]
   end
@@ -49,62 +56,6 @@ describe 'ExcelWorkbooksTest' do
     book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
     sheet = book.sheets.first
     sheet.each_placeholder.map(&:value).should == placeholders
-  end
-
-  it 'replaces placeholders' do
-    simple = Office::ExcelWorkbook.new WORKBOOK_PATH
-    sheet = simple.sheets.first
-    sheet.each_cell.lazy.each do |cell|
-      # %r otherwise sublime's syntax highlighting breaks
-      %r|{{(?<place_name>.*?)}}| =~ cell.value
-      next unless place_name
-      cell.value = "R-#{place_name.capitalize}"
-    end
-
-    reload_workbook sheet.workbook, 'replacements.xlsx' do |book|
-      book.sheets.first.each_placeholder.to_a.should be_empty
-      # `localc --nologo #{book.filename}`
-    end
-  end
-
-  it 'placeholders in shared strings' do
-    vs = {
-      horizontal: 'prone',
-      flow_rate: 15,
-      flow_rate_units: 'm3/sec',
-      important: 'Le Grand Fromage',
-      broken_place: 'Venterstad',
-    }
-
-    plrx = %r|{{(?<place_name>.*?)}}|
-
-    mini_shared_string_doc.nspath('/~sst/~si').each do |si|
-      # need Array because Node#search returns a NodeSet
-      replace_node, plain_text =
-      case si.search('t')
-        in []
-          # this case may happen if there are 0 t and 0 r children of the si
-          node = si.add_child si.document.create_element 't', :'xml:space' => 'preserve'
-          [node, '']
-        in [node]
-          [node, node.text]
-        in many
-          # we have runs because content model says si can contain exactly 1 t; or multiple r. r can contain exactly 1 t each.
-          # so therefore we have many <r><t></t></r> for this case
-          # TODO this discards formatting, so we need to 1) unify various formatting attributes somehow, and 2) recreate a r/rPr structure
-          # r_nodes = si.search('r')
-          # TODO also need to somehow unify xml:space attributes.
-          si.children.unlink
-          node = si.add_child si.document.create_element 't', :'xml:space' => 'preserve'
-          # .text on the many NodeSet will concatenate all text fragments, reconstituting the {{placeholder}}
-          [node, many.text]
-      end
-
-      replacement = plain_text.gsub plrx do |match| vs[match[2..-3].to_sym] end
-      replace_node.children = replacement
-    end
-
-    mini_shared_string_doc.nspath('/~sst/~si/~t').text.should == 'Pump InformationproneThis pump moves 15 m3/sec.very Le Grand Fromage thingVenterstad'
   end
 
   it 'uses Builder to replace element tree' do
@@ -143,7 +94,7 @@ describe 'ExcelWorkbooksTest' do
 
       it 'accepts Date' do
         cell.value = 'Hello Darlink'
-        cell.node.to_xml.should == "<c r=\"A18\" s=\"0\" t=\"inlineStr\">\n  <is>\n    <t>Hello Darlink</t>\n  </is>\n</c>"
+        cell.node.to_xml.should == "<c r=\"A18\" s=\"4\" t=\"inlineStr\">\n  <is>\n    <t>Hello Darlink</t>\n  </is>\n</c>"
       end
 
       xit 'accepts boolean'
@@ -155,19 +106,61 @@ describe 'ExcelWorkbooksTest' do
   end
 
   describe 'tabular data' do
-    let :data do <<~CSV end
-      RPM,Discharge PSI,Suction PSI,Net PSI,No,Size,Pitot,GPM,%,Voltage,Amp
-      1791,110,10,100,0,Churn,,0,0,"477,476,477","56,55,56"
-      1789,106,5,101,3,2.5,7.6,1500,100,"479,475,475","90,86,91"
-      1777,96,6,91,3,2.5,17,2250,150,"477,475,474","118,115,118"
-      1770,92,5,87,3,8.5,23,3000,170,"452,454,424","128,135,132"
-      1762,83,2,82,3,6.1,23,3750,80,"454,424,403","124,128,135"
-      1751,65,1,79,3,4.5,23,4500,50,"424,403,389","121,124,128"
-    CSV
-
     let :dataset do
+      [
+      %i[rpm discharge suction net no size pitot gpm percent voltage amp],
+      [1791,110,10,100,0,'Churn',nil,0,0,"477,476,477","56,55,56"],
+      [1789,106,5,101,3,2.5,7.6,1500,100,"479,475,475","90,86,91"],
+      [1777,96,6,91,3,2.5,17,2250,150,"477,475,474","118,115,118"],
+      [1770,92,5,87,3,8.5,23,3000,170,"452,454,424","128,135,132"],
+      [1762,83,2,82,3,6.1,23,3750,80,"454,424,403","124,128,135"],
+      [1751,65,1,79,3,4.5,23,4500,50,"424,403,389","121,124,128"],
+      ]
+    end
+
+    let :csv_data do
       require 'csv'
-      CSV.parse data
+      dataset.map
+    end
+
+    let :simple do
+      Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
+    end
+
+    it 'replace individual row/col cells' do
+      sheet = simple.sheets.first
+
+      # set up a binding for easier evaluation of placeholder expressions
+      locals = ->{}
+      bnd = locals.binding
+
+      # copy values to binding
+      field_data.each do |k,v|
+        bnd.local_variable_set k.to_sym, v
+      end
+
+      # split streams data
+      headers, *records = field_data.streams
+
+      # convert each row to a objecty hash
+      bnd.local_variable_set :streams, records.map {|ary| HashWrap.new headers.zip(ary).to_h }
+
+      # evaluate placeholders on all sheets
+      simple.sheets.each do |sheet|
+        sheet.each_placeholder do |cell|
+          # of course this is ridiculously insecure
+          val = bnd.eval cell.placeholder rescue 'ERROR'
+          if String === val
+            cell.value = cell.value.gsub(%r|{{.*?}}|, val)
+          else
+            cell.value = val
+          end
+        end
+      end
+
+      reload_workbook sheet.workbook do |book|
+        # `localc --nologo #{book.filename}`
+      end
     end
 
     it 'insert rows with tabular data' do
@@ -187,7 +180,7 @@ describe 'ExcelWorkbooksTest' do
       # overwrite header row
       headers.each_with_index do |header_value,colix|
         insert_location = placeholder_cell.location + [colix, 0]
-        sheet[insert_location].value = header_value
+        sheet[insert_location].value = header_value.to_s
       end
 
       # insert blank rows for data, from row after headers
@@ -228,7 +221,7 @@ describe 'ExcelWorkbooksTest' do
       # insert header
       headers.each_with_index do |header_value,colix|
         insert_location = placeholder_cell.location + [colix, 0]
-        sheet[insert_location].value = header_value
+        sheet[insert_location].value = header_value.to_s
       end
 
       # overwrite data values after header

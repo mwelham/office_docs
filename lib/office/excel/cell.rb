@@ -256,7 +256,7 @@ module Office
         end
 
         return false unless value
-        value =~ /(\{\{.*\}\})/
+        value =~ /\{\{(.*)\}\}/
         @placeholder = $1
       end
     end

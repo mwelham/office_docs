@@ -1,0 +1,57 @@
+---
+:important: Le Grand Fromage
+:broken_place: Not Broken Anymore
+:pump:
+  :horizontal_shaft: true
+  :vertical_shaft: false
+  :manufacturer: Kroger
+  :approved: true
+  :shop_or_serial: K-GROO321
+  :model_number: RG1203
+  :gpm: 1500
+  :rated_head_foot_psi: 100
+  :net_psi: 85
+  :rated_rpm: 1775
+  :pond: false
+  :size_conn_inch: 8
+  :tank_supply: true
+  :tank_height: 32
+:driver:
+  :manufacturer: Wegmanns
+  :shop_or_serial: U-COOL543
+  :model_number: ENGRI54TS32
+  :approved: false
+  :horsepower: 100
+  :rated_rpm: 1775
+  :electric_motor: true
+  :rated_voltage:
+  :operational_voltage: 465
+  :rated_amps: 235
+  :amps_at_150: 230
+  :phase: 3
+  :cycles: 60
+  :service_factor: 1.15
+:controller:
+  :manufacturer: Trader Joe
+  :approved: true
+  :shop_or_serial: 25GH82E15
+  :model_number: LK90-F600-QOP-G7-A3
+  :start:
+    :pressure: 102
+    :manual: true
+    :pressure_drop: true
+    :auto: false
+    :water_flow: false
+  :stop:
+    :manual: true
+    :auto: true
+    :pressure: false
+  :jockey_pump:
+    :exist: true
+    :off: 120
+    :on: 90
+:streams:
+  - [!ruby/sym rpm, !ruby/sym discharge, !ruby/sym suction, !ruby/sym net, !ruby/sym no, !ruby/sym size, !ruby/sym pitot, !ruby/sym gpm, !ruby/sym percent, !ruby/sym voltage, !ruby/sym amp]
+  - [1791, 110, 10, 100, 0, Churn, null, 0, 0, '477,476,477', '56,55,56']
+  - [1789, 106, 5, 101, 3, 2.5, 7.6, 1500, 100, '479,475,475', '90,86,91']
+  - [1777, 96, 6, 91, 3, 2.5, 17, 2250, 150, '477,475,474', '118,115,118']

@@ -1,3 +1,5 @@
+require 'csv'
+
 require 'office_docs'
 require_relative 'spec_helper'
 
