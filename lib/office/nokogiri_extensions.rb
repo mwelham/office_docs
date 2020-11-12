@@ -76,8 +76,8 @@ end
 
 class Nokogiri::XML::Document
   # convenience for create_element followed by builder
-  def build_element name, &bld_blk
-    create_element 'r' do |node|
+  def build_element name, **kwargs, &bld_blk
+    create_element name, **kwargs do |node|
       Nokogiri::XML::Builder.with node, &bld_blk
     end
   end
