@@ -332,7 +332,9 @@ module Office
           if int == flt then int else flt end
 
         when :d; as_date(unformatted_value) # NOTE really don't know if this will actually work
-        else; unformatted_value
+        else
+          # TODO not sure this is the best way to convert to Numeric then fall back to String
+          Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
         end
       end
 

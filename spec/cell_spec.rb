@@ -3,6 +3,7 @@ require 'date'
 
 require_relative '../lib/office/excel/cell.rb'
 require_relative '../lib/office/excel.rb'
+require_relative '../lib/office/nokogiri_extensions.rb'
 
 require_relative 'spec_helper'
 
@@ -139,6 +140,33 @@ describe Office::Cell do
 
     it '#formatted_value' do
 
+    end
+  end
+
+  describe 'without style' do
+    let :cell_node do
+      # build the node outside of the normal Cell#value= code, ie no type conversions
+      # <c r="B3">
+      #   <v>7919</v>
+      # </c>
+      c_node = empty_cell_node.document.build_element ?c, r: 'F1' do |bld|
+        bld.v cell_value
+      end
+    end
+
+    describe 'Integer' do
+      let :cell_value do "7919" end
+      it {cell.formatted_value.should == 7919}
+    end
+
+    describe 'Float' do
+      let :cell_value do "7.919" end
+      it {cell.formatted_value.should == 7.919}
+    end
+
+    describe 'String' do
+      let :cell_value do "0.0ops" end
+      it {cell.formatted_value.should == "0.0ops"}
     end
   end
 
