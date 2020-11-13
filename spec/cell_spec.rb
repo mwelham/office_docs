@@ -7,6 +7,14 @@ require_relative '../lib/office/nokogiri_extensions.rb'
 
 require_relative 'spec_helper'
 
+
+# monkeypatch for RUBY_VERSION <2.7.0
+class Time
+  def floor
+    Time.new(year, month, day, hour, min, sec.floor, utc_offset)
+  end
+end
+
 describe Office::Cell do
   # Need a bunch of mockup xml stuff here because it's PITA to have a whole
   # workbook just to test cell functionality
@@ -40,7 +48,8 @@ describe Office::Cell do
   # need a minimal doc as backing for Cell instances
   let :doc do
     Nokogiri::XML::Builder.new do |bld|
-      bld.root **sheet_namespaces
+      #  ≥ruby-2.7 does not need the transform_keys
+      bld.root **sheet_namespaces.transform_keys(&:to_sym)
     end.doc
   end
 

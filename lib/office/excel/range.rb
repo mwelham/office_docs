@@ -6,13 +6,15 @@ module Office
     attr_reader :bot_rite
 
     def initialize *args
-      case args
-      in [String => range_str]
+      case args.map(&:class)
+      when [String]
         # construct from string
+        range_str, = args
         @range_str = range_str.dup.freeze
         @top_left, @bot_rite = range_str.split(':').map{|loc_str| Location.new loc_str}
-      in [Location => tl, Location => bt]
+      when [Location, Location]
         # MUST be .clone, because .dup drops instance methods and those are used by Location.largest and Location.smallest
+        tl, bt = args
         @top_left, @bot_rite = tl.clone, bt.clone
       else
         raise "dunno how to create #{self.class} from #{args.inspect}"

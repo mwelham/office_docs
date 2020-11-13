@@ -19,7 +19,7 @@ describe Office::Sheet do
     end
 
     it 'finds placeholders - generic' do
-      place_cells = sheet.each_cell.filter(&:placeholder)
+      place_cells = sheet.each_cell.select(&:placeholder)
       place_cells.map(&:value).should == placeholders
     end
 

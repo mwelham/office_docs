@@ -12,10 +12,12 @@ module Office
       raise "Not a sheet" unless sheet.is_a? Sheet
       @sheet = sheet
 
-      case args
-      in [Integer => rowi, Integer => coli]
+      case args.map(&:class)
+      when [Integer, Integer]
+        coli,rowi = args
         Location[coli,rowi]
-      in [Location => loc]
+      when [Location]
+        loc, = args
         @location = loc
       else
         raise "dunno how to construct #{self.class} from #{args.inspect}"

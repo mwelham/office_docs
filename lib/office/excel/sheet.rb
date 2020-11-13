@@ -385,15 +385,15 @@ module Office
     end
 
     private def strict_cell_of cell_node, colix = nil, rowix = nil
-      case [cell_node, colix, rowix]
-      in [Nokogiri::XML::Node => cell_node, _, _]
+      case [cell_node, colix, rowix].map(&:class)
+      when [Nokogiri::XML::Node, NilClass, NilClass]
         Cell.new cell_node, workbook.shared_strings, workbook.styles
 
-      in [_, Integer => colix, Integer => rowix]
+      when [NilClass, Integer, Integer]
         LazyCell.new self, Location[colix, rowix]
 
       # TODO in this case we assume that caller has verified that colix and rowix are correct.
-      in [Nokogiri::XML::Node => cell_node, Integer => colix, Integer => rowix]
+      when [Nokogiri::XML::Node, Integer, Integer]
         Cell.new cell_node, workbook.shared_strings, workbook.styles
       end
     end
@@ -438,14 +438,18 @@ module Office
 
     # get a cell at the given location, which may be Location, [Integer,Integer], or "A1"
     def [](*args)
-      case args
-      in [Integer => coli, Integer => rowi]
+      # will work better as case .. in with ≥ruby-2.7
+      case args.map(&:class)
+      when [Integer, Integer]
+        coli, rowi = args
         self[ Location[coli, rowi] ]
 
-      in [String => a1_location]
+      when [String]
+        a1_location, = args
         self[ Location.new(a1_location) ]
 
-      in [Location => loc]
+      when [Location]
+        loc, = args
         cell_node = row_cell_nodes_at(loc)&.dig(loc.coli)
         cell_of cell_node, *loc
 
