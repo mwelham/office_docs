@@ -1,5 +1,4 @@
 require 'yaml'
-require 'hash_wrap'
 
 require_relative 'spec_helper'
 require_relative '../lib/office/excel/template.rb'

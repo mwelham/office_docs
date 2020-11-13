@@ -1,5 +1,3 @@
-require 'hash_wrap'
-
 require_relative '../lib/office/excel'
 require_relative '../lib/office/constants'
 require_relative '../lib/office/nokogiri_extensions'
@@ -37,7 +35,7 @@ describe 'ExcelWorkbooksTest' do
 
   let :field_data do
     require 'yaml'
-    HashWrap.new YAML.load_file 'test/content/placeholder-data.yml'
+    YAML.load_file 'test/content/placeholder-data.yml'
   end
 
   let :placeholders do
@@ -139,42 +137,6 @@ describe 'ExcelWorkbooksTest' do
 
     let :simple do
       Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
-    end
-
-    it 'replace individual row/col cells' do
-      sheet = simple.sheets.first
-
-      # set up a binding for easier evaluation of placeholder expressions
-      locals = ->{}
-      bnd = locals.binding
-
-      # copy values to binding
-      field_data.each do |k,v|
-        bnd.local_variable_set k.to_sym, v
-      end
-
-      # split streams data
-      headers, *records = field_data.streams
-
-      # convert each row to a objecty hash
-      bnd.local_variable_set :streams, records.map {|ary| HashWrap.new headers.zip(ary).to_h }
-
-      # evaluate placeholders on all sheets
-      simple.sheets.each do |sheet|
-        sheet.each_placeholder do |cell|
-          # of course this is ridiculously insecure
-          val = bnd.eval cell.placeholder rescue 'ERROR'
-          if String === val
-            cell.value = cell.value.gsub(%r|{{.*?}}|, val)
-          else
-            cell.value = val
-          end
-        end
-      end
-
-      reload_workbook sheet.workbook do |book|
-        # `localc --nologo #{book.filename}`
-      end
     end
 
     it 'insert rows with tabular data' do
