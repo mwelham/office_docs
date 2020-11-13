@@ -5,6 +5,7 @@ require_relative 'spec_helper'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::Range do
+  # TODO this is a bit dim :-|
   def sample sampler_fn, conditional_fn = ->_{true}
     loop do
       val = sampler_fn[]

@@ -144,6 +144,10 @@ module Office
     attr_reader :string_table
     attr_reader :styles
 
+    # TODO in some cases we may be able to optimise this, since cell is
+    # constructed from a location, eg in Sheet#[] which already has a
+    # location and the location was used to find the node.
+    # So maybe a location: nil keyword
     def initialize(c_node, string_table, styles)
       @node = c_node
       @string_table = string_table

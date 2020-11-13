@@ -11,7 +11,7 @@ module Office
       @location_string = location_string&.dup&.freeze
     end
 
-    # Constructor for 2x integers. Should really be positive integers, otherwise
+    # Constructor for 2x integers zero-based. Should really be positive integers, otherwise
     # weird things will happen.
     # This constructor takes about 0.4 µs on my i7
     def self.[](coli, rowi)
@@ -64,7 +64,7 @@ module Office
       @location_string ||= "#{self.class.column_name(coli)}#{rowi+1}"
     end
 
-    # Union of two ranges.
+    # Union of two locations.
     #
     # Result is the supremum (ie max of both dimensions) of the arguments
     #
@@ -77,7 +77,7 @@ module Office
       self.class[ [self.coli,rhs.coli].max, [self.rowi,rhs.rowi].max ]
     end
 
-    # Intersection of two ranges.
+    # Intersection of two locations.
     #
     # Result is the infimum (ie min of both dimensions) of the arguments
     #
@@ -119,13 +119,25 @@ module Office
     #  => B15(1,14)
     #  loc + [1,10]
     #  => C25(2,24)
-    def + deltas
-      case deltas
-      in [Integer => cold, Integer => rowd]
-        self.class[coli + cold, rowi + rowd]
-      else
-        raise "#{self.class} dunno how to extend by #{deltas.inspect}"
-      end
+    #
+    # yes the double (()) are necessary for destructuring to work
+    def + ((cold, rowd))
+      self.class[coli + cold, rowi + rowd]
+    end
+
+    # Extend this location into a range covering 'extents' more cells.
+    #
+    # Useful for inserting a table (ie extents) by expanding a single cell specification.
+    #
+    # Example 'B4' * [4,3] => 'B4:E6' which is 4 wide and 3 high
+    #
+    # yes the double (()) are necessary for destructuring to work
+    def * ((colex, rowex))
+      # coli and rowi are zero-based indices.
+      # -1 because a cell is identified by its top-left corner and the +
+      # goes to the bottom-right corner so we have to correct for that.
+      # similar to the way 'a' * 3 results in 'aaa' not 'aaaa'
+      Module.nesting[1]::Range.new self, self.class[coli + colex - 1, rowi + rowex - 1]
     end
 
     # allow these to function as hash keys, since they're value objects.
