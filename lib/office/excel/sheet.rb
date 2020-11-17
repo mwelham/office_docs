@@ -6,6 +6,7 @@ require 'office/errors'
 require 'office/logger'
 
 require_relative 'cell'
+require_relative 'lazy_cell'
 require_relative 'location'
 require_relative 'range'
 require_relative 'excel_workbook'
