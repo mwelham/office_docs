@@ -34,6 +34,7 @@ module Office
 
     # always nil
     def value; end
+    def formatted_value; end
 
     def value=(obj)
       # fetch the row node with the required r index

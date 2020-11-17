@@ -49,12 +49,19 @@ module Office
       sheet_data.to_csv(separator)
     end
 
+    def old_range_to_csv(range: dimension, separator: ',')
+      csv = CSV.new '', col_sep: separator, quote_char: ?'
+      range.each_rowi do |rowix|
+        cell_map = row_cell_nodes_at Location[range.top_left.coli, rowix]
+        csv << cell_map[range.top_left.coli..range.bot_rite.coli].each.with_index.map{|cell_node, colix| cell_of(cell_node, colix, rowix).formatted_value}
+      end
+      csv.string
+    end
+
     def range_to_csv(range: dimension, separator: ',')
       csv = CSV.new '', col_sep: separator, quote_char: ?'
-      colix = range.top_left.coli
-      range.each_rowi do |rowix|
-        cell_map = row_at Location[colix, rowix]
-        csv << cell_map.values.map(&:formatted_value)
+      cell_nodes_of(range, &method(:cell_of)).map do |row_ary|
+        csv << row_ary.map(&:formatted_value)
       end
       csv.string
     end
@@ -243,33 +250,112 @@ module Office
       to_delete
     end
 
+    # TODO perhaps allow caching of ranges and/or sets, to get the access
+    # pattern from higher-level usages.
+
     # auto-caches row so much faster for things that sequentially access several cells in a row.
-    def row_at loc
-      @row_cache ||= Array.new
-      @row_cache[loc.rowi] ||= begin
+    # returns a hash of coli => Cell
+    def row_cell_nodes_at loc
+      @row_cells ||= Array.new
+      @row_cells[loc.rowi] ||= begin
         # Fetch the row node and build cell nodes immediately, otherwise
         # self[loc] usages re-search row cell nodes in a row sequentially from
         # the beginning each time.
-        row_node, = data_node.xpath("xmlns:row[@r=#{loc.row_r}]")
+        row_node = row_node_at loc
 
         if row_node
-          # NOTE we assume that cells have r= attributes that are in order and contiguous
-          row_node.element_children.map do |cell_node|
-            cell = Cell.new cell_node, workbook.shared_strings, workbook.styles
-            [cell.location.coli, cell]
-          end.to_h
+          Hash.new do |h,k|
+            h[k] = row_node.element_children[k]
+          end
         end
       end
     end
 
-    # TODO slow but need it for now
+    # Assuming row nodes are never deleted, only moved around.
+    #
+    # lookup of last row of only 74 rows is around 1ms, cached fetch is around 5-10us
+    # so around 100 - 200 times faster.
     def row_node_at loc
-      data_node.xpath("xmlns:row[@r=#{loc.row_r}]").first
+      row_node_ix loc.rowi, loc.row_r
+    end
+
+    def row_node_ix rowix, row_r = rowix+1
+      @row_nodes ||= Array.new
+      @row_nodes[rowix] ||= begin
+        row_node, = data_node.xpath("xmlns:row[@r=#{row_r}]")
+        row_node
+      end
+    end
+
+    # Pre-fetch a range of cell nodes, as an array of arrays.
+    # Call optional blk with (colix, rowix, cell_node), useful for constructing a LazyCell or similar
+    def cell_nodes_of range, &blk
+      blk ||= -> i,_c,_r {i} # identity if not specified. Slowdown compared to plain value is microseconds at the x10000 scale
+
+      # TODO can be more efficient than this, because each cell requires a hash
+      # lookup. Which is fast in ruby, but not as fast as a straightforward
+      # iteration of row_node.element_children
+      range.each_rowi.map do |rowix|
+        range.each_coli.map do |colix|
+          blk.call row_node_ix(rowix)&.element_children[colix], colix, rowix
+        end
+      end
+    end
+
+    def lazy_cell_nodes_of range: dimension, &row_blk
+      return enum_for :lazy_cell_nodes_of, range: range unless block_given?
+
+      # TODO can be more efficient than this, because each cell requires a hash
+      # lookup. Which is fast in ruby, but not as fast as a straightforward
+      # iteration of row_node.element_children
+      range.each_rowi.each do |rowix|
+        # have to construct this with an Enumerator, otherwise 'yield' calls
+        # row_blk with the cell. Which is obvs not correct.
+        cell_enum = Enumerator.new do |yielder|
+          range.each_coli.each do |colix|
+            yielder.yield row_node_ix(rowix)&.element_children[colix], colix, rowix
+          end
+        end
+        yield cell_enum
+      end
+    end
+
+    def cells_of range, &blk
+      @cells ||= {}
+      lazy_cell_nodes_of range: range do |row_enum|
+        row_enum.each do |cell, colix, rowix|
+          cell = @cells[[colix, rowix]] ||= cell_of cell_node, colix, rowix
+        end
+      end
+    end
+
+    def strict_cell_of cell_node, colix, rowix
+      case [cell_node, colix, rowix]
+      in [Nokogiri::XML::Node => cell_node, Integer, Integer]
+        Cell.new cell_node, workbook.shared_strings, workbook.styles
+      in [nil, Integer => colix, Integer => rowix]
+        LazyCell.new self, Location[colix, rowix]
+      end
+    end
+
+    def loose_cell_of cell_node, colix, rowix
+      if cell_node
+        Cell.new cell_node, workbook.shared_strings, workbook.styles
+      else
+        LazyCell.new self, Location[colix, rowix]
+      end
+    end
+
+    def cell_of cell_node, colix, rowix
+      @cells ||= {}
+      @cells[[colix, rowix]] ||= loose_cell_of cell_node, colix, rowix
     end
 
     def invalidate_row_cache
+      @cells = {}
       @dimension = nil
-      @row_cache = Array.new
+      @row_cells = Array.new
+      @row_nodes = Array.new
     end
 
     def [](*args)
@@ -281,8 +367,8 @@ module Office
         self[ Location.new(a1_location) ]
 
       in [Location => loc]
-        cell_node = row_at(loc)&.dig(loc.coli)
-        cell_node || LazyCell.new(self, loc)
+        cell_node = row_cell_nodes_at(loc)&.dig(loc.coli)
+        cell_of cell_node, *loc
 
       else
         raise "don't know how to get cell from #{location.inspect}"
@@ -308,7 +394,7 @@ module Office
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
       sheet_data.node.xpath('xmlns:row/xmlns:c').each do |c_node|
-        yield Cell.new c_node, workbook.shared_strings, workbook.styles
+        yield cell_of c_node
       end
     end
 
@@ -328,6 +414,10 @@ module Office
       when :col
         raise NotImplementedError, 'iterating cells by column not supported yet'
       end
+    end
+
+    def each_cache_cell &blk
+
     end
 
     alias each_cell each_row_cell

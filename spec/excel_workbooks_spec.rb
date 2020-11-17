@@ -28,6 +28,53 @@ describe 'ExcelWorkbooksTest' do
     assert book.sheets.last.to_csv.length > 1000
   end
 
+  describe 'row appending' do
+    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+
+    xit 'fetches row' do
+      sheet = book.sheets.first
+      last_row = sheet.dimension.bot_rite
+      binding.pry
+      elapse do sheet.row_node_at last_row end
+      elapse do sheet.row_node_at last_row end
+    end
+
+    xit 'fetches cell' do
+      sheet = book.sheets.first
+      last_row = sheet.dimension.bot_rite
+      binding.pry
+      t, rys = elapse do sheet.cell_nodes_of(Office::Range.new('G12:BJ63'), &sheet.method(:cell_of)) end;
+      elapse do sheet.row_cells_at (last_row - [3,0]) end
+      elapse do sheet.row_cells_at last_row end
+    end
+
+    it 'appends using LazyCell'
+    it 'appends using create_row'
+  end
+
+  describe 'csv' do
+    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :sheet do book.sheets.first end
+
+    it 'comparisons', performance: true do
+      require 'benchmark'
+      Benchmark.bmbm do |results|
+        results.report 'to_excel_csv' do sheet.to_excel_csv end
+        results.report 'old_range_to_csv' do sheet.old_range_to_csv end
+        results.report 'range_to_csv' do sheet.range_to_csv end
+
+        results.report 'cells_of(range)' do
+          csv = CSV.new ''
+          sheet.lazy_cell_nodes_of do |row_enum|
+            csv << row_enum.map do |cell,colix,rowix|
+              sheet.cell_of(cell,colix,rowix).formatted_value
+            end
+          end
+        end
+      end
+    end
+  end
+
   it :test_create_workbook do
     values = [
       [ "Name", "Age", "Favorite Virus", "Trustworthiness", "Spirit Animal" ],
