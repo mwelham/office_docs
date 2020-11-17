@@ -394,7 +394,7 @@ module Office
 
     # add data to xml doc, and to the rows collection
     def add_row(data)
-      row_node = Row.create_node(@node.document, rows.length + 1, data, workbook.shared_strings)
+      row_node = Row.create_node(@node.document, rows.length + 1, data, workbook.shared_strings, styles: workbook.styles)
       @node.add_child(row_node)
       rows << Row.new(row_node, workbook.shared_strings, workbook.styles)
     end

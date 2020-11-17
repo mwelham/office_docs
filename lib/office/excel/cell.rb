@@ -1,9 +1,18 @@
 require 'date'
 
 module Office
+  # depends on a method styles
   module CellNodes
-    # will probably eventually need a style_index parameter
-    module_function def build_c_node target_node, obj, string_table: nil
+    DATE_TIME_EPOCH = DateTime.new(1900, 1, 1, 0, 0, 0) - 2
+    DATE_EPOCH = Date.new(1900, 1, 1) - 2
+
+    # return  sequential index of num_fmt_id. 0 if not found
+    # TODO lazily create styles?
+    def self.style_index styles, num_fmt_id
+      styles.index_of_xf(num_fmt_id) || 0
+    end
+
+    def self.build_c_node target_node, obj, styles:, string_table: nil
       raise 'must be a c node' unless target_node.name == ?c
 
       # create replacement node for different types
@@ -14,23 +23,37 @@ module Office
         target_node.children.unlink
 
         # remove all attributes except r which specifies A1 reference
-        target_node.attribute_nodes.each{|attr| attr.unlink unless attr.name == ?r || attr.name == ?s}
+        target_node.attribute_nodes.each{|attr| attr.unlink unless attr.name == ?r}
 
       when true, false
         target_node.children = target_node.document.create_element 'v', (obj ? ?1 : ?0)
         target_node[:t] = ?b
-        target_node[:s] ||= 0 # general style
+        target_node[:s] ||= style_index(styles, 0) # general style
 
       # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
-      when Date
-        epoch = DateTime.new 1900, 1, 1, 0, 0, 0
-        span = Integer obj - epoch # otherwise its a Rational
-        # dunno why, but its used in as_date conversions
-        span += 2
+      when DateTime
+        # Float otherwise it's a Rational
+        span = Float obj - DATE_TIME_EPOCH
         target_node.children = target_node.document.create_element 'v', span.to_s
-        # IT's a bit weird that there is a ?d in the spec for dates, but it's not used.
+        # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= 15 # generic date
+        target_node[:s] ||= style_index(styles, 22) # generic date
+
+      when Time
+        # TODO same as DateTime except style number is different
+        # Float otherwise it's a Rational
+        span = Float obj.to_datetime - DATE_TIME_EPOCH
+        target_node.children = target_node.document.create_element 'v', span.to_s
+        # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
+        target_node[:t] = ?n
+        target_node[:s] ||= style_index(styles, 21) # hh::mm::ss
+
+      when Date
+        # Integer otherwise it's a Rational
+        span = Integer obj - DATE_EPOCH
+        target_node.children = target_node.document.create_element 'v', span.to_s
+        target_node[:t] = ?n
+        target_node[:s] ||= style_index(styles, 15) # generic date
 
       when String
         if string_table
@@ -56,14 +79,19 @@ module Office
             end
           end
           target_node[:t] = 'inlineStr'
-          target_node[:s] ||= 0 # general style
+          target_node[:s] ||= style_index(styles, 0) # general style
 
         end
 
-      when Numeric
+      when Float
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= 0 # general
+        target_node[:s] ||= style_index(styles, 0) # general
+
+      when Integer
+        target_node.children = target_node.document.create_element 'v', obj.to_s
+        target_node[:t] = ?n
+        target_node[:s] ||= style_index(styles, 1) # general
 
       else
         raise "dunno how to convert #{obj.inspect}"
@@ -94,6 +122,10 @@ module Office
       end
     end
 
+    def styles
+      sheet.workbook.styles
+    end
+
     attr_reader :sheet, :location
     private :sheet
 
@@ -105,6 +137,7 @@ module Office
     def value=(obj)
       # fetch the row node with the required r index
       # 4.5841491874307395e-05 for xpath and pretty much invariant for rowi =~ 1..24
+
       # 3.0879721976816656e-06 for sheet.sheet_data.rows.find{|r| r.number == location.rowi+1}
       # So maybe have sheet cache rows so cells for the same row don't repeatedly look up the row node
       # but when to invalidate cache?
@@ -125,9 +158,10 @@ module Office
       end
 
       # create c node and set its value
-      c_node = build_c_node \
+      c_node = CellNodes.build_c_node \
         sheet.node.document.create_element(?c, r: location.to_s),
-        obj
+        obj,
+        styles: styles
 
       # TODO can we always just add to the end of the c children, or must they be in r order?
       row_node << c_node
@@ -161,7 +195,7 @@ module Office
 
     def style_id
       # this defines date/int/string format (presumably as well as colour and bold/italic/underline etc?)
-      @style_id ||= node[:s]
+      @style_id ||= node[:s].to_i
     end
 
     def location
@@ -233,7 +267,7 @@ module Office
       node.children.unlink
 
       # rebuild
-      build_c_node node, obj, string_table: (!inline_string && string_table)
+      CellNodes.build_c_node node, obj, styles: styles, string_table: (!inline_string && string_table)
 
       # reset memos
       @value_node = nil
@@ -276,12 +310,12 @@ module Office
 
     def empty?; !value end
 
-    def self.create_node(document, row_number, index, value, string_table)
+    def self.create_node(document, row_number, index, value, string_table, styles:)
       cell_node = document.create_element('c')
       cell_node[:r] = Location[index, row_number-1] # NOTE row_number not row_index
 
       # TODO pass string_table. Right now we're just using inline
-      CellNodes.build_c_node cell_node, value
+      CellNodes.build_c_node cell_node, value, styles: styles
       cell_node
     end
 
@@ -328,22 +362,31 @@ module Office
       unformatted_value = value
       return nil unless unformatted_value
 
+      # for no style, determine type from the data_type attribute
       if style&.apply_number_format != '1'
         return case data_type
         when :n
-          int = unformatted_value.to_i
-          flt = unformatted_value.to_f
-          if int == flt then int else flt end
+          Integer unformatted_value rescue Float unformatted_value
 
-        when :d; as_date(unformatted_value) # NOTE really don't know if this will actually work
+        # NOTE really don't know if this will actually work
+        when :d
+          as_date(unformatted_value)
+
+        when :b
+          case unformatted_value
+          when ?1; true
+          when ?0; false
+          else
+            raise "Unknown boolean value #{unformatted_value}"
+          end
+
         else
           # TODO not sure this is the best way to convert to Numeric then fall back to String
           Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
         end
       end
 
-      # TODO lookup in Array or hash would be much faster
-      # or maybe use ranges?
+      # multi-value whens are faster. And we might need the type metadata somewhere else.
       # ECMA-376 Part 1 section 18.8.30 numFmt (Number Format) - p1767
       case style&.number_format_id&.to_i
       when 0  #    General
@@ -416,9 +459,6 @@ module Office
     private def as_integer(value)
       value.to_i
     end
-
-    DATE_TIME_EPOCH = DateTime.new(1900, 1, 1, 0, 0, 0) - 2
-    DATE_EPOCH = Date.new(1900, 1, 1) - 2
 
     private def as_datetime(value)
       DATE_TIME_EPOCH + value.to_f

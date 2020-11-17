@@ -29,14 +29,14 @@ module Office
         map{ |c| Cell.new(c, string_table, styles) }
     end
 
-    def self.create_node(document, number, data, string_table)
+    def self.create_node(document, number, data, string_table, styles:)
       row_node = document.create_element("row")
       row_node["r"] = number.to_s unless number.nil?
 
       unless data.nil? or data.length == 0
         row_node["spans"] = "1:#{data.length}"
         0.upto(data.length - 1) do |i|
-          c_node = Cell.create_node(document, number, i, data[i], string_table)
+          c_node = Cell.create_node(document, number, i, data[i], string_table, styles: styles)
           row_node.add_child(c_node)
         end
       end
@@ -145,13 +145,16 @@ module Office
       @xfs = node.xpath("#{ns_prefix}:cellXfs").children.map { |xf| CellXF.new(xf) }
     end
 
-    # This may be wrong because it assumes id == xfId in the nodes.
     def xf_by_id(id)
       @xfs[id.to_i]
     end
+
+    def index_of_xf(num_fmt_id)
+      @xfs.index{|xf| xf&.number_format_id == num_fmt_id}
+    end
   end
 
-  # styling?
+  # Cell style
   class CellXF
     attr_reader :node
     attr_reader :number_format_id
