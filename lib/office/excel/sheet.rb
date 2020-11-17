@@ -400,37 +400,6 @@ module Office
       rows << Row.new(row_node, workbook.shared_strings, workbook.styles)
     end
 
-    # TODO redundant for now, but maybe worth having a Bulk Inserter or something like that.
-    class Collector
-      def initialize
-        @collection = []
-      end
-
-      def << values
-        @collection << values
-      end
-
-      def to_a
-        @collection
-      end
-    end
-
-    # blk can be called, possibly several times, with an array of values to insert
-    # TODO should values be cells?
-    # location can be one of: cell; location string (B32 etc); (x,y) indices
-    def replace_tabular location, &blk
-      top_left_cell = self[location]
-      collector = Collector.new
-      yield collector
-      latest_row = collector.to_a.last
-      added_range = location .. location + {row: latest_row.length}
-      if range(added_range).any?
-        puts "warning: overwriting values"
-      end
-
-      add_row latest_row
-    end
-
     def to_csv(separator)
       data = []
       column_count = 0
