@@ -22,11 +22,12 @@ describe :ExcelNumberFormatsTest do
     assert_equal rows[5].cells[1].formatted_value.strftime('%H%M%S'), '050505'
 
 
-    assert ((rows[1].cells[2].formatted_value - DateTime.new(2001, 1, 1, 1, 1, 1)) * 24 * 60 * 60).abs < 1
-    assert ((rows[2].cells[2].formatted_value - DateTime.new(2002, 2, 2, 2, 2, 2)) * 24 * 60 * 60).abs < 1
-    assert ((rows[3].cells[2].formatted_value - DateTime.new(2003, 3, 3, 3, 3, 3)) * 24 * 60 * 60).abs < 1
-    assert ((rows[4].cells[2].formatted_value - DateTime.new(2004, 4, 4, 4, 4, 4)) * 24 * 60 * 60).abs < 1
-    assert ((rows[5].cells[2].formatted_value - DateTime.new(2005, 5, 5, 5, 5, 5)) * 24 * 60 * 60).abs < 1
+    zone = DateTime.now.zone
+    rows[1].cells[2].formatted_value.should == DateTime.new(2001, 1, 1, 1, 1, 1, zone)
+    rows[2].cells[2].formatted_value.should == DateTime.new(2002, 2, 2, 2, 2, 2, zone)
+    rows[3].cells[2].formatted_value.should == DateTime.new(2003, 3, 3, 3, 3, 3, zone)
+    rows[4].cells[2].formatted_value.should == DateTime.new(2004, 4, 4, 4, 4, 4, zone)
+    rows[5].cells[2].formatted_value.should == DateTime.new(2005, 5, 5, 5, 5, 5, zone)
 
     assert_equal rows[1].cells[3].formatted_value, 'One'
     assert_equal rows[2].cells[3].formatted_value, 'Two'

@@ -261,6 +261,11 @@ module Office
       end
     end
 
+    # TODO slow but need it for now
+    def row_node_at loc
+      data_node.xpath("xmlns:row[@r=#{loc.row_r}]").first
+    end
+
     def invalidate_row_cache
       @dimension = nil
       @row_cache = Array.new

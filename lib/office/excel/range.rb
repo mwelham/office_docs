@@ -23,6 +23,10 @@ module Office
       new Location.unit, Location.unit
     end
 
+    def bot_left
+      Location[top_left.coli, bot_rite.rowi]
+    end
+
     def count
       width * height
     end
@@ -40,6 +44,10 @@ module Office
 
     def height
       @bot_rite.rowi - top_left.rowi + 1
+    end
+
+    def row_of loc
+      self.class.new Location[top_left.coli, loc.rowi], Location[bot_rite.coli, loc.rowi]
     end
 
     # yield each row_r to blk

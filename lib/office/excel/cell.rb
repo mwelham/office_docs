@@ -3,7 +3,10 @@ require 'date'
 module Office
   # depends on a method styles
   module CellNodes
+    # xlsx stores all datetime and time numerical values relative to utc offset
+    UTC_OFFSET_HOURS = DateTime.now.offset
     DATE_TIME_EPOCH = DateTime.new(1900, 1, 1, 0, 0, 0) - 2
+    TIME_EPOCH = Time.new(1900, 1, 1, 0, 0, 0) - 2
     DATE_EPOCH = Date.new(1900, 1, 1) - 2
 
     # return  sequential index of num_fmt_id. 0 if not found
@@ -28,32 +31,36 @@ module Office
       when true, false
         target_node.children = target_node.document.create_element 'v', (obj ? ?1 : ?0)
         target_node[:t] = ?b
-        target_node[:s] ||= style_index(styles, 0) # general style
+        target_node[:s] ||= style_index(styles, 165) # boolean style used by localc, not sure if that applies to other spreadsheet apps.
 
       # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
       when DateTime
+        # .floor because xlsx specification only allows for precision of 1/86400, which is the number of seconds in a day.
+        # Except for leap seconds...?
+        floored = DateTime.new obj.year, obj.month, obj.day, obj.hour, obj.minute, obj.second.floor, obj.offset
         # Float otherwise it's a Rational
-        span = Float obj - DATE_TIME_EPOCH
-        target_node.children = target_node.document.create_element 'v', span.to_s
+        days_since_epoch = Float floored - (DATE_TIME_EPOCH - UTC_OFFSET_HOURS)
+        target_node.children = target_node.document.create_element 'v', days_since_epoch.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 22) # generic date
+        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
 
       when Time
         # TODO same as DateTime except style number is different
+        # .floor because xlsx specification only allows for precision of 1/86400
         # Float otherwise it's a Rational
-        span = Float obj.to_datetime - DATE_TIME_EPOCH
+        span = Float obj.floor.to_datetime - (DATE_TIME_EPOCH - UTC_OFFSET_HOURS)
         target_node.children = target_node.document.create_element 'v', span.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 21) # hh::mm::ss
+        target_node[:s] ||= style_index(styles, 21) # default/generic time hh::mm::ss
 
       when Date
         # Integer otherwise it's a Rational
         span = Integer obj - DATE_EPOCH
         target_node.children = target_node.document.create_element 'v', span.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 15) # generic date
+        target_node[:s] ||= style_index(styles, 14) # default/generic date
 
       when String
         if string_table
@@ -299,9 +306,9 @@ module Office
         when :n
           Integer unformatted_value rescue Float unformatted_value
 
-        # NOTE really don't know if this will actually work
+        # NOTE this is specification-compliant, but really don't know if this will actually work
         when :d
-          as_date(unformatted_value)
+          Time.iso8601 unformatted_value
 
         when :b
           case unformatted_value
@@ -336,6 +343,7 @@ module Office
         as_decimal(unformatted_value)
       when 11 #    0.00E+00
         as_decimal(unformatted_value)
+      # These are Rational
       #when 12 #    # ?/?
       #when 13 #    # ??/??
       when 14 #    mm-dd-yy
@@ -392,17 +400,18 @@ module Office
     end
 
     private def as_datetime(value)
-      DATE_TIME_EPOCH + value.to_f
+      # Use round and convert to Rational here because we're compensating for
+      # float precision errors, rather than representing an external date to the
+      # specified precisions (1/86400)
+      value = (value.to_f * 86400r).round / 86400r
+      (DATE_TIME_EPOCH + value - UTC_OFFSET_HOURS).new_offset(UTC_OFFSET_HOURS)
     end
 
     private def as_date(value)
-      # This was originally DateTime, and I don't know why it wasn't just Date
-      # Date.new(1900, 1, 1, 0, 0, 0) + value.to_i - 2
       DATE_EPOCH + value.to_i
     end
 
     private def as_time(value)
-      # to_time seems quite slow compared to other date/time conversions
       as_datetime(value).to_time
     end
   end

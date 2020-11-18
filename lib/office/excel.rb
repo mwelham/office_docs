@@ -137,7 +137,7 @@ module Office
   end
 
   class StyleSheet
-    attr_reader :node
+    attr_reader :node, :xfs
 
     def initialize(part)
       ns_prefix = Package.xpath_ns_prefix(part.xml.root)
@@ -150,7 +150,7 @@ module Office
     end
 
     def index_of_xf(num_fmt_id)
-      @xfs.index{|xf| xf&.number_format_id == num_fmt_id}
+      @xfs.index{|xf| xf&.number_format_id == num_fmt_id.to_s}
     end
   end
 

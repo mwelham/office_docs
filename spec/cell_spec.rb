@@ -57,19 +57,19 @@ describe Office::Cell do
   end
 
   let :styles do
-    # In real xlsx, the style indexing doesn't work like this.
+    # In real xlsx, the style indexing isn't one-to-one like this.
     # But here we're mapping directly to the number format ids for easier thinking about.
     # Hopefully that doesn't break anything.
     MockStyleSheet.new.tap do |styles|
-      # for Date
+      # for Integer
       styles.ary[1] = MockXfStyle.new.tap do |style|
         style.number_format_id = 1
         style.apply_number_format = '1'
       end
 
       # for Date
-      styles.ary[15] = MockXfStyle.new.tap do |style|
-        style.number_format_id = 15
+      styles.ary[14] = MockXfStyle.new.tap do |style|
+        style.number_format_id = 14
         style.apply_number_format = '1'
       end
 
@@ -87,18 +87,48 @@ describe Office::Cell do
     end
   end
 
-  describe 'Office::CellNodes.build_c_node' do
-    describe 'date' do
+  describe 'build_c_node' do
+    let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
+
+    describe Date do
       let :stored_value do Date.today end
-      let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
 
       it '#value' do
-        day_delta = Date.today - Office::CellNodes::DATE_EPOCH
-        cell.value.should == day_delta.to_i.to_s
+        day_delta = stored_value - Office::CellNodes::DATE_EPOCH
+        cell.value.should == Integer(day_delta).to_s
       end
 
       it '#formatted_value' do
         cell.formatted_value.should == Date.today
+      end
+    end
+
+    describe DateTime do
+      let :stored_value do DateTime.now end
+
+      it '#value' do
+        day_delta = Float stored_value.to_time.floor.to_datetime - (Office::CellNodes::DATE_TIME_EPOCH - Office::CellNodes::UTC_OFFSET_HOURS)
+        cell.value.should == day_delta.to_s
+      end
+
+      it '#formatted_value' do
+        # precision is 1/86400 = 1 / 24*60*60
+        cell.formatted_value.should == stored_value.to_time.floor.to_datetime
+      end
+    end
+
+    # pretty much same as DateTime
+    describe Time do
+      let :stored_value do Time.now end
+
+      it '#value' do
+        day_delta = Float stored_value.floor.to_datetime - (Office::CellNodes::DATE_TIME_EPOCH - Office::CellNodes::UTC_OFFSET_HOURS)
+        cell.value.should == day_delta.to_s
+      end
+
+      it '#formatted_value' do
+        # precision is 1/86400 = 1 / 24*60*60
+        cell.formatted_value.should == stored_value.floor
       end
     end
 
@@ -107,24 +137,23 @@ describe Office::Cell do
       it '#formatted_value'
     end
 
-    describe 'inline string' do
-      let :cell_node do Office::CellNodes.build_c_node empty_cell_node, 'Inline String', styles: styles end
+    describe String do
+      let :stored_value do 'Inline String' end
 
       it '#value' do
-        cell.value.should == 'Inline String'
+        cell.value.should == stored_value.to_s
       end
 
       it '#formatted_value' do
-        cell.formatted_value.should == 'Inline String'
+        cell.formatted_value.should == stored_value
       end
 
       it 'ignores whitespace'
       it 'text runs'
     end
 
-    describe 'integer' do
+    describe Integer do
       let :stored_value do 360 end
-      let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
 
       it '#value' do
         cell.value.should == stored_value.to_s
@@ -135,9 +164,8 @@ describe Office::Cell do
       end
     end
 
-    describe 'float' do
+    describe Float do
       let :stored_value do Math::E end
-      let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
 
       it '#value' do
         cell.value.should == stored_value.to_s
@@ -150,7 +178,6 @@ describe Office::Cell do
 
     xdescribe 'anything template' do
       let :stored_value do Object.new end
-      let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
 
       it '#value' do
         cell.value.should == stored_value.to_s
@@ -217,7 +244,7 @@ describe Office::Cell do
       xlsx_repr = Integer date_value - Office::CellNodes::DATE_EPOCH
       cell.value = date_value
       cell.node.to_xml.should == <<~EOX.chomp
-      <c r="G7" t="n" s="15">
+      <c r="G7" t="n" s="14">
         <v>#{xlsx_repr}</v>
       </c>
       EOX
@@ -227,8 +254,8 @@ describe Office::Cell do
     it 'Time' do
       cell.value.should be_nil
       time_value = Time.now
-      xlsx_repr = Float time_value.to_datetime - Office::CellNodes::DATE_TIME_EPOCH
       cell.value = time_value
+      xlsx_repr = Float time_value.floor.to_datetime - (Office::CellNodes::DATE_TIME_EPOCH - Office::CellNodes::UTC_OFFSET_HOURS)
       cell.node.to_xml.should == <<~EOX.chomp
       <c r="G7" t="n" s="21">
         <v>#{xlsx_repr}</v>
@@ -240,8 +267,8 @@ describe Office::Cell do
     it 'DateTime' do
       cell.value.should be_nil
       date_value = DateTime.now
-      xlsx_repr = Float date_value - Office::CellNodes::DATE_TIME_EPOCH
       cell.value = date_value
+      xlsx_repr = Float date_value.to_time.floor.to_datetime - (Office::CellNodes::DATE_TIME_EPOCH - Office::CellNodes::UTC_OFFSET_HOURS)
       cell.node.to_xml.should == <<~EOX.chomp
       <c r="G7" t="n" s="22">
         <v>#{xlsx_repr}</v>

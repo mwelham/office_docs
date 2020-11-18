@@ -5,6 +5,8 @@ require_relative 'spec_helper'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe 'ExcelWorkbooksTest' do
+  include ReloadWorkbook
+
   it :test_parse_simple_workbook do
     Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
   end
@@ -50,6 +52,90 @@ describe 'ExcelWorkbooksTest' do
       book.save(filename)
       saved_book = Office::ExcelWorkbook.new(filename)
       assert_equal saved_book.sheets.first.each_cell.map(&:formatted_value), values.flatten
+    end
+  end
+
+  describe 'type-styles' do
+    let :book do Office::ExcelWorkbook.blank_workbook end
+
+    let :values do
+      [ Date.today, Time.now, DateTime.now, "Stringly-typed", 1.6180339887, 42, true, false, nil ]
+    end
+
+    # Floating point date/times use .floor to get rid of fractional seconds
+    # because xlsx doesn't understand those.
+    let :exact_values do
+      values.map do |val|
+        case val
+        when DateTime;        val.to_time.floor.to_datetime
+        when Time;            val.floor
+        when Date;            val
+        else;                 val
+        end
+      end
+    end
+
+    let :row_range do (sheet.dimension.bot_left + [0,1]) * [values.size,1] end
+
+    let :sheet do
+      book.sheets.first
+    end
+
+    describe 'in worksheet with styles' do
+      let :book do Office::ExcelWorkbook.new(BookFiles::SIMPLE_DATA_TYPES) end
+
+      # TODO this fails because style entries for dates do not exist, and need to be created
+      it 'has correct types' do
+        # insert values. Don't use add_rows because that doesn't set type-styles properly
+        # one row down and extend to width of values (not width of existing dimension)
+        row_range.each_by_row.with_index do |loc,index|
+          sheet[loc].value = values[index]
+        end
+
+        sheet.invalidate_row_cache
+
+        cells = row_range.each_by_row.map{|loc| sheet[loc]}
+
+        cells.zip(exact_values).each.with_index do |(cell, exact_value), _index|
+          cell.formatted_value.should == exact_value
+        end
+      end
+    end
+
+    describe 'in blank worksheet' do
+      let :book do Office::ExcelWorkbook.blank_workbook end
+
+      # TODO this fails because style entries for dates do not exist, and need to be created
+      it 'has correct types' do
+        pending 'fails until our code can add absent num_fmt_id entries to styles'
+        row_range.each_by_row.with_index do |loc,index|
+          sheet[loc].value = values[index]
+        end
+
+        sheet.invalidate_row_cache
+
+        cells = row_range.each_by_row.map{|loc| sheet[loc]}
+        cells.zip(exact_values) do |(cell, exact_value)|
+          cell.formatted_value.should == exact_value
+        end
+      end
+    end
+
+    it 'saved file still correct' do
+      pending 'fails until our code can add absent num_fmt_id entries to styles'
+      row_range.each_by_row.with_index do |loc,index|
+        sheet[loc].value = values[index]
+      end
+
+      sheet.invalidate_row_cache
+
+      reload_workbook book, 'previously_blank' do |book|
+        sheet = book.sheets.first
+        cells = row_range.each_by_row.map{|loc| sheet[loc]}
+        cells.zip(exact_values).each do |cell, exact_value|
+          cell.formatted_value.should == exact_value
+        end
+      end
     end
   end
 
