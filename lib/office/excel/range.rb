@@ -6,7 +6,6 @@ module Office
     attr_reader :bot_rite
 
     def initialize *args
-      # TODO how to handle a malformed range like 'A1' which is what seems to happen with blank workbooks
       case args
       in [String => range_str]
         # construct from string

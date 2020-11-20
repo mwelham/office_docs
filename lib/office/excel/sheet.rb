@@ -88,13 +88,14 @@ module Office
         Office::Range.new dimension_node[:ref]
       else
         # sometimes for blank worksheets, dimension_node[:ref] == 'A1'
-        calculate_dimension
+        # so just make a unit-sized range
+        Office::Range.new "#{dimension_node[:ref]}:#{dimension_node[:ref]}"
       end
     end
 
     def dimension= range
       dimension_node[:ref] = range.to_s
-      @dimension = nil
+      @dimension = range
     end
 
     def calculate_dimension

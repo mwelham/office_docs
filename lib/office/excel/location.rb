@@ -7,8 +7,12 @@ module Office
     #
     # NOTE you could pass in a garbage location_string and nothing would go
     # wrong until you tried to do something other than to_s.
+    #
+    # location_string will be frozen, so if the caller want to modify it should
+    # dup first. Reason is that we want to Location instantiation to be as light
+    # as possible.
     def initialize location_string
-      @location_string = location_string&.dup&.freeze
+      @location_string = location_string&.freeze
     end
 
     # Constructor for 2x integers zero-based. Should really be positive integers, otherwise
@@ -55,13 +59,13 @@ module Office
         inst.instance_variable_set :@rowi, Float::INFINITY
 
         def inst.location_string
-          "∞∞"
+          "+∞"
         end
       end
     end
 
     def location_string
-      @location_string ||= "#{self.class.column_name(coli)}#{rowi+1}"
+      @location_string ||= "#{self.class.column_name(coli)}#{rowi+1}".freeze
     end
 
     # Union of two locations.
