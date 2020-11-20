@@ -12,96 +12,48 @@ describe 'ExcelWorkbooksTest' do
   end
 
   include XmlFixtures
-
-  def reload_workbook workbook, filename = nil, &blk
-    Dir.mktmpdir do |dir|
-      filename = File.join dir, (filename || File.basename(workbook.filename))
-      workbook.save filename
-      yield Office::ExcelWorkbook.new(filename)
-    end
-  end
-
-  it 'replaces one cell' do
-    sheet = simple.sheets.first
-    cell = sheet.each_cell.first
-    cell.value = "This is the new pump"
-
-    reload_workbook sheet.workbook do |book|
-      saved_cell = book.sheets.first.each_cell.first
-      saved_cell.value.should == cell.value
-      saved_cell.node.object_id.should_not == cell.node.object_id
-    end
-  end
+  include ReloadWorkbook
 
   let :field_data do
     require 'yaml'
     YAML.load_file 'test/content/placeholder-data.yml'
   end
 
-  let :placeholders do
-    ["{{horizontal}}", "{{manufacturer}}", "{{yes}}", "{{shop_or_serial}}", "{{model_number}}", "{{vertical}}", "{{no}}", "{{gpm}}", "{{rated_head_foot_psi}}", "{{net_psi}}", "{{rated_rpm}}", "very {{important}} thing", "{{broken_place}}", "{{streams|tabular}}"]
-  end
-
-  it 'finds placeholders - generic' do
-    book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
-    place_cells = book.sheets.first.each_cell.filter(&:placeholder)
-    place_cells.map(&:value).should == placeholders
-  end
-
-  it '#each_placeholder' do
-    book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
-    sheet = book.sheets.first
-    sheet.each_placeholder.map(&:value).should == placeholders
-  end
-
-  it 'uses Builder to replace element tree' do
-    # can also just call methods on bld, but might need to set context first
-    r_node = mini_shared_string_doc.build_element 'r' do |bld|
-      bld.rPr do
-        bld.sz val: 10
-        bld.rFont val: 'Arial'
-        bld.family val: 2
-        bld.charset val: 1
-      end
-      bld.t 'Felix', 'xml:space': 'preserve'
+  describe 'placeholders' do
+    let :placeholders do
+      ["{{horizontal}}", "{{manufacturer}}", "{{yes}}", "{{shop_or_serial}}", "{{model_number}}", "{{vertical}}", "{{no}}", "{{gpm}}", "{{rated_head_foot_psi}}", "{{net_psi}}", "{{rated_rpm}}", "very {{important}} thing", "{{broken_place}}", "{{streams|tabular}}"]
     end
 
-    last_si = mini_shared_string_doc.nspath('/~sst/~si').last
-    last_si.children = r_node
-    r_ts = mini_shared_string_doc.nspath('~sst/~si/~r/~t')
-    r_ts.last.text.should == 'Felix'
-    r_ts.size.should == 5
-  end
+    it 'finds placeholders - generic' do
+      book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
+      place_cells = book.sheets.first.each_cell.filter(&:placeholder)
+      place_cells.map(&:value).should == placeholders
+    end
 
-  xit 'pry context' do
-    node = mini_shared_string_doc.nspath('/~sst/~si').last
-
-    binding.pry
+    it '#each_placeholder' do
+      book = Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
+      sheet = book.sheets.first
+      sheet.each_placeholder.map(&:value).should == placeholders
+    end
   end
 
   let :simple do
     Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
   end
 
-  describe Office::Cell do
-    describe '#value=' do
-      let :sheet do simple.sheets.first end
-      let :cell do sheet['A18'] end
-
-      it 'accepts Date' do
-        cell.value = 'Hello Darlink'
-        cell.node.to_xml.should == "<c r=\"A18\" s=\"4\" t=\"inlineStr\">\n  <is>\n    <t>Hello Darlink</t>\n  </is>\n</c>"
-      end
-
-      xit 'accepts boolean'
-      xit 'accepts inline String'
-      xit 'accepts shared String'
-      xit 'accepts Integer'
-      xit 'accepts Float'
-    end
-  end
-
   describe 'cell operations' do
+    it 'replaces one cell' do
+      sheet = simple.sheets.first
+      cell = sheet.each_cell.first
+      cell.value = "This is the new pump"
+
+      reload_workbook sheet.workbook do |book|
+        saved_cell = book.sheets.first.each_cell.first
+        saved_cell.value.should == cell.value
+        saved_cell.node.object_id.should_not == cell.node.object_id
+      end
+    end
+
     it 'lazy cell' do
       book = Office::ExcelWorkbook.blank_workbook
       sheet = book.sheets.first
@@ -130,18 +82,12 @@ describe 'ExcelWorkbooksTest' do
       ]
     end
 
-    let :csv_data do
-      require 'csv'
-      dataset.map
-    end
-
     let :simple do
       Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
     end
 
     it 'insert rows with tabular data' do
       sheet = simple.sheets.first
-      doc = sheet.worksheet_part.xml
 
       placeholder_cell = sheet['A18']
       placeholder_cell.value.should =~ /tabular/
@@ -182,9 +128,8 @@ describe 'ExcelWorkbooksTest' do
       end
     end
 
-    it 'replaces a range with tabular data' do
+    it 'replaces cells with tabular data' do
       sheet = simple.sheets.first
-      doc = sheet.worksheet_part.xml
 
       # TODO put most of this in Sheet#replace_tabular
       placeholder_cell = sheet['A18']
