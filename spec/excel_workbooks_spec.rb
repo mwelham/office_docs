@@ -59,7 +59,7 @@ describe 'ExcelWorkbooksTest' do
     let :book do Office::ExcelWorkbook.blank_workbook end
 
     let :values do
-      [ Date.today, Time.now, DateTime.now, "Stringly-typed", 1.6180339887, 42, true, false, nil ]
+      [ Date.today, Time.now, DateTime.now, "Stringly-typed", 1.6180339887, 42, true, false, nil, Office::IsoTime.new(Time.now) ]
     end
 
     # Floating point date/times use .floor to get rid of fractional seconds
@@ -70,6 +70,7 @@ describe 'ExcelWorkbooksTest' do
         when DateTime;        val.to_time.floor.to_datetime
         when Time;            val.floor
         when Date;            val
+        when Office::IsoTime; val.time.floor
         else;                 val
         end
       end

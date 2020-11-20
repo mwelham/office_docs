@@ -176,6 +176,18 @@ describe Office::Cell do
       end
     end
 
+    describe 'IsoTime' do
+      let :stored_value do Office::IsoTime.new Time.now end
+
+      it '#value' do
+        cell.value.should == stored_value.iso8601
+      end
+
+      it '#formatted_value' do
+        cell.formatted_value.should == stored_value.time.floor
+      end
+    end
+
     xdescribe 'anything template' do
       let :stored_value do Object.new end
 

@@ -1,6 +1,17 @@
 require 'date'
 
 module Office
+  class IsoTime
+    require 'time'
+
+    def initialize time
+      @time = time
+    end
+    attr_reader :time
+
+    def iso8601; time.iso8601; end
+  end
+
   # depends on a method styles
   module CellNodes
     # xlsx stores all datetime and time numerical values relative to utc offset
@@ -99,6 +110,11 @@ module Office
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
         target_node[:s] ||= style_index(styles, 1) # general
+
+      when IsoTime
+        target_node.children = target_node.document.create_element 'v', obj.iso8601
+        target_node[:t] = ?d
+        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
 
       else
         raise "dunno how to convert #{obj.inspect}"
@@ -299,6 +315,9 @@ module Office
 
       unformatted_value = value
       return nil unless unformatted_value
+
+      # hack workaround
+      return Time.iso8601(unformatted_value) if data_type == :d
 
       # for no style, determine type from the data_type attribute
       if style&.apply_number_format != '1'
