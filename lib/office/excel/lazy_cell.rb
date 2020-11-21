@@ -18,7 +18,6 @@ module Office
       in [Location => loc]
         @location = loc
       else
-        binding.pry
         raise "dunno how to construct #{self.class} from #{args.inspect}"
       end
     end
@@ -37,19 +36,10 @@ module Office
     def formatted_value; end
 
     def value=(obj)
-      # fetch the row node with the required r index
-      # 4.5841491874307395e-05 for xpath and pretty much invariant for rowi =~ 1..24
-
-      # 3.0879721976816656e-06 for sheet.sheet_data.rows.find{|r| r.number == location.rowi+1}
-      # So maybe have sheet cache rows so cells for the same row don't repeatedly look up the row node
-      # but when to invalidate cache?
-      # 2.638180076610297e-05 xpath without the [@r=] clause
-      # on core i7
-      #
       # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
       #   using the sheet dimension to calculate offset
       #
-      # TODO could possibly optimise by storing the row node in the lazy cell on
+      # TODO could optimise by storing the row node in the lazy cell on
       # creation, since anyway that part of the node has to check whether the
       # row exists.
       row_node = sheet.row_node_at location

@@ -52,16 +52,33 @@ describe Office::Sheet do
     describe Office::LazyCell do
       let :book do Office::ExcelWorkbook.blank_workbook end
 
-      it 'is one' do
-        # get a cell that doesn't exist yet
-        outside = sheet.dimension.bot_rite + [10,10]
-        cell = sheet[outside]
+      # a cell outside the current (recorded) sheet dimension
+      let :outside_loc do sheet.dimension.bot_rite + [10,10] end
 
-        cell.should be_a(Office::LazyCell)
+      it 'make sense' do
+        # get a cell that doesn't exist yet
+        lazy_cell = sheet[outside_loc]
+        lazy_cell.should be_a(Office::LazyCell)
+        lazy_cell.should be_empty
+        lazy_cell.value.should be_nil
+        lazy_cell.formatted_value.should be_nil
       end
 
-      it 'value= creates row'
-      it 'value= creates cell'
+      it 'value= creates row and cell' do
+        # assert precondition - there are no rows
+        ndst = sheet.sheet_data.node.nspath("~row[@r=#{outside_loc.row_r}]")
+        ndst.size.should == 0
+
+        # set value on a cell outside the current sheet dimension
+        sheet[outside_loc].value = "Cat on a Warm Dry Chair"
+        ndst = sheet.sheet_data.node.nspath("~row[@r=#{outside_loc.row_r}]")
+        ndst.size.should == 1
+
+        # find the cell node outside of the location lay
+        cell_node = sheet.sheet_data.node.nspath("~row[@r=#{outside_loc.row_r}]/~c").first
+        # .text will not work here if the created node is a shared string
+        cell_node.text.should == "Cat on a Warm Dry Chair"
+      end
     end
 
     describe '#each_cell' do
