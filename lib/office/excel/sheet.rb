@@ -110,11 +110,19 @@ module Office
       # Would be nice to start with existing dimension, but it's sometimes not correct.
       # TODO unfortunately nokogiri always instantiates the entire NodeSet, which we don't need.
       # TODO what assumptions hold wrt row and cell ordering? Might be able to use only first and last cells for each row, ¿instead of largest and smallest?
-      min, max = sheet_data.node.xpath('xmlns:row/xmlns:c/@r').lazy.inject [Location.largest, Location.smallest] do |(min,max),r_attr|
-        loc = Office::Location.new(r_attr.text)
+      min, max = data_node.nspath('~row/~c/@r').lazy.reduce [Location.largest, Location.smallest] do |(min,max),r_attr|
+        loc = Office::Location.new(r_attr.value)
         # contract and extend min and max, respectively
         [(min & loc), (max | loc)]
       end
+
+      # count empty rows (probably inserted by this codebase)
+      min, max = data_node.nspath("~row[count(~c) = 0]/@r").reduce [min,max] do |(min,max),r_attr|
+        loc = Office::Location[0, Integer(r_attr.value)]
+        # contract and extend min and max, respectively
+        [(min & loc), (max | loc)]
+      end
+
       Office::Range.new min, max
     end
 
@@ -152,7 +160,7 @@ module Office
       # constraint.
       #
       # TODO this will break formulas and ranges referring to these cells
-      larger_number_rows = sheet_data.node.xpath "xmlns:row[@r >= #{insert_range.top_left.row_r}]"
+      larger_number_rows = data_node.xpath "xmlns:row[@r >= #{insert_range.top_left.row_r}]"
       larger_number_rows.each do |row_node|
         # increase r for the row_node by the insert_range height
         row_number = Integer(row_node[:r]) + insert_range.height
@@ -181,10 +189,10 @@ module Office
         # Presumably Excel will also be fine with it..?
         #
         # returns new node added
-        sheet_data.node.add_child(sheet_data.node.document.create_element 'row', r: row_r)
+        data_node.add_child(data_node.document.create_element 'row', r: row_r)
 
         # code to keep the rows in order, which is a more onerous constraint to meet
-        #   maybe_existing_row.add_previous_sibling(sheet_data.node.document.create_element 'row', r: row_r)
+        #   maybe_existing_row.add_previous_sibling(data_node.document.create_element 'row', r: row_r)
       end
     end
 
@@ -200,10 +208,10 @@ module Office
       delete_range = to_range delete_these
 
       # find all rows to be deleted. Range is inclusive.
-      delete_rows = sheet_data.node.xpath "xmlns:row[@r >= #{delete_range.top_left.row_r}][@r <= #{delete_range.bot_rite.row_r}]"
+      delete_rows = data_node.xpath "xmlns:row[@r >= #{delete_range.top_left.row_r}][@r <= #{delete_range.bot_rite.row_r}]"
 
       # find all larger rows and decrease
-      larger_number_rows = sheet_data.node.xpath "xmlns:row[@r > #{delete_range.bot_rite.row_r}]"
+      larger_number_rows = data_node.xpath "xmlns:row[@r > #{delete_range.bot_rite.row_r}]"
       larger_number_rows.each do |row_node|
         # increase r for the row_node by the delete_range height
         row_number = Integer(row_node[:r]) - delete_range.height
@@ -385,7 +393,7 @@ module Office
     def each_cell_by_node &blk
       # TODO change __method__ to :each_cell once testing settles down
       return enum_for __method__ unless block_given?
-      # sheet_data.node.children.each do |row_node|
+      # data_node.children.each do |row_node|
       #   row_node.children.each do |c_node|
       #       yield Cell.new c_node, workbook.shared_strings, workbook.styles
       #   end
@@ -393,7 +401,7 @@ module Office
 
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
-      sheet_data.node.xpath('xmlns:row/xmlns:c').each do |c_node|
+      data_node.xpath('xmlns:row/xmlns:c').each do |c_node|
         yield cell_of c_node
       end
     end
