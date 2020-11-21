@@ -74,7 +74,7 @@ describe Office::Sheet do
         ndst = sheet.sheet_data.node.nspath("~row[@r=#{outside_loc.row_r}]")
         ndst.size.should == 1
 
-        # find the cell node outside of the location lay
+        # find the cell node outside of the location layer
         cell_node = sheet.sheet_data.node.nspath("~row[@r=#{outside_loc.row_r}]/~c").first
         # .text will not work here if the created node is a shared string
         cell_node.text.should == "Cat on a Warm Dry Chair"
@@ -95,7 +95,21 @@ describe Office::Sheet do
     end
 
     describe '#insert_rows' do
-      it 'from range'
+      it 'from range' do
+        sheet.dimension.height.should == 18
+        sheet.dimension.width.should == 11
+
+        old_value = sheet['H8'].value
+
+        # insert 5 rows starting from row 8 shifting all others down
+        sheet.insert_rows(Office::Location.new('H8') * [1,5])
+
+        sheet.calculate_dimension.height.should == 23
+        sheet.dimension.width.should == 11
+
+        sheet['H13'].value.should == old_value
+        sheet['H8'].value.should be_nil
+      end
     end
 
     describe '#delete_rows' do
