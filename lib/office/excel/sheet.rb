@@ -356,7 +356,12 @@ module Office
 
     def cell_of cell_node, colix, rowix
       @cells ||= {}
-      @cells[[colix, rowix]] ||= loose_cell_of cell_node, colix, rowix
+      if colix && rowix
+        @cells[[colix, rowix]] ||= loose_cell_of cell_node, colix, rowix
+      else
+        cell = loose_cell_of cell_node, nil, nil
+        @cells[[cell.location.coli, cell.location.rowi]] ||= cell
+      end
     end
 
     def invalidate_row_cache
@@ -364,6 +369,7 @@ module Office
       @dimension = nil
       @row_cells = Array.new
       @row_nodes = Array.new
+      @sheet_data = nil
     end
 
     def [](*args)
@@ -401,8 +407,9 @@ module Office
 
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
-      data_node.xpath('xmlns:row/xmlns:c').each do |c_node|
-        yield cell_of c_node
+      data_node.nspath('~row/~c').each do |c_node|
+        # colix and rowix params can be nil here because we know row/c will have that
+        yield cell_of c_node, nil, nil
       end
     end
 
