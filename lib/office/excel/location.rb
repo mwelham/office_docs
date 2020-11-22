@@ -141,7 +141,7 @@ module Office
       # -1 because a cell is identified by its top-left corner and the +
       # goes to the bottom-right corner so we have to correct for that.
       # similar to the way 'a' * 3 results in 'aaa' not 'aaaa'
-      Module.nesting[1]::Range.new self, self.class[coli + colex - 1, rowi + rowex - 1]
+      Office::Range.new self, self.class[coli + colex - 1, rowi + rowex - 1]
     end
 
     # allow these to function as hash keys, since they're value objects.

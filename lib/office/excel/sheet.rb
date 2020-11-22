@@ -12,8 +12,21 @@ require_relative 'range'
 require_relative 'excel_workbook'
 
 module Office
+  # The design rationale behind this class is that a Sheet is a *grid* of cells.
+  #
+  # It therefore focuses on accessing, manipulating, creating cells as addressed
+  # by A1 style locations and A1:CC28 style ranges.
+  #
+  # This naturally creates some tension with the underlying xlsx xml model,
+  # which consists of <row> elements containing many cell <c> elements.
+  #
+  # xpath queries to access the xml nodes, while not slow, are slower than
+  # lookups in ruby Array and Hash structures. So whenever possible, lookup of
+  # cell <c> nodes are cached in Array and/or Hash structures. Obviously those
+  # caches must be invalidated when row lookup indices are changed by
+  # row-oriented insert and delete operations which must renumber subsequent row
+  # elements.
   class Sheet
-    attr_reader :workbook_node
     attr_reader :name
     attr_reader :id
     attr_reader :worksheet_part
@@ -21,7 +34,6 @@ module Office
 
     def initialize(sheet_node, workbook)
       @workbook = workbook
-      @workbook_node = sheet_node
       @name = sheet_node['name']
       @id = Integer sheet_node['sheetId']
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
@@ -40,6 +52,7 @@ module Office
       @sheet_data ||= SheetData.new(data_node, self, workbook)
     end
 
+    # Backwards compatibility
     def add_row(data)
       sheet_data.add_row(data)
     end
@@ -60,7 +73,7 @@ module Office
 
     def range_to_csv(range: dimension, separator: ',')
       csv = CSV.new '', col_sep: separator, quote_char: ?'
-      cell_nodes_of(range, &method(:cell_of)).map do |row_ary|
+      cell_nodes_of(range: range, &method(:cell_of)).map do |row_ary|
         csv << row_ary.map(&:formatted_value)
       end
       csv.string
@@ -71,7 +84,7 @@ module Office
       range_to_csv range: dimension, separator: separator
     end
 
-    # TODO what does this do, exactly? Yes OK, it adds a node. But what node? To where? For what purpose?
+    # create and add a sheet node
     def self.add_node(parent_node, name, sheet_id, relationship_id)
       sheet_node = parent_node.document.create_element("sheet")
       parent_node.add_child(sheet_node)
@@ -136,11 +149,11 @@ module Office
       when Office::Range
         obj
       else
-        raise "wut!? do what with what rows where!? #{insert_here.inspect}"
+        raise "wut!? do what with what rows where!? #{obj.inspect}"
       end
     end
 
-    # Insert new rows just before the specified location/range.
+    # Insert new empty rows just before the specified location/range.
     #
     # arg is_a Office::Range (several rows, or one row), or is_a Office::Location (insert 1 row)
     #
@@ -148,6 +161,7 @@ module Office
     #
     # New row nodes will have only the r= attribute.
     #
+    # invalidates row cache, because obviously
     # TODO return actual row nodes inserted, range of locations inserted, or both?
     def insert_rows insert_here
       insert_range = to_range insert_here
@@ -177,8 +191,6 @@ module Office
         end
       end
 
-      # tell sheet data to recalculate next time
-      sheet_data.invalidate
       invalidate_row_cache
 
       # Create new row nodes and return them
@@ -228,8 +240,6 @@ module Office
         end
       end
 
-      # tell sheet data to recalculate next time
-      sheet_data.invalidate
       invalidate_row_cache
 
       # TODO remove/update mergeCells referring to these deleted rows
@@ -279,15 +289,14 @@ module Office
       end
     end
 
-    # Assuming row nodes are never deleted, only moved around.
-    #
     # lookup of last row of only 74 rows is around 1ms, cached fetch is around 5-10us
     # so around 100 - 200 times faster.
     def row_node_at loc
       row_node_ix loc.rowi, loc.row_r
     end
 
-    def row_node_ix rowix, row_r = rowix+1
+    # fetch node from xml with r=row_r and cached it at rowix
+    private def row_node_ix rowix, row_r = rowix+1
       @row_nodes ||= Array.new
       @row_nodes[rowix] ||= begin
         row_node, = data_node.xpath("xmlns:row[@r=#{row_r}]")
@@ -297,19 +306,25 @@ module Office
 
     # Pre-fetch a range of cell nodes, as an array of arrays.
     # Call optional blk with (colix, rowix, cell_node), useful for constructing a LazyCell or similar
-    def cell_nodes_of range, &blk
-      blk ||= -> i,_c,_r {i} # identity if not specified. Slowdown compared to plain value is microseconds at the x10000 scale
+    # will yield nil if no cell found at a location
+    def cell_nodes_of range: dimension, &blk
+      blk ||= -> i,_c,_r {i} # identity if not specified. Slowdown compared to plain value is microseconds at x10000 repetitions
 
       # TODO can be more efficient than this, because each cell requires a hash
       # lookup. Which is fast in ruby, but not as fast as a straightforward
       # iteration of row_node.element_children
       range.each_rowi.map do |rowix|
         range.each_coli.map do |colix|
-          blk.call row_node_ix(rowix)&.element_children[colix], colix, rowix
+          row = row_node_ix(rowix)
+          cell_node = row && row.element_children[colix]
+          blk.call cell_node, colix, rowix
         end
       end
     end
 
+    # yield a set of enumerators (rows), each of which yields a cell node along
+    # with col,row indexes some of [colix,rowix]
+    # will yield nil if no cell found at a location
     def lazy_cell_nodes_of range: dimension, &row_blk
       return enum_for :lazy_cell_nodes_of, range: range unless block_given?
 
@@ -321,32 +336,39 @@ module Office
         # row_blk with the cell. Which is obvs not correct.
         cell_enum = Enumerator.new do |yielder|
           range.each_coli.each do |colix|
-            yielder.yield row_node_ix(rowix)&.element_children[colix], colix, rowix
+            row = row_node_ix(rowix)
+            cell_node = row && row.element_children[colix]
+            yielder.yield cell_node, colix, rowix
           end
         end
         yield cell_enum
       end
     end
 
-    def cells_of range, &blk
+    def cells_of range
       @cells ||= {}
       lazy_cell_nodes_of range: range do |row_enum|
         row_enum.each do |cell, colix, rowix|
-          cell = @cells[[colix, rowix]] ||= cell_of cell_node, colix, rowix
+          @cells[[colix, rowix]] ||= cell_of cell_node, colix, rowix
         end
       end
     end
 
-    def strict_cell_of cell_node, colix, rowix
+    def strict_cell_of cell_node, colix = nil, rowix = nil
       case [cell_node, colix, rowix]
-      in [Nokogiri::XML::Node => cell_node, Integer, Integer]
+      in [Nokogiri::XML::Node => cell_node, _, _]
         Cell.new cell_node, workbook.shared_strings, workbook.styles
-      in [nil, Integer => colix, Integer => rowix]
+
+      in [_, Integer => colix, Integer => rowix]
         LazyCell.new self, Location[colix, rowix]
+
+      # TODO in this case we assume that caller has verified that colix and rowix are correct.
+      in [Nokogiri::XML::Node => cell_node, Integer => colix, Integer => rowix]
+        Cell.new cell_node, workbook.shared_strings, workbook.styles
       end
     end
 
-    def loose_cell_of cell_node, colix, rowix
+    def loose_cell_of cell_node, colix = nil, rowix = nil
       if cell_node
         Cell.new cell_node, workbook.shared_strings, workbook.styles
       else
@@ -354,16 +376,23 @@ module Office
       end
     end
 
-    def cell_of cell_node, colix, rowix
+    def cell_of cell_node, colix = nil, rowix = nil
       @cells ||= {}
-      if colix && rowix
+      case
+      when colix && rowix
         @cells[[colix, rowix]] ||= loose_cell_of cell_node, colix, rowix
-      else
-        cell = loose_cell_of cell_node, nil, nil
+
+      when cell_node
+        cell = loose_cell_of cell_node
         @cells[[cell.location.coli, cell.location.rowi]] ||= cell
+
+      else
+        raise "cannot build cell from #{{cell_node: cell_node, colix: colix, rowix: colix}}"
       end
     end
 
+    # TODO we could be slightly smarter than throwing the whole cache away, but
+    # that's a quite lot more code.
     def invalidate_row_cache
       @cells = {}
       @dimension = nil
@@ -408,8 +437,7 @@ module Office
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
       data_node.nspath('~row/~c').each do |c_node|
-        # colix and rowix params can be nil here because we know row/c will have that
-        yield cell_of c_node, nil, nil
+        yield cell_of c_node
       end
     end
 
@@ -451,27 +479,14 @@ module Office
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end
 
-    class NlInspect
-      def inspect; "\n" end
-    end
-
-    # very rough debug display that ignores ranges and things
-    def spla
-      max_row = sheet_data.rows.map{|r| r.cells.size}.max
-      rows = sheet_data.rows.map{|r| cells = r.cells.dup; cells[max_row-1] ||= nil; cells}
-      # eaurgh
-      row_it = rows.each
-      sep_it = [NlInspect.new].cycle
-      sep_rows = []
-      loop do
-        sep_rows << row_it.next
-        # sep_rows << sep_it.next
+    def inspect
+      lazy_cell_nodes_of.map do |row|
+        row.map do |cell_node, colix, rowix|
+          cell = cell_of cell_node, colix, rowix
+          cell.formatted_value || cell.location.to_s.to_sym
+        end
       end
-      sep_rows
     end
-
-    # doesn't work properly but not fighting with it now
-    def inspect; spla.inspect end
 
     def []=(coli,rowi,value)
       case sheet_data.rows
