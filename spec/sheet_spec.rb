@@ -10,10 +10,7 @@ describe Office::Sheet do
   include XmlFixtures
   include ReloadWorkbook
 
-  let :book do
-    Office::ExcelWorkbook.new File.join(__dir__, '/../test/content/simple-placeholders.xlsx')
-  end
-
+  let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_PLACEHOLDERS end
   let :sheet do book.sheets.first end
 
   describe 'placeholders' do
@@ -32,9 +29,7 @@ describe Office::Sheet do
   end
 
   describe 'cell operations' do
-    let :book do
-      Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST
-    end
+    let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST end
 
     it 'replaces one cell' do
       the_value = "This is the new pump"
@@ -110,15 +105,14 @@ describe Office::Sheet do
 
     describe '#delete_rows' do
       it 'from range' do
-        range = Office::Range.new 'A5:I17'
-        sheet.delete_rows range
-        sheet.dimension = sheet.calculate_dimension
-        sheet.sheet_data.rows.count.should == 5
-        # TODO verify that both cells and rows are renumbered correctly
+        # delete 12 rows at the top
+        delete_range = sheet.dimension.top_left * [1,13]
+        deleted_rows = sheet.delete_rows delete_range
+        sheet.calculate_dimension.height.should == 5
 
-        reload_workbook sheet.workbook, 'delete.xlsx' do |book|
-          # `localc --nologo #{book.filename}`
-        end
+        # verify that both cells and rows are renumbered correctly
+        cells = sheet.each_cell_by_node.sort_by{|cell| cell.location.to_a}
+        cells.map{|cell| cell.location.to_s}.should == %w[A5 A6 B5 B6 C5 C6 D5 D6 E5 F5 G5 H5 I5 J5 J8 J9 K5 K7 K8 K9]
       end
     end
   end
@@ -136,8 +130,13 @@ describe Office::Sheet do
       ]
     end
 
+    let :placeholder_cell do sheet.each_placeholder.find{|cell| cell.value =~ /streams\|tabular/} end
+
+    # example of how to use locations, ranges, insert_rows and accept!
     it 'insert rows with tabular data' do
-      placeholder_cell = sheet.each_placeholder.find{|cell| cell.value =~ /tabular/}
+      sheet.dimension.should == sheet.calculate_dimension
+
+      # verify placeholder
       placeholder_cell.should_not be_nil
 
       # make the title range into normal cells
@@ -145,84 +144,54 @@ describe Office::Sheet do
       title_range.should_not be_nil
       sheet.delete_merge_range title_range
 
-      first_row, *records = dataset
-
-      # overwrite header row
-      first_row.each_with_index do |header_value,colix|
-        insert_location = placeholder_cell.location + [colix, 0]
-        sheet[insert_location].value = header_value.to_s
-      end
-
       # insert blank rows for data, from row after first_row
-      insert_range = Office::Range.new(placeholder_cell.location + [0,1], placeholder_cell.location + [records.first.size,records.size])
-      inserted_rows = sheet.insert_rows(insert_range)
+      insert_range = (placeholder_cell.location + [0,1]) * [dataset.first.size, dataset.size-1]
+      insert_range.to_s.should == 'A19:K24'
+      sheet.insert_rows(insert_range)
 
-      # TODO optimise this by creating a map from inserted_rows
-      # and/or allowing Cell to work on a fragment as well as on the full sheet.
-      # and/or allowing the Sheet#[] to work on a nodeset of rows.
-      # which means having indexing be more flexible than an array of Row instances.
-      records.each_with_index do |data_row, rowix|
-        data_row.each_with_index do |val, colix|
-          location = insert_range.top_left + [colix, rowix]
-          sheet[location].value = val
-        end
-      end
+      # set values of inserted rows from size of dataset
+      sheet.accept! placeholder_cell.location, dataset
 
-      # update sheet dimension
-      sheet.dimension = sheet.calculate_dimension
+      # obviously dimension should change
+      sheet.dimension.should_not == sheet.calculate_dimension
 
-      reload_workbook sheet.workbook, 'insert.xlsx' do |book|
-        # `localc --nologo #{book.filename}`
+      # reload_workbook sheet.workbook, 'insert.xlsx' do |book| `localc --nologo #{book.filename}` end
+      cells = sheet.cells_of (placeholder_cell.location * [dataset.first.size, dataset.size]), &:formatted_value
+      cells.should == dataset
+    end
+
+    describe '#accept!' do
+      it 'sets values' do
+        # verify placeholder
+        placeholder_cell.should_not be_nil
+
+        range = sheet.accept! placeholder_cell.location, dataset
+
+        # reload_workbook sheet.workbook, 'accept.xlsx' do |book| `localc --nologo #{book.filename}` end
+
+        # gather values changed cells
+        values = sheet.cells_of range, &:formatted_value
+
+        values.should == dataset
       end
     end
 
-    it 'replaces cells with tabular data' do
-      # TODO put most of this in Sheet#replace_tabular
-      placeholder_cell = sheet.each_placeholder.find{|cell| cell.value =~ /tabular/}
-      placeholder_cell.should_not be_nil
+    describe '#project!' do
+      it 'sets values' do
+        # verify placeholder
+        placeholder_cell.should_not be_nil
 
-      range = sheet.merge_ranges.find{|range| range.cover? placeholder_cell.location}
-      range.should_not be_nil
+        # for project! we have to tell the method which range to fill
+        range = placeholder_cell.location * [dataset.first.size, dataset.size]
+        sheet.project! range, dataset
 
-      first_row, *records = dataset
+        # gather values changed cells
+        values = sheet.cells_of range, &:formatted_value
 
-      # set first_row
-      first_row.each_with_index do |header_value,colix|
-        insert_location = placeholder_cell.location + [colix, 0]
-        sheet[insert_location].value = header_value.to_s
+        # reload_workbook sheet.workbook, 'project.xlsx' do |book| `localc --nologo #{book.filename}` end
+
+        values.should == dataset
       end
-
-      # overwrite data values after header
-      record_location = placeholder_cell.location + [0,1]
-      records.each_with_index do |data_row, rowix|
-        # check that range matches data
-        data_row.size <= range.width or raise "data too long for #{range}: (#{data_row.size})#{data_row.inspect}"
-        data_row.each_with_index do |val, colix|
-          location = record_location + [colix, rowix]
-          # TODO insert second and subsequent rows
-          # TODO what's the difference between .value = and []= ? The latter would not require LazyCell
-          # also [] and []= could apply to rows, but we're kinda using sheet.sheet_data.rows for that
-          sheet[location].value = val
-        end
-      end
-
-      # make the title range into normal cells
-      title_range = sheet.merge_ranges.find{|range| range.cover? placeholder_cell.location}
-      title_range.should_not be_nil
-      sheet.delete_merge_range title_range
-
-      # TODO update sheet range. Need to find largest cell reference number. Oof.
-      # possibly grab current range, extend by loc_track, but then still need to check for rows bumped by insertion
-      # unless every row insertion / row deletion / lazy cell insertion tracks the current range.
-      # Hmmm. Just do it brute-force for now.
-      sheet.dimension.should == 'A5:K22'
-      sheet.calculate_dimension.should == 'A5:K24'
-      sheet.dimension = sheet.calculate_dimension
-      sheet.dimension.should == 'A5:K24'
-
-      # reload_workbook sheet.workbook, 'overwrite.xlsx' do |book|
-      #   `localc --nologo #{book.filename}`
-      # end
     end
   end
 end

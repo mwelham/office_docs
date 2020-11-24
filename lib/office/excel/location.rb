@@ -101,6 +101,9 @@ module Office
     def to_a; [coli, rowi] end
     def inspect; "#{to_s}(#{coli},#{rowi})" end
 
+    # for destructuring into (colix,rowix)
+    def to_ary; [coli, rowi] end
+
     # this is the 1-based index for using with <row r="#{row_r}"/>
     def row_r; rowi + 1 end
 

@@ -63,7 +63,7 @@ module Office
       sheet_data.to_csv(separator)
     end
 
-    def old_range_to_csv(range: dimension, separator: ',')
+    private def old_range_to_csv(range: dimension, separator: ',')
       csv = CSV.new '', col_sep: separator, quote_char: ?'
       range.each_rowi do |rowix|
         cell_map = row_cell_nodes_at Location[range.top_left.coli, rowix]
@@ -101,6 +101,7 @@ module Office
       node.xpath('xmlns:worksheet/xmlns:dimension').first
     end
 
+    # fetch dimension from the xlsx doc
     def dimension
       # TODO /:/ =~ is nearly as fast
       @dimension ||=
@@ -119,6 +120,7 @@ module Office
       @dimension = range
     end
 
+    # calculate the actual dimension from the row and cell nodes
     def calculate_dimension
       # Start with largest and smallest, and contract or expand it to fit the actual cells.
       # Would be nice to start with existing dimension, but it's sometimes not correct.
@@ -255,6 +257,7 @@ module Office
       worksheet_part.xml.nspath 'xmlns:worksheet/xmlns:mergeCells'
     end
 
+    # return the set of ranges specified as merged cells in the xlxs doc
     def merge_ranges
       merge_cells.children.map{|n| Office::Range.new n[:ref]}
     end
@@ -274,7 +277,7 @@ module Office
 
     # auto-caches row so much faster for things that sequentially access several cells in a row.
     # returns a hash of coli => Cell
-    def row_cell_nodes_at loc
+    private def row_cell_nodes_at loc
       @row_cells ||= Array.new
       @row_cells[loc.rowi] ||= begin
         # Fetch the row node and build cell nodes immediately, otherwise
@@ -346,16 +349,23 @@ module Office
       end
     end
 
-    def cells_of range
+    # return an Array of Arrays of the specified range, with optional tranformation block
+    #
+    # eg sheet.cells_of(Range.new('B17:F23'), &:formatted_value)
+    def cells_of range, &blk
+      blk ||= ->i{i} # identity if not specified. Slowdown compared to plain value is microseconds at x10000 repetitions
+
       @cells ||= {}
-      lazy_cell_nodes_of range: range do |row_enum|
-        row_enum.each do |cell, colix, rowix|
-          @cells[[colix, rowix]] ||= cell_of cell_node, colix, rowix
+      ary_of_arys = lazy_cell_nodes_of(range: range).map do |row_enum|
+        row_enum.map do |cell_node, colix, rowix|
+          cell = @cells[[colix, rowix]] ||= cell_of cell_node, colix, rowix
+          blk[cell]
         end
       end
+      ary_of_arys
     end
 
-    def strict_cell_of cell_node, colix = nil, rowix = nil
+    private def strict_cell_of cell_node, colix = nil, rowix = nil
       case [cell_node, colix, rowix]
       in [Nokogiri::XML::Node => cell_node, _, _]
         Cell.new cell_node, workbook.shared_strings, workbook.styles
@@ -369,7 +379,7 @@ module Office
       end
     end
 
-    def loose_cell_of cell_node, colix = nil, rowix = nil
+    private def loose_cell_of cell_node, colix = nil, rowix = nil
       if cell_node
         Cell.new cell_node, workbook.shared_strings, workbook.styles
       else
@@ -377,7 +387,8 @@ module Office
       end
     end
 
-    def cell_of cell_node, colix = nil, rowix = nil
+    # Create a cell from either cell_node, or [colix,rowix]
+    private def cell_of cell_node, colix = nil, rowix = nil
       @cells ||= {}
       case
       when colix && rowix
@@ -402,6 +413,7 @@ module Office
       @sheet_data = nil
     end
 
+    # get a cell at the given location, which may be Location, [Integer,Integer], or "A1"
     def [](*args)
       case args
       in [Integer => coli, Integer => rowi]
@@ -415,7 +427,7 @@ module Office
         cell_of cell_node, *loc
 
       else
-        raise "don't know how to get cell from #{location.inspect}"
+        raise "don't know how to get cell from #{args.inspect}"
       end
     end
 
@@ -489,6 +501,7 @@ module Office
       end
     end
 
+    # Not currently used, but could obviate creation of a LazyCell instance
     def []=(coli,rowi,value)
       case sheet_data.rows
       when NilClass
@@ -498,10 +511,41 @@ module Office
       end
     end
 
+    # Fill range with corresponding values from data. Assumes that
+    # range.top_left should be set to data[0][0]
+    #
+    # data must provide #[] for itself and its elements. Array of Arrays would work.
+    #
+    # returns range
+    #
+    # Existing values will be overwritten. New cells will be created on-demand.
+    def project!(range, data)
+      range.each_by_row do |colix, rowix|
+        self[colix,rowix].value = data[rowix - range.top_left.rowi][colix - range.top_left.coli]
       end
+      invalidate_row_cache
+      range
     end
 
+    # Accept data into its rectangle with location as top-left.
+    #
+    # data must provide each_with_index, so it should probably be an Enumerable
+    # of Enumerables. Array of Arrays would work.
+    #
+    # returns the range filled
+    #
+    # Existing values will be overwritten. New cells will be created on-demand.
+    def accept!(location, data)
+      furthest = location.dup
+      data.each_with_index do |row,rowix|
+        row.each_with_index do |value,colix|
+          cell_location = location + [colix, rowix]
+          self[cell_location].value = value
+          furthest |= cell_location
+        end
       end
+      invalidate_row_cache
+      Range.new location, furthest
     end
   end
 end
