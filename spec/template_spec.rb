@@ -74,7 +74,7 @@ describe Excel::Template do
   end
 
   # uncomment when ExcelWorkbook#dup implemented
-  xdescribe '.render' do
+  describe '.render' do
     it 'calls render!' do
       Excel::Template.should_receive :render!
       Excel::Template.render(book, data)
@@ -83,6 +83,17 @@ describe Excel::Template do
     it 'preserves input book' do
       target_book = Excel::Template.render(book, data)
       target_book.object_id.should_not == book.object_id
+
+      # verify sheet objects are dissimilar - ie their intersection is empty
+      (target_book.sheets.map(&:object_id) & book.sheets.map(&:object_id)).should be_empty
+
+      # verify xml parent nodes are dissimilar
+      target_book.sheets.map{|sheet| sheet.node.object_id }.should_not == book.sheets.map{|sheet| sheet.node.object_id }
+
+      # in case xml needs to be eyeballed
+      # File.write '/tmp/bk.xml', book.sheets.first.node.to_xml
+      # File.write '/tmp/tg.xml', target_book.sheets.first.node.to_xml
+      # meld <(xmllint --format /tmp/bk.xml) <(xmllint --format /tmp/tg.xml)
     end
   end
 end

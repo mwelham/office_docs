@@ -245,4 +245,40 @@ describe 'ExcelWorkbooksTest' do
     assert_equal book.sheets.first.sheet_data.rows[2].cells[0].value, "Person 0002"
     assert_equal book.sheets.first.sheet_data.rows[2].cells[1].value, "20"
   end
+
+  describe '#clone' do
+    let :src do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :dst do src.clone end
+
+    it 'objects contain identical xml' do
+      src_xmls = src.sheets.map{|sheet| sheet.node.to_xml}
+      dst_xmls = dst.sheets.map{|sheet| sheet.node.to_xml}
+
+      # There can be whitespace differences. So to normalise that, pipe them
+      # both through nokogiri with noblanks option.
+      noblanks = -> xml { Nokogiri::XML(xml, &:noblanks).to_xml }
+      srcds = src_xmls.map &noblanks
+      dstds = dst_xmls.map &noblanks
+
+      # xml of sheets should now be identical.
+      # NOTE not bothering to check other parts'n'stuffs
+      dstds.should == srcds
+    end
+
+    it 'objects are disparate' do
+      dst.object_id.should_not == src.object_id
+
+      objid_of = -> obj, ivar {obj.instance_variable_get(ivar).object_id}
+
+      dst_ivars = dst.instance_variables.map do |ivar_sym|
+        objid_of[dst,ivar_sym]
+      end
+
+      src_ivars = src.instance_variables.map do |ivar_sym|
+        objid_of[src,ivar_sym]
+      end
+
+      dst_ivars.should_not == src_ivars
+    end
+  end
 end

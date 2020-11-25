@@ -22,17 +22,29 @@ module Office
       book
     end
 
+    # Make an exact copy completely separated from self. That is, changes to the
+    # copy will not affect self, and changes to self will not affect the copy.
+    def clone
+      Dir.mktmpdir do |dir|
+        file_path = (Pathname.new(dir) + 'tmp.xlsx')
+        save(file_path)
+
+        Office::ExcelWorkbook.new(file_path).tap do |book|
+          book.filename = nil
+        end
+      end
+    end
+
     def self.from_data(data)
-      file = Tempfile.new('OfficeExcelWorkbook')
-      file.binmode
-      file.write(data)
-      file.close
-      begin
-        book = ExcelWorkbook.new(file.path)
-        book.filename = nil
-        return book
-      ensure
-        file.delete
+      Dir.mktmpdir do |dir|
+        file_path = (Pathname.new(dir) + 'tmp.xlsx')
+        file_path.open 'w' do |io|
+          io.write(data)
+        end
+
+        Office::ExcelWorkbook.new(file_path).tap do |book|
+          book.filename = nil
+        end
       end
     end
 

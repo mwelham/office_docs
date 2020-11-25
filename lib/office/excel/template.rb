@@ -51,6 +51,16 @@ module Excel
       end
     end
 
+    # This is the non-destructive render, so it will return a new ExcelWorkbook
+    # leaving workbook untouched.
+    #
+    # see render! for other ways data can conform.
+    module_function def render(workbook, data)
+      workbook.clone.tap do |target|
+        render!(target, data)
+      end
+    end
+
     # Renders values from data into placeholders in workbook.
     # NOTE modifies workbook.
     #
@@ -90,17 +100,6 @@ module Excel
       end
 
       workbook
-    end
-
-    # This is the non-destructive render, so it will return a new ExcelWorkbook
-    # leaving workbook untouched.
-    #
-    # see render! for other ways data can conform.
-    module_function def render(workbook, data)
-      raise NotImplementedError
-      workbook.dup.tap do |target|
-        render!(target, data)
-      end
     end
 
     # Convert a tabular array (ie [field_names, *records]) to an
