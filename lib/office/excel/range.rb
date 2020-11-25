@@ -50,6 +50,7 @@ module Office
       top_left.infinite? || bot_rite.infinite?
     end
 
+    # This is a specialised intersection, maybe a projection of some kind?
     def row_of loc
       self.class.new Location[top_left.coli, loc.rowi], Location[bot_rite.coli, loc.rowi]
     end
