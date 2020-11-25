@@ -122,6 +122,26 @@ describe 'ExcelWorkbooksTest' do
       end
     end
 
+    it 'large numbers and strange types', display_ui: true do
+      sheet['A1'].value = "Large Integer"
+      sheet['A2'].value = rand -18446744073709551615 .. 18446744073709551615
+
+      sheet['B1'].value = "Large Float"
+      sheet['B2'].value = rand Float::MIN .. Float::MAX
+
+      sheet['C1'].value = "d time"
+      sheet['C2'].value = Office::IsoTime.new Time.now
+
+      sheet['D1'].value = "normal time"
+      sheet['D2'].value = Time.now
+
+      sheet.invalidate_row_cache
+
+      reload_workbook book, 'large_strange_types.xlsx' do |book|
+        `localc --nologo #{book.filename}`
+      end
+    end
+
     it 'saved file still correct' do
       pending 'fails until our code can add absent num_fmt_id entries to styles'
       row_range.each_by_row.with_index do |loc,index|
