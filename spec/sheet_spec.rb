@@ -135,6 +135,7 @@ describe Office::Sheet do
     # example of how to use locations, ranges, insert_rows and accept!
     it 'insert rows with tabular data' do
       sheet.dimension.should == sheet.calculate_dimension
+      saved_dimension = sheet.dimension
 
       # verify placeholder
       placeholder_cell.should_not be_nil
@@ -152,8 +153,10 @@ describe Office::Sheet do
       # set values of inserted rows from size of dataset
       sheet.accept! placeholder_cell.location, dataset
 
+      # make sure invalidate has marked dimension for recalc
+      sheet.dimension.should == sheet.calculate_dimension
       # obviously dimension should change
-      sheet.dimension.should_not == sheet.calculate_dimension
+      saved_dimension.should_not == sheet.dimension
 
       # reload_workbook sheet.workbook, 'insert.xlsx' do |book| `localc --nologo #{book.filename}` end
       cells = sheet.cells_of (placeholder_cell.location * [dataset.first.size, dataset.size]), &:formatted_value

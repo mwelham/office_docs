@@ -38,6 +38,8 @@ module Office
       @name = sheet_node['name']
       @id = Integer sheet_node['sheetId']
       @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
+
+      @dimension_fn = method :dimension_of_xlsx
     end
 
     def data_node
@@ -95,7 +97,7 @@ module Office
       sheet_node
     end
 
-    def dimension_node
+    private def dimension_node
       # this is about 1.2 - 3 times faster, but optimising this is not worthwhile here.
       # node.children.first.children.find{|n| n.name == 'dimension'}
       node.xpath('xmlns:worksheet/xmlns:dimension').first
@@ -103,21 +105,32 @@ module Office
 
     # fetch dimension from the xlsx doc
     def dimension
-      # TODO /:/ =~ is nearly as fast
-      @dimension ||=
-      if dimension_node[:ref].include?(?:)
-        # TODO there must be a better way to handle this
-        Office::Range.new dimension_node[:ref]
-      else
-        # sometimes for blank worksheets, dimension_node[:ref] == 'A1'
-        # so just make a unit-sized range
-        Office::Range.new "#{dimension_node[:ref]}:#{dimension_node[:ref]}"
+      @dimension ||= @dimension_fn[]
+    end
+
+    # copy dimension data from @dimension to xlsx node
+    def update_dimension_node
+      if dimension.to_s != dimension_node[:ref]
+        dimension_node[:ref] =
+        if dimension.count == 1
+          'A1'
+        else
+          dimension.to_s
+        end
       end
     end
 
-    def dimension= range
-      dimension_node[:ref] = range.to_s
-      @dimension = range
+    private def dimension_of_xlsx
+      dimension_str =
+      if dimension_node[:ref].include?(?:)
+        dimension_node[:ref]
+      else
+        # sometimes for blank worksheets, dimension_node[:ref] == 'A1'
+        # so just make a unit-sized range
+        "#{dimension_node[:ref]}:#{dimension_node[:ref]}"
+      end
+
+      Office::Range.new dimension_str
     end
 
     # calculate the actual dimension from the row and cell nodes
@@ -139,7 +152,12 @@ module Office
         [(min & loc), (max | loc)]
       end
 
-      Office::Range.new min, max
+      if min == Office::Location.largest && max == Office::Location.smallest
+        # neither of the reduce ops found anything, so we have a blank worksheet
+        Office::Range.new 'A1:A1'
+      else
+        Office::Range.new min, max
+      end
     end
 
     # create a Office::Range from Location (or maybe later string A1 and string A1:Z26)
@@ -407,7 +425,11 @@ module Office
     # that's a quite lot more code.
     def invalidate_row_cache
       @cells = {}
+
       @dimension = nil
+      # take dimension from the rows and cells now
+      @dimension_fn = method :calculate_dimension
+
       @row_cells = Array.new
       @row_nodes = Array.new
       @sheet_data = nil
