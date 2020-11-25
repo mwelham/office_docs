@@ -229,4 +229,35 @@ describe Office::Sheet do
       end
     end
   end
+
+  describe 'range fetching' do
+    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+
+    it 'cells', performance: true do
+      sheet = book.sheets.first
+      last_row = sheet.dimension.bot_rite
+
+      require 'benchmark'
+      Benchmark.bmbm do |results|
+        results.report 'cell_nodes_of' do sheet.cell_nodes_of(range: Office::Range.new('G12:BJ63'), &sheet.method(:cell_of)) end
+        results.report 'cells_of' do sheet.cells_of Office::Range.new('G12:BJ63') end
+        results.report 'cells_of formatted' do sheet.cells_of Office::Range.new('G12:BJ63'), &:formatted_value end
+      end
+    end
+  end
+
+  describe 'csv' do
+    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :sheet do book.sheets.first end
+
+    it 'comparisons', performance: true do
+      require 'benchmark'
+      Benchmark.bmbm do |results|
+        results.report 'to_excel_csv' do sheet.to_excel_csv end
+        results.report 'old_range_to_csv' do sheet.send :old_range_to_csv end
+        results.report 'range_to_csv' do sheet.range_to_csv end
+        results.report 'cells_of to_csv' do sheet.cells_of(&:formatted_value).to_csv end
+      end
+    end
+  end
 end

@@ -4,6 +4,7 @@ require 'office/package'
 require 'office/constants'
 require 'office/errors'
 require 'office/logger'
+require 'office/nokogiri_extensions'
 
 require_relative 'cell'
 require_relative 'lazy_cell'
@@ -370,7 +371,7 @@ module Office
     # return an Array of Arrays of the specified range, with optional tranformation block
     #
     # eg sheet.cells_of(Range.new('B17:F23'), &:formatted_value)
-    def cells_of range, &blk
+    def cells_of range = dimension, &blk
       blk ||= ->i{i} # identity if not specified. Slowdown compared to plain value is microseconds at x10000 repetitions
 
       @cells ||= {}
