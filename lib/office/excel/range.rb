@@ -12,7 +12,8 @@ module Office
         @range_str = range_str.dup.freeze
         @top_left, @bot_rite = range_str.split(':').map{|loc_str| Location.new loc_str}
       in [Location => tl, Location => bt]
-        @top_left, @bot_rite = tl.dup, bt.dup
+        # MUST be .clone, because .dup drops instance methods and those are used by Location.largest and Location.smallest
+        @top_left, @bot_rite = tl.clone, bt.clone
       else
         raise "dunno how to create #{self.class} from #{args.inspect}"
       end
@@ -43,6 +44,10 @@ module Office
 
     def height
       @bot_rite.rowi - top_left.rowi + 1
+    end
+
+    def infinite?
+      top_left.infinite? || bot_rite.infinite?
     end
 
     def row_of loc

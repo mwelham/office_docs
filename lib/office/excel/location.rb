@@ -47,9 +47,16 @@ module Office
         inst.instance_variable_set :@coli, -Float::INFINITY
         inst.instance_variable_set :@rowi, -Float::INFINITY
 
+        def inst.dup
+          raise "can't dup Location.smallest"
+        end
+
         def inst.location_string
           "-∞"
         end
+
+        # have to redefine to_s, because alias in Location doesn't forward.
+        def to_s; location_string end
       end
     end
 
@@ -58,10 +65,21 @@ module Office
         inst.instance_variable_set :@coli, Float::INFINITY
         inst.instance_variable_set :@rowi, Float::INFINITY
 
+        def inst.dup
+          raise "can't dup Location.largest"
+        end
+
         def inst.location_string
           "+∞"
         end
+
+        # have to redefine to_s, because alias in Location doesn't forward.
+        def to_s; location_string end
       end
+    end
+
+    def infinite?
+      coli.abs == Float::INFINITY || rowi.abs == Float::INFINITY
     end
 
     def location_string
