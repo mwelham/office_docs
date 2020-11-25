@@ -197,4 +197,36 @@ describe Office::Sheet do
       end
     end
   end
+
+  describe 'dimensions' do
+    describe 'A1 for blank sheet' do
+      let :book do Office::ExcelWorkbook.blank_workbook end
+
+      it '#dimension' do
+        sheet.send(:dimension_node)[:ref].should == 'A1'
+        sheet.dimension.should == Office::Range.new('A1:A1')
+      end
+
+      it '#calculate_dimension' do
+        sheet.calculate_dimension.should == Office::Range.new('A1:A1')
+      end
+    end
+
+    it 'saves calculated dimension' do
+      saved_dimension = sheet.dimension
+      calc_dimension = sheet.calculate_dimension
+      saved_dimension.should == calc_dimension
+
+      outside_loc = saved_dimension.bot_rite + [2,2]
+      sheet[outside_loc].value = 'outside violin solo'
+
+      reload_workbook book do |book|
+        # grab the dimension node before anything else
+        book.sheets.first.send(:dimension_node)[:ref].should == Office::Range.new(saved_dimension.top_left, outside_loc).to_s
+
+        book.sheets.first.dimension.should_not == saved_dimension
+        book.sheets.first.dimension.should == Office::Range.new(saved_dimension.top_left, outside_loc)
+      end
+    end
+  end
 end
