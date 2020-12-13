@@ -11,6 +11,7 @@ end
 
 class IfElseReplacerTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_IF_ELSE = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'if_else', 'test_if_in_same_paragraph.docx')
+  BROKEN_IF = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'if_else', 'broken_if_test.docx')
 
   include IfElseInParagraphTest
   include IfElseOverParagraphsTest
@@ -60,6 +61,20 @@ class IfElseReplacerTest < Test::Unit::TestCase
     end
 
     assert correct_placeholder_info == placeholders
+  end
+
+  def test_broken_placeholder_template
+    doc = Office::WordDocument.new(BROKEN_IF)
+    template = Word::Template.new(doc)
+    raised_error = false
+    begin
+      template.render({some: {cool_heading: 'test'}})
+    rescue => e
+      raised_error = true
+      assert(e.is_a?(Liquid::ArgumentError))
+      assert(e.message.include?("Error in {% if f fields.lol %}..{% endif %}"))
+    end
+    assert(raised_error)
   end
 
   private

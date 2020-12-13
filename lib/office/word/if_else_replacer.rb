@@ -89,6 +89,9 @@ module Word
         looper = Word::IfElseReplacers::IfElseOverParagraphs.new(main_doc, data, options)
         looper.replace_if_else(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
       end
+    rescue => e
+      context_info = "Error in #{start_placeholder&.dig(:placeholder_text)}..#{end_placeholder&.dig(:placeholder_text)}"
+      raise e.class, [context_info, e.message].join(": ")
     end
 
     def there_are_if_else_placeholders?(placeholders)
