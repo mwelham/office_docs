@@ -38,7 +38,7 @@ describe Excel::Template do
 
   describe described_class::Evaluator do
     let :data do
-      data = {controller: {streams: [{start: 'the party'}]}}
+      data = {controller: {streams: [{start: 'the party'}, {q1: 'steel', "q1:era": 'damascus'}]}}
       data.extend(described_class)
     end
 
@@ -57,6 +57,18 @@ describe Excel::Template do
 
     it 'weirdness' do
       data.evaluate('controller..streams[0]].start').should == 'the party'
+    end
+
+    it 'colons in names' do
+      data.evaluate('controller.streams[1].q1').should == 'steel'
+      data.evaluate('controller.streams[1].q1:era').should == 'damascus'
+    end
+
+    it 'attributes' do
+      data = {first_part: {q1: 't5', :'q1:timestamp' => '2020-12-10 23:01:15'}}
+      data.extend(described_class)
+      data.evaluate('first_part.q1').should == 't5'
+      data.evaluate('first_part.q1:timestamp').should == '2020-12-10 23:01:15'
     end
 
     it 'single' do

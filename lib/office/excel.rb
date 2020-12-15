@@ -6,6 +6,7 @@ require 'office/logger'
 require_relative 'excel/cell'
 require_relative 'excel/excel_workbook'
 require_relative 'excel/sheet'
+require_relative 'excel/template'
 
 module Office
   class Row
