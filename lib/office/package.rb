@@ -21,7 +21,7 @@ module Office
       file.close
       begin
         save(file.path)
-        File.open(file.path) { |f| return f.read }
+        File.open(file.path, 'rb:ASCII-8BIT') { |f| return f.read }
       ensure
         @filename = original_filename
         file.delete

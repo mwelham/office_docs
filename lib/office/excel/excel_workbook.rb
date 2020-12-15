@@ -38,7 +38,7 @@ module Office
     def self.from_data(data)
       Dir.mktmpdir do |dir|
         file_path = (Pathname.new(dir) + 'tmp.xlsx')
-        file_path.open 'w' do |io|
+        file_path.open 'wb:ASCII-8BIT' do |io|
           io.write(data)
         end
 

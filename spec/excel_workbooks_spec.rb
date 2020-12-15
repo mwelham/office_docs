@@ -4,7 +4,7 @@ require 'office_docs'
 require_relative 'spec_helper'
 
 # copy of the minitest test cases, because specs are easier to zero in on
-describe 'ExcelWorkbooksTest' do
+describe Office::ExcelWorkbook do
   include ReloadWorkbook
 
   it :test_parse_simple_workbook do
@@ -160,21 +160,52 @@ describe 'ExcelWorkbooksTest' do
     end
   end
 
-  it :test_from_data do
-    book_1 = nil
-    File.open(BookFiles::SIMPLE_TEST) { |f| book_1 = Office::ExcelWorkbook.from_data(f.read) }
-    book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
-    assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+  describe '#from_data' do
+    let :data do File.read(BookFiles::SIMPLE_TEST) end
+
+    it 'identical contents' do
+      book_1 = Office::ExcelWorkbook.from_data data
+      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+    end
+
+    it 'ascii-8bit' do
+      data.encoding.should == Encoding::UTF_8
+      data.force_encoding Encoding::ASCII_8BIT
+      data.encoding.should == Encoding::ASCII_8BIT
+
+      book_1 = Office::ExcelWorkbook.from_data(data)
+      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+    end
+
+    it 'utf8' do
+      data.encoding.should == Encoding::UTF_8
+      book_1 = Office::ExcelWorkbook.from_data(data)
+      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
+    end
   end
 
-  it :test_to_data do
-    data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
-    assert !data.nil?
-    assert data.length > 0
+  describe '#to_data' do
+    it 'identical contents' do
+      data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
+      assert data.length > 0
 
-    book_1 = Office::ExcelWorkbook.from_data(data)
-    book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
-    assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
+      book_1 = Office::ExcelWorkbook.from_data(data)
+      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
+    end
+
+    it 'ascii-8bit' do
+      data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
+      assert data.length > 0
+      data.encoding.should == Encoding::ASCII_8BIT
+
+      book_1 = Office::ExcelWorkbook.from_data(data)
+      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
+    end
   end
 
   it :test_sheet_creation do
