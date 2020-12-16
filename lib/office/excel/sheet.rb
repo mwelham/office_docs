@@ -499,10 +499,6 @@ module Office
       end
     end
 
-    def each_cache_cell &blk
-
-    end
-
     alias each_cell each_row_cell
     # alias each_cell each_cell_by_node
 
