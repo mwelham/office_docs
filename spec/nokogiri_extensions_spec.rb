@@ -1,6 +1,6 @@
-require_relative '../lib/office/nokogiri_extensions'
-
 require_relative 'spec_helper'
+
+require_relative '../lib/office/nokogiri_extensions'
 require_relative 'xml_fixtures'
 
 # copy of the minitest test cases, because specs are easier to zero in on

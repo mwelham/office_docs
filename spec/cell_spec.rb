@@ -1,12 +1,11 @@
+require_relative 'spec_helper'
+
 require 'nokogiri'
 require 'date'
 
 require_relative '../lib/office/excel/cell.rb'
 require_relative '../lib/office/excel.rb'
 require_relative '../lib/office/nokogiri_extensions.rb'
-
-require_relative 'spec_helper'
-
 
 # monkeypatch for RUBY_VERSION <2.7.0
 class Time

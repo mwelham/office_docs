@@ -4,3 +4,4 @@ Gemfile.lock
 docs
 scratch
 spec/examples.txt
+coverage

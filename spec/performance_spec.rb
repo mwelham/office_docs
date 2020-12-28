@@ -1,7 +1,7 @@
+require_relative 'spec_helper'
+
 require 'date'
 require 'benchmark'
-
-require_relative 'spec_helper'
 
 # This is a place to hang performance comparisons that don't naturally belong
 # somewhere else. See spec_helper.rb config for where performance tests are

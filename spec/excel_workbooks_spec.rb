@@ -1,7 +1,7 @@
-require 'csv'
-
-require 'office_docs'
 require_relative 'spec_helper'
+
+require 'csv'
+require 'office_docs'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::ExcelWorkbook do

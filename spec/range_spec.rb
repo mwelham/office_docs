@@ -1,7 +1,7 @@
+require_relative 'spec_helper'
+
 require_relative '../lib/office/excel/location'
 require_relative '../lib/office/excel/range'
-
-require_relative 'spec_helper'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::Range do
