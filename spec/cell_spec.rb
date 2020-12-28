@@ -98,6 +98,13 @@ describe Office::Cell do
   describe 'build_c_node' do
     let :cell_node do Office::CellNodes.build_c_node empty_cell_node, stored_value, styles: styles end
 
+    describe 'error' do
+      let :stored_value do Object.new end
+      it 'raises with Object' do
+        ->{cell_node}.should raise_error(Office::TypeError)
+      end
+    end
+
     describe Date do
       let :stored_value do Date.today end
 

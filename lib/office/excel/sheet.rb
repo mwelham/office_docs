@@ -171,7 +171,7 @@ module Office
       when Office::Range
         obj
       else
-        raise "wut!? do what with what rows where!? #{obj.inspect}"
+        raise LocatorError, "wut!? do what with what rows where!? #{obj.inspect}"
       end
     end
 
@@ -285,7 +285,7 @@ module Office
       # find node and delete it
       merge_cells_node, = node.nspath 'xmlns:worksheet/xmlns:mergeCells'
       to_delete = merge_cells_node.children.find{|n| n[:ref] == range.to_s}
-      to_delete or raise "no range found matching #{range}"
+      to_delete or raise LocatorError, "no range found matching #{range}"
       to_delete.unlink
       merge_cells_node[:count] = merge_cells_node.children.count
       to_delete
@@ -398,6 +398,7 @@ module Office
       end
     end
 
+    # Mind the footguns.
     private def loose_cell_of cell_node, colix = nil, rowix = nil
       if cell_node
         Cell.new cell_node, workbook.shared_strings, workbook.styles
@@ -418,7 +419,7 @@ module Office
         @cells[[cell.location.coli, cell.location.rowi]] ||= cell
 
       else
-        raise "cannot build cell from #{{cell_node: cell_node, colix: colix, rowix: colix}}"
+        raise Error, "cannot build cell from #{{cell_node: cell_node, colix: colix, rowix: colix}}"
       end
     end
 
@@ -454,7 +455,7 @@ module Office
         cell_of cell_node, *loc
 
       else
-        raise "don't know how to get cell from #{args.inspect}"
+        raise LocatorError, "don't know how to get cell from #{args.inspect}"
       end
     end
 
@@ -525,6 +526,8 @@ module Office
     end
 
     # Not currently used, but could obviate creation of a LazyCell instance
+    # Difference that .cell = could be lazy, whereas this could be immediate.
+    # Not sure if that makes any sense.
     def []=(coli,rowi,value)
       case sheet_data.rows
       when NilClass

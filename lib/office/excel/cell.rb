@@ -27,7 +27,7 @@ module Office
     end
 
     def self.build_c_node target_node, obj, styles:, string_table: nil
-      raise 'must be a c node' unless target_node.name == ?c
+      raise DocumentError, 'must be a c node' unless target_node.name == ?c
 
       # create replacement node for different types
       case obj
@@ -76,7 +76,7 @@ module Office
       when String
         if string_table
           string_table_index = Integer(value_node.text)
-          raise "Wrongly does not do copy-on-write"
+          raise NotImplementedError, "Wrongly does not do copy-on-write"
           # This is the <si><t>...</t></si> node in the string table
           v_t_node = string_table.node.children[string_table_index].children.first
           # replace the children, ie the text content of <t>
@@ -117,7 +117,7 @@ module Office
         target_node[:s] ||= style_index(styles, 22) # default/generic datetime
 
       else
-        raise "dunno how to convert #{obj.inspect}"
+        raise TypeError, "dunno how to convert #{obj.inspect}"
 
       end
 
@@ -334,7 +334,7 @@ module Office
           when ?1; true
           when ?0; false
           else
-            raise "Unknown boolean value #{unformatted_value}"
+            raise TypeError, "Unknown boolean value #{unformatted_value}"
           end
 
         else

@@ -208,7 +208,7 @@ module Office
     # eg parse 'CA256' => ["CA", "256"]
     def self.parse_a1 a1_location
       # TODO this will fail with $A$1 and similar absolute references
-      /^(?<colst>[[:upper:]]+)(?<rowst>[[:digit:]]+)$/ =~ a1_location or raise "#{self} can't parse '#{a1_location}'"
+      /^(?<colst>[[:upper:]]+)(?<rowst>[[:digit:]]+)$/ =~ a1_location or raise LocatorError, "#{self} can't parse '#{a1_location}'"
       return colst, rowst
     end
 

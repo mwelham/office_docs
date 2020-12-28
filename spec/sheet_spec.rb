@@ -261,4 +261,27 @@ describe Office::Sheet do
       end
     end
   end
+
+  describe '#to_range' do
+    # The other paths are already covered by other specs
+    it 'incorrect range' do
+      ->{sheet.to_range 'This is not a range'}.should raise_error(Office::LocatorError)
+    end
+  end
+
+  describe '#cell_of' do
+    # The other paths are already covered by other specs
+    it 'incorrect range'
+  end
+
+  describe '#[]' do
+    # The other paths are already covered by other specs
+    it 'incorrect string location' do
+      ->{sheet['not a location']}.should raise_error(Office::LocatorError)
+    end
+
+    it 'unknown object location' do
+      ->{sheet[Object.new]}.should raise_error(Office::LocatorError)
+    end
+  end
 end

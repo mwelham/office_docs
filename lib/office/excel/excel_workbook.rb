@@ -55,12 +55,12 @@ module Office
 
     def parse_shared_strings
       case (string_tables = @workbook_part.get_relationship_targets(EXCEL_SHARED_STRINGS_TYPE)).size
-      when 0
-        binding.pry
       when 1
         @shared_strings = SharedStringTable.new(string_tables.first)
+      when 0
+        raise PackageError, 'no string tables'
       else
-        raise "too many string tables"
+        raise PackageError, 'too many string tables'
       end
     end
 
