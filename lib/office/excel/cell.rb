@@ -134,7 +134,8 @@ module Office
 
     # TODO in some cases we may be able to optimise this, since cell is
     # constructed from a location, eg in Sheet#[] which already has a
-    # location and the location was used to find the node.
+    # location and the location was used to find the node so we can safely assumed the location
+    # corresponds correctly with node[:r] already and we don't have to reconstruct that.
     # So maybe a location: nil keyword
     def initialize(c_node, string_table, styles)
       @node = c_node
