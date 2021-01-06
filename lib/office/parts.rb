@@ -274,7 +274,15 @@ module Office
     end
 
     def self.parse(part_name, io, default_content_type)
-      ImagePart.new(part_name, io.read)
+      begin
+        ImagePart.new(part_name, io.read)
+      rescue Magick::ImageMagickError => error
+        # Image may have a .data extension but XLSX file may also include
+        # a Data model with a .data extension. If we are unable to decode
+        # blob, we return an UnknownPart. Otherwise, just raise the error.
+        raise unless error.message =~ /no decode delegate for this image format/
+        UnknownPart.new(part_name, io, default_content_type)
+      end
     end
 
     def self.zip_extensions
