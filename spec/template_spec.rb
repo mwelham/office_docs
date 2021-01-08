@@ -1,6 +1,7 @@
 require_relative 'spec_helper'
 
 require 'yaml'
+require_relative '../lib/office/excel'
 require_relative '../lib/office/excel/template.rb'
 
 describe Excel::Template do
