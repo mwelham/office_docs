@@ -35,6 +35,9 @@ module Word
       end
 
       {}
+    rescue => e
+      context_info = "Error in #{placeholder&.dig(:placeholder_text)}"
+      raise e.class, [context_info, e.message].join(": ")
     end
 
     def get_replacement(placeholder, data, options = {})

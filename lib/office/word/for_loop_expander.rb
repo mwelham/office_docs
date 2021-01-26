@@ -94,6 +94,10 @@ module Word
         looper = Word::ForLoopExpanders::LoopOverParagraphs.new(main_doc, data, options)
         looper.expand_loop(start_placeholder, end_placeholder, inbetween_placeholders, placeholders)
       end
+
+    rescue => e
+      context_info = "Error in #{start_placeholder&.dig(:placeholder_text)}..#{end_placeholder&.dig(:placeholder_text)}"
+      raise e.class, [context_info, e.message].join(": ")
     end
 
     def there_are_for_loop_placeholders(placeholders)

@@ -13,6 +13,7 @@ end
 class ForLoopExpanderTest < Test::Unit::TestCase
   IN_SAME_PARAGRAPH_FOR_LOOP = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'in_same_paragraph_for_loop_test.docx')
   MISSING_END_FOR = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'missing_end_for.docx')
+  BROKEN_FOR = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'for_loops', 'broken_for.docx')
 
   include TemplateTestHelper
   include LoopInParagraphTest
@@ -66,6 +67,15 @@ class ForLoopExpanderTest < Test::Unit::TestCase
       template.render({})
     end
     assert err.message == "Missing endfor for 'for each' placeholder: {% for field in fields.Group %}"
+  end
+
+  def test_broken_placeholder_template
+    doc = Office::WordDocument.new(BROKEN_FOR)
+    template = Word::Template.new(doc)
+    raised_error = false
+    template.render({some: {cool_heading: 'test'}})
+    # Wont raise an error because the for loops only match
+    # if the syntax is correct.
   end
 
   private
