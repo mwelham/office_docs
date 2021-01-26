@@ -6,7 +6,7 @@ require 'office/logger'
 
 module Office
   class Part
-    attr_accessor :name
+    attr_reader :name
     attr_accessor :zip_entry_name # original case-sensitive non-rooted name (when available)
     attr_accessor :content_type
 
@@ -32,7 +32,7 @@ module Office
     end
 
     def set_relationships(relationships_part)
-      raise "multiple relationship parts for '#{@name}'" unless @relationships.nil?
+      raise "multiple relationship parts for '#{@name}'" if instance_variable_defined?(:@relationships)
       @relationships = relationships_part
     end
 
@@ -58,7 +58,7 @@ module Office
     end
 
     def remove_relationships(part)
-      return if self == part || @relationships.nil?
+      return if self == part || !instance_variable_defined?(:@relationships)
       @relationships.remove(part)
     end
 
@@ -124,6 +124,8 @@ module Office
 
     def resolve_target_part(package, owner_name)
       full_name = @target_name[0] == "/" ? @target_name : owner_name[0, owner_name.rindex("/") + 1] + @target_name
+      # sometimes full_name has .. in it, so use expand_path to resolve that
+      full_name = File.expand_path full_name
       @target_part = package.get_part(full_name)
       Logger.warn "Failed to resolve relationship target '#{@target_name}' for '#{owner_name}'" if @target_part.nil?
     end

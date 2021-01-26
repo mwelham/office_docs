@@ -1,4 +1,8 @@
 module Office
-  class PackageError < StandardError
-  end
+  class Error < StandardError; end
+
+  class PackageError < Error; end
+  class TypeError < Error; end
+  class DocumentError < Error; end
+  class LocatorError < Error; end
 end

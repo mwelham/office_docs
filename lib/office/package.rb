@@ -21,7 +21,7 @@ module Office
       file.close
       begin
         save(file.path)
-        File.open(file.path) { |f| return f.read }
+        File.open(file.path, 'rb:ASCII-8BIT') { |f| return f.read }
       ensure
         @filename = original_filename
         file.delete
@@ -63,7 +63,7 @@ module Office
     end
 
     def save(filename)
-      if File.exists? filename
+      if File.exist? filename
         backup_file = filename + ".bak"
         File.rename(filename, backup_file)
       end
@@ -84,7 +84,7 @@ module Office
       @parts_by_name = {}
       @default_content_types = {}
       @overriden_content_types = {}
-      
+
       Zip::File.open(@filename) do |zip|
         entries = []
         zip.each do |e|
@@ -129,7 +129,7 @@ module Office
       @content_types_part = parse_zip_entry(zip_entry)
       type_node = @content_types_part.xml.root
       raise PackageError.new("package '#{@filename}' has unexpected root node '#{type_node.name}") unless type_node.name == "Types"
-      
+
       @default_content_types = {}
       type_node.children.each do |child|
         case child.name
@@ -149,7 +149,7 @@ module Office
     end
 
     def set_relationships(relationships_part)
-      raise "multiple package-level relationship parts for package '#{@filename}'" unless @relationships.nil?
+      raise "multiple package-level relationship parts for package '#{@filename}'" if instance_variable_defined?(:@relationships)
       @relationships = relationships_part
     end
 
@@ -166,8 +166,13 @@ module Office
       @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
     end
 
+    # don't depend on activesupport
+    def self.blank?( obj )
+      obj.nil? || obj == ''
+    end
+
     def self.xpath_ns_prefix(node)
-      node.nil? or node.namespace.nil? or node.namespace.prefix.blank? ? 'xmlns' : node.namespace.prefix 
+      node.nil? or node.namespace.nil? or blank?(node.namespace.prefix) ? 'xmlns' : node.namespace.prefix
     end
   end
 
@@ -175,19 +180,19 @@ module Office
     def self.are_equal?(path_1, path_2)
       package_1 = Package.new(path_1)
       package_2 = Package.new(path_2)
-      
+
       part_names_1 = package_1.get_part_names
       part_names_2 = package_2.get_part_names
-      
+
       return false unless (part_names_1 - part_names_2).empty?
       return false unless (part_names_2 - part_names_1).empty?
-      
+
       part_names_1.each do |name|
         return false unless are_parts_equal?(package_1.get_part(name), package_2.get_part(name))
       end
       true
     end
-    
+
     def self.are_parts_equal?(part_1, part_2)
       return false unless part_1.class == part_2.class
       return false unless part_1.name == part_2.name
