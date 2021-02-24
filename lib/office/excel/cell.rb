@@ -60,7 +60,8 @@ module Office
         # TODO same as DateTime except style number is different
         # .floor because xlsx specification only allows for precision of 1/86400
         # Float otherwise it's a Rational
-        span = Float obj.floor.to_datetime - (DATE_TIME_EPOCH - UTC_OFFSET_HOURS)
+        floored = Time.new obj.year, obj.month, obj.day, obj.hour, obj.min, obj.sec.floor, obj.utc_offset
+        span = Float floored.to_datetime - (DATE_TIME_EPOCH - UTC_OFFSET_HOURS)
         target_node.children = target_node.document.create_element 'v', span.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
