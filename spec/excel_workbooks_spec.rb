@@ -1,4 +1,5 @@
 require_relative 'spec_helper'
+require_relative 'version_compatibility'
 
 require 'csv'
 require 'office_docs'
@@ -6,6 +7,7 @@ require 'office_docs'
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::ExcelWorkbook do
   include ReloadWorkbook
+  using VersionCompatibility
 
   it :test_parse_simple_workbook do
     Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)

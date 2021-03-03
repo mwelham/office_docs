@@ -1,4 +1,5 @@
 require_relative 'spec_helper'
+require_relative 'version_compatibility'
 
 require 'nokogiri'
 require 'date'
@@ -7,27 +8,9 @@ require_relative '../lib/office/excel/cell.rb'
 require_relative '../lib/office/excel.rb'
 require_relative '../lib/office/nokogiri_extensions.rb'
 
-# monkeypatches for RUBY_VERSION
-if RUBY_VERSION < '2.7.0'
-  class Time
-    def floor
-      Time.new(year, month, day, hour, min, sec.floor, utc_offset)
-    end
-  end
-end
-
-if RUBY_VERSION < '2.5.0'
-  class Hash
-    def transform_keys &blk
-      return enum_for __method__ unless block_given?
-      each_with_object Hash.new do |(key,value),ha|
-        ha[blk[key]] = value
-      end
-    end
-  end
-end
-
 describe Office::Cell do
+  using VersionCompatibility
+
   # Need a bunch of mockup xml stuff here because it's PITA to have a whole
   # workbook just to test cell functionality
   class MockXfStyle
