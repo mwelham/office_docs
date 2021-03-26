@@ -158,6 +158,21 @@ module Office
       @relationships.get_relationship_targets(type)
     end
 
+    # main_doc should not be an accessor, partly because header/footer in word and partly because not sure why.
+    def add_image_part(image, document_section: main_doc)
+      prefix = File.join ?/, document_section.part.path_components, 'media', 'image'
+
+      # TODO _add_rels document_section.make_sure_section_has_relationships!
+      # which is maybe the same as add <Relationships> (or relevant subnode) to document
+
+      # unused_part_identifier is 1..n : Integer
+      # .extension comes from the image
+      part_name = "#{prefix}#{unused_part_identifier(prefix)}.#{image.format.downcase}"
+
+      part = add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
+      relationship_id = document_section.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
+    end
+
     def debug_dump
       rows = @parts_by_name.values.collect { |p| ["#{p.class.name}", "#{p.name}", "#{p.content_type}"] }
       Logger.debug_dump_table("#{self.class.name} Parts", ["Class", "Name", "Content Type"], rows)

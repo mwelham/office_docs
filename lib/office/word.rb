@@ -109,19 +109,12 @@ module Office
       end
     end
 
-    def create_image_run_fragment(image, options = {})
-      document_section = options[:document_section].presence || @main_doc
-      document_section.make_sure_section_has_relationships!
-      prefix = ["", document_section.part.path_components, "media", "image"].flatten.join('/')
-      identifier = unused_part_identifier(prefix)
-      extension = "#{image.format}".downcase
-
-      part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
-      relationship_id = document_section.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
-
+    # no_header_row is to handle pass-through options from create_body_fragments
+    # Couldn't be bothered fixing that @_@
+    def create_image_run_fragment(image, document_section: main_doc, hyperlink: nil, no_header_row: nil)
+      relationship_id = add_image_part image, document_section: document_section
       image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
 
-      hyperlink = options[:hyperlink]
       if hyperlink.present?
         hyperlink_relationship_id = document_section.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
         image_fragment.gsub!("</wp:docPr>", %|<a:hlinkClick xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" r:id="#{hyperlink_relationship_id}"/></wp:docPr>|)
