@@ -158,19 +158,30 @@ module Office
       @relationships.get_relationship_targets(type)
     end
 
-    # main_doc should not be an accessor, partly because header/footer in word and partly because not sure why.
-    def add_image_part(image, document_section: main_doc)
-      prefix = File.join ?/, document_section.part.path_components, 'media', 'image'
+    # make sure that a maybe-new part has a related Relationships entry in the relevant rels file
+    def ensure_relationships part
+      unless part.has_relationships?
+        rel_name = File.join ?/, part.path_components, '_rels', part.name.split('/').last
+        content = StringIO.new %|<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>|
+        rels_part = add_part("#{rel_name}.rels", content, RELATIONSHIP_CONTENT_TYPE)
+        rels_part.map_relationships(self)
+      end
+    end
 
-      # TODO _add_rels document_section.make_sure_section_has_relationships!
-      # which is maybe the same as add <Relationships> (or relevant subnode) to document
+    # part is the Office::Part to which the image should be added
+    def add_image_part(image, part)
+      prefix = File.join ?/, part.path_components, 'media/image'
 
       # unused_part_identifier is 1..n : Integer
       # .extension comes from the image
-      part_name = "#{prefix}#{unused_part_identifier(prefix)}.#{image.format.downcase}"
+      part_name = "#{prefix}#{unused_part_identifier prefix}.#{image.format.downcase}"
 
-      part = add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
-      relationship_id = document_section.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
+      image_part = add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
+
+      ensure_relationships part
+      relationship_id = part.add_relationship(image_part, IMAGE_RELATIONSHIP_TYPE)
+
+      [relationship_id, image_part]
     end
 
     def debug_dump

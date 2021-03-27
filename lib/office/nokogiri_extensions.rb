@@ -67,6 +67,11 @@ module Nokogiri::XML::Searchable
     # call in to the normal nokogiri method
     self.xpath ns_xpath
   end
+
+  # implement xpath-2.0 //*:tag_name syntax meaning "any namespace with local-name() = 'tag_name'"
+  def nxpath xpath
+    self.xpath xpath.gsub /\*:(\w+)/, "node()[local-name() = '\\1']"
+  end
 end
 
 # allow for >=ruby-2.7 pattern matching
