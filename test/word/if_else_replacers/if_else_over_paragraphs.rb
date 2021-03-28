@@ -12,192 +12,178 @@ module IfElseOverParagraphsTest
   #
   #
   def test_if_else_over_paragraphs
-    file = File.new('test_if_over_paragraphs.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_if_over_paragraphs.docx'
 
-    doc = Office::WordDocument.new(OVER_PARAGRAPHS_IF_ELSE)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => '',
-          'b' => 'haha',
-          'c' => 'lol'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(OVER_PARAGRAPHS_IF_ELSE)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => '',
+            'b' => 'haha',
+            'c' => 'lol'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'test_if_over_paragraphs.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'test_if_over_paragraphs.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_else_not
-    file = File.new('if_else_not.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_else_not.docx'
 
-    doc = Office::WordDocument.new(IF_ELSE_NOT)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => '',
-          'b' => 'haha',
-          'c' => 'lol'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_ELSE_NOT)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => '',
+            'b' => 'haha',
+            'c' => 'lol'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_not.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_not.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_includes
-    file = File.new('if_else_includes.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_else_includes.docx'
 
-    doc = Office::WordDocument.new(IF_ELSE_INCLUDES)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => '',
-          'b' => 'big yellow submarine',
-          'c' => 'no way hosè'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_ELSE_INCLUDES)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => '',
+            'b' => 'big yellow submarine',
+            'c' => 'no way hosè'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_includes.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_includes.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_image
-    file = File.new('if_using_image.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_using_image.docx'
 
-    doc = Office::WordDocument.new(IF_USING_IMAGE)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => test_image,
-          'b' => 'big yellow submarine',
-          'c' => 'no way hosè'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_USING_IMAGE)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => test_image,
+            'b' => 'big yellow submarine',
+            'c' => 'no way hosè'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_using_image.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_using_image.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_single_quote
-    file = File.new('if_single_quote.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_single_quote.docx'
 
-    doc = Office::WordDocument.new(IF_SINGLE_QUOTE)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => 'a',
-          'b' => 'b',
-          'c' => 'no way hosè'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_SINGLE_QUOTE)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => 'a',
+            'b' => 'b',
+            'c' => 'no way hosè'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_single_quote.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_single_quote.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_single_quote
-    file = File.new('if_number_comparison.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_number_comparison.docx'
 
-    doc = Office::WordDocument.new(IF_NUMBER_COMPARISON)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => '1.5',
-          'b' => '30',
-          'c' => '24.566'
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_NUMBER_COMPARISON)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => '1.5',
+            'b' => '30',
+            'c' => '24.566'
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_number_comparison.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_number_comparison.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_if_single_quote
-    file = File.new('if_else_is_null.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'if_else_is_null.docx'
 
-    doc = Office::WordDocument.new(IF_IS_NULL)
-    template = Word::Template.new(doc)
-    template.render(
-      {'fields' =>
-        {
-          'a' => '',
-          'b' => '30',
-          'c' => ''
-        }
-      }, {do_not_render: true})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(IF_IS_NULL)
+      template = Word::Template.new(doc)
+      template.render(
+        {'fields' =>
+          {
+            'a' => '',
+            'b' => '30',
+            'c' => ''
+          }
+        }, {do_not_render: true})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_is_null.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', '..', 'content', 'template', 'if_else', 'correct_render', 'if_else_is_null.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   private

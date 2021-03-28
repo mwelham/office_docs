@@ -24,32 +24,27 @@ class WordDocumentsTest < Test::Unit::TestCase
   end
 
   def test_save_simple_doc
-    file = Tempfile.new('test_save_simple_doc')
-    file.close
-    filename = file.path
-
-    doc = load_simple_doc
-    doc.replace_all("pork chop", "radish and tofu salad")
-    doc.save(filename)
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
-    assert !Office::PackageComparer.are_equal?(SIMPLE_TEST_DOC_PATH, filename)
-
-    file.delete
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_save_simple_doc'
+      doc = load_simple_doc
+      doc.replace_all("pork chop", "radish and tofu salad")
+      doc.save(filename)
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
+      assert !Office::PackageComparer.are_equal?(SIMPLE_TEST_DOC_PATH, filename)
+    end
   end
 
   def test_save_changes
-    file = Tempfile.new('test_save_simple_doc')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_save_simple_doc'
 
-    doc = load_simple_doc
-    doc.save(filename)
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
-    assert Office::PackageComparer.are_equal?(SIMPLE_TEST_DOC_PATH, filename)
-
-    file.delete
+      doc = load_simple_doc
+      doc.save(filename)
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
+      assert Office::PackageComparer.are_equal?(SIMPLE_TEST_DOC_PATH, filename)
+    end
   end
 
   def test_blank_document
@@ -105,37 +100,37 @@ class WordDocumentsTest < Test::Unit::TestCase
     doc.add_paragraph ""
     doc.add_paragraph "end"
 
-    file = Tempfile.new('test_image_addition_doc')
-    file.close
-    filename = file.path
-    doc.save(filename)
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_image_addition_doc'
+      doc.save(filename)
 
-    doc_copy = Office::WordDocument.new(filename)
-    assert_equal doc.plain_text, doc_copy.plain_text
-    assert_equal doc_copy.plain_text, "Heading\nintro\nSub-heading\nbody\nSub-heading\n\nSub-heading\n\nSub-heading\n\nend\n"
+      doc_copy = Office::WordDocument.new(filename)
+      assert_equal doc.plain_text, doc_copy.plain_text
+      assert_equal doc_copy.plain_text, "Heading\nintro\nSub-heading\nbody\nSub-heading\n\nSub-heading\n\nSub-heading\n\nend\n"
 
-    assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
-    assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
-    assert_nil doc_copy.get_part("/word/media/image3.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
+      assert_nil doc_copy.get_part("/word/media/image3.jpeg")
+    end
   end
 
   def test_image_replacement
     doc = Office::WordDocument.new(File.join(File.dirname(__FILE__), 'content', 'image_replacement_test.docx'))
     doc.replace_all("IMAGE", test_image)
 
-    file = Tempfile.new('test_image_addition_doc')
-    file.close
-    filename = file.path
-    doc.save(filename)
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_image_addition_doc'
+      doc.save(filename)
 
-    doc_copy = Office::WordDocument.new(filename)
-    assert_equal doc_copy.plain_text, "Header\n\n\n\nABC\n\nDEF\n\nABCDEF\n\n"
+      doc_copy = Office::WordDocument.new(filename)
+      assert_equal doc_copy.plain_text, "Header\n\n\n\nABC\n\nDEF\n\nABCDEF\n\n"
 
-    assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
-    assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
-    assert_not_nil doc_copy.get_part("/word/media/image3.jpeg")
-    assert_not_nil doc_copy.get_part("/word/media/image4.jpeg")
-    assert_nil doc_copy.get_part("/word/media/image5.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image1.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image2.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image3.jpeg")
+      assert_not_nil doc_copy.get_part("/word/media/image4.jpeg")
+      assert_nil doc_copy.get_part("/word/media/image5.jpeg")
+    end
   end
 
   def test_complex_search_and_replace
