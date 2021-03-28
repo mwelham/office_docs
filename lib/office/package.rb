@@ -16,15 +16,10 @@ module Office
     end
 
     def to_data
-      original_filename = @filename
-      file = Tempfile.new('OfficePackage')
-      file.close
-      begin
-        save(file.path)
-        File.open(file.path, 'rb:ASCII-8BIT') { |f| return f.read }
-      ensure
-        @filename = original_filename
-        file.delete
+      Dir.mktmpdir do |dir|
+        path = File.join dir, File.basename(@filename)
+        save path
+        File.open(path, 'rb:ASCII-8BIT', &:read)
       end
     end
 
