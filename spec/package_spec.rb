@@ -34,28 +34,49 @@ describe Office::Package do
       word: Office::WordDocument.new(DocFiles::IMAGE_REPLACEMENT_TEST),
       book: Office::ExcelWorkbook.new(BookFiles::IMAGE_TEST),
       simple: Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST),
+      empty: Office::WordDocument.new(DocFiles::EMPTY),
     }
 
     docs.each do |name, doc|
       describe name do
-        # TODO handle the functionality of make_sure_section_has_relationships!
         # TODO start sheet must contain absolutely no images or rels
         it 'adds rels/.rels or whatever its called'
 
-        # Types/Override PartName="/xl/media/image1.jpeg" ContentType="image/jpeg"/>
-        it 'add overrides'
+        # eg Types/Override PartName="/xl/media/image1.jpeg" ContentType="image/jpeg"
+        # or Types/Default Extension="jpeg" ContentType="image/jpeg"
+        it 'jpeg has content type' do
+          part = main_part doc
+          rel_id, image_part = doc.add_image_part image, part
+
+          # overrides not necessary for jpeg because they already exist
+          # node_set = content_types.xml.nxpath(%|/*:Types/*:Override/@PartName[text() = '#{image}']|)
+
+          content_types = doc.parts["/[content_types].xml"]
+          node_set = content_types.xml.nxpath(%|/*:Types/*:Default[@Extension = 'jpeg'][@ContentType = 'image/jpeg']|)
+          node_set.size.should == 1
+        end
 
         # TODO this belongs in excel_spec or similar
         # in the xml, we have
         #  xl/worksheets/_rels/sheet1.xml.rels -> xl/drawings/_rels/drawing1.xml.rels -> Target="../media/image1.jpeg"
 
-        it 'adds rels for image' do
+        it 'adds rel of type image' do
+          # here it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
+          rel_id, _image_part = doc.add_image_part image, main_part(doc)
+
+          rel_part = reload doc do |saved|
+            main_part(saved).get_relationship_by_id rel_id
+          end
+
+          rel_part.type.should == 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
+        end
+
+        it 'adds Relationshipo tag for image' do
           # here it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
           part = main_part(doc)
           rel_id, image_part = doc.add_image_part image, part
 
           # now there should be a rel from main_part(doc) to the image part
-          # TODO test rel_part
           rel_part = part.get_relationship_by_id rel_id
           image_rel_path = %<//*:Relationship[@Id = '#{rel_id}'][@Target = '#{rel_part.target_name}']>
 
