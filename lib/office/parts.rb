@@ -231,14 +231,7 @@ module Office
     end
 
     def relative_path_from_owner(part_name)
-      owner_components = @owner_name.downcase.split('/')
-      target_components = part_name.downcase.split('/')
-      return part_name unless owner_components.first == target_components.first
-      owner_components.each do |c|
-        break unless target_components.first == c
-        target_components.shift
-      end
-      target_components.join('/')
+      Pathname(part_name).relative_path_from(Pathname(@owner_name).parent).to_s
     end
 
     def debug_dump
