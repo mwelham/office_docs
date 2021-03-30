@@ -1,4 +1,5 @@
 require 'csv'
+require 'base64'
 
 require 'office/package'
 require 'office/constants'
@@ -12,6 +13,7 @@ require_relative 'location'
 require_relative 'range'
 require_relative 'excel_workbook'
 require_relative 'sheet_data'
+require_relative 'image_drawing'
 
 module Office
   # The design rationale behind this class is that a Sheet is a *grid* of cells.
@@ -195,7 +197,7 @@ module Office
       # - mainly because other parts of this code don't bother to maintain that
       # constraint.
       #
-      # TODO this will break formulas and ranges referring to these cells
+      # TODO this will break formulas and ranges and drawings referring to these cells
       larger_number_rows = data_node.xpath "xmlns:row[@r >= #{insert_range.top_left.row_r}]"
       larger_number_rows.each do |row_node|
         # increase r for the row_node by the insert_range height
@@ -513,6 +515,7 @@ module Office
       end
     end
 
+    # this is actually a document node
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end
 
@@ -572,6 +575,42 @@ module Office
       end
       invalidate_row_cache
       Range.new location, furthest
+    end
+
+    # add the image to display anchored at loc, with optional width x height
+    # return the drawing part containing the image
+    # TODO use stretch if placeholder extent is larger than native image
+    # TODO inserting rows/columns would break the drawing data.
+    # MAYBE where does image_name come from File.basename(image_part.name) would work I think
+    def add_image(image, loc, extent: nil)
+      # image part added to workbook as media/imageX
+      image_part = workbook.add_image_part(image, workbook.workbook_part.path_components)
+
+      # create drawing (with unique-enough tmp value in blip@r:embed)
+      tmp_rel_id = "tmp_rel_id-#{Base64.urlsafe_encode64 "#{Time.now}/#{Thread::current.__id__}"}"
+      drawing = ImageDrawing.new img: image, loc: loc, rel_id: tmp_rel_id, extent: extent
+
+      # drawing part added to workbook as drawings/drawingX ...
+      drawing_part = workbook.add_drawing_part(drawing, workbook.workbook_part.path_components)
+
+      # ... with rel from sheet to drawing
+      drawing_rel_id = workbook.add_relationship(worksheet_part, drawing_part, DRAWING_RELATIONSHIP_TYPE)
+
+      # ... and rel from drawing -> image
+      image_rel_id = workbook.add_relationship(drawing_part, image_part, IMAGE_RELATIONSHIP_TYPE)
+
+      # Using tmp value update r:embed to rId from the image rel remember that
+      # drawing might have been copied so we need to update the active one, ie
+      # drawing_part.xml
+      blip_node, = drawing_part.xml.nxpath(%|/*:wsDr/*:oneCellAnchor/*:pic/*:blipFill/*:blip[@r:embed = '#{tmp_rel_id}']|)
+      blip_node['r:embed'] = image_rel_id
+
+      # append the <drawing r:id="rIdX"/> node as a child of worksheet
+      Nokogiri::XML::Builder.with node.nxpath('*:worksheet').first do |bld|
+        bld.drawing 'r:id': drawing_rel_id
+      end
+
+      drawing_part
     end
   end
 end

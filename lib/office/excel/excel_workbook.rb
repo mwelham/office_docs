@@ -121,5 +121,28 @@ module Office
 
       @sheets.each { |s| s.sheet_data.debug_dump }
     end
+
+    # TODO almost identical to Package#add_image_part_rel
+    def add_drawing_part_rel(drawing, part)
+      drawing_part = add_drawing_part drawing, part.path_components
+      relationship_id = add_relationship part, drawing_part, DRAWING_RELATIONSHIP_TYPE
+
+      [relationship_id, drawing_part]
+    end
+
+    # drawing is anything that has a to_xml (that produces drawing-compatible xml)
+    # drawing will be added as a part underneath /<path_components>/media/drawingX.xml
+    # returns an XmlPart instance
+    # TODO almost identical to Package#add_image_part
+    def add_drawing_part(drawing, path_components)
+      prefix = File.join ?/, path_components, 'drawings/drawing'
+
+      # unused_part_identifier is 1..n : Integer
+      part_name = "#{prefix}#{unused_part_identifier prefix}.xml"
+
+      # TODO there must be a way to get an IO from nokogiri
+      # TODO massive round-trip - this encodes the nokogiri document as a String, and then XmlPart parses it.
+      add_part part_name, StringIO.new(drawing.to_xml), drawing.mime_type
+    end
   end
 end

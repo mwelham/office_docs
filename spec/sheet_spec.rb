@@ -5,6 +5,9 @@ require_relative '../lib/office/constants'
 require_relative '../lib/office/nokogiri_extensions'
 
 require_relative 'xml_fixtures'
+require_relative 'package_debug.rb'
+
+require 'ostruct'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::Sheet do
@@ -282,6 +285,96 @@ describe Office::Sheet do
 
     it 'unknown object location' do
       ->{sheet[Object.new]}.should raise_error(Office::LocatorError)
+    end
+  end
+
+  describe '#add_image' do
+    # for Package#parts
+    using PackageDebug
+
+    let :book do Office::ExcelWorkbook.new BookFiles::EMPTY end
+    let :image do Magick::ImageList.new ImageFiles::TEST_IMAGE end
+
+    it 'adds image, drawing and rels' do
+      # preconditions
+      # book has no media.image parts
+      book.parts.select{|name,part| name =~ %r|media/image|}.should be_empty
+
+      # book has no drawing parts / rels
+      book.parts.select{|name,part| name =~ %r|drawing|}.should be_empty
+
+      # sheet has no drawing node / rels
+      sheet.node.nxpath("/*:worksheet/*:drawing/@r:id").should be_empty
+
+      # add the image
+      loc = Office::Location.new 'B2'
+      sheet.add_image(image, loc)
+
+      # save and check reloaded file - '; book' means book is local and unassigned.
+      reload book do |saved; book|
+        # media/image exists
+        image_parts = saved.parts.select{|name,part| name =~ %r|media/image|}
+        image_parts.size.should == 1
+        image_parts.first.then do |(name, part)|
+          name.should == '/xl/media/image1.jpeg'
+          part.should be_a(Office::ImagePart)
+        end.should_not be_nil
+
+        # rel from drawing -> image exists with IMAGE_RELATIONSHIP_TYPE
+        image_rel_parts = saved.parts.select{|name,part| name =~ %r|drawing.*rels|}
+        image_rel_parts.size.should == 1
+
+        image_rel_id =
+        image_rel_parts.first.then do |(name, part)|
+          name.should == '/xl/drawings/_rels/drawing1.xml.rels'
+          part.should be_a(Office::RelationshipsPart)
+
+          rel_nodes = part.xml.nxpath('//*:Relationship')
+          rel_nodes.size.should == 1
+
+          rel_node = rel_nodes.first
+          rel_node[:Type].should == Office::IMAGE_RELATIONSHIP_TYPE
+          rel_node[:Target].should == '../media/image1.jpeg'
+          rel_node[:Id]
+        end
+
+        # drawings/drawing exists and references image_rel_id
+        drawing_parts = saved.parts.select{|name,part| name =~ %r|drawings/drawing|}
+        drawing_parts.size.should == 1
+        drawing_parts.first.tap do |(name, part)|
+          name.should == '/xl/drawings/drawing1.xml'
+          part.should be_a(Office::XmlPart)
+
+          # blip r:embed uses image rel_id
+          part.xml.nxpath('//*:blip/@r:embed').text.should == image_rel_id
+        end
+
+        # rel from sheet to drawing exists with DRAWING_RELATIONSHIP_TYPE
+        drawing_rel_parts = saved.parts.select{|name,part| name =~ %r|sheet.*rels|}
+        drawing_rel_parts.size.should == 1
+
+        drawing_rel_id =
+        drawing_rel_parts.first.then do |(name, part)|
+          name.should == '/xl/worksheets/_rels/sheet1.xml.rels'
+          part.should be_a(Office::RelationshipsPart)
+
+          rel_nodes = part.xml.nxpath('//*:Relationship')
+          rel_nodes.size.should == 1
+
+          rel_node = rel_nodes.first
+          rel_node[:Type].should == Office::DRAWING_RELATIONSHIP_TYPE
+          rel_node[:Target].should == '../drawings/drawing1.xml'
+          rel_node[:Id]
+        end
+
+        # drawing tag in sheet exists with drawing_rel_id
+        drawing_nodes = sheet.node.nxpath("/*:worksheet/*:drawing/@r:id")
+        drawing_nodes.size.should == 1
+        drawing_nodes.first.text.should == drawing_rel_id
+
+        # finally just eyeball it
+        # `localc --nologo #{saved.filename}`
+      end
     end
   end
 end

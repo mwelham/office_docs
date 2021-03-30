@@ -56,10 +56,6 @@ describe Office::Package do
           node_set.size.should == 1
         end
 
-        # TODO this belongs in excel_spec or similar
-        # in the xml, we have
-        #  xl/worksheets/_rels/sheet1.xml.rels -> xl/drawings/_rels/drawing1.xml.rels -> Target="../media/image1.jpeg"
-
         it 'adds rel of type image' do
           # here it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
           rel_id, _image_part = doc.add_image_part_rel image, main_part(doc)
