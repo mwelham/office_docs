@@ -58,7 +58,7 @@ module Office
       when 1
         @shared_strings = SharedStringTable.new(string_tables.first)
       when 0
-        raise PackageError, 'no string tables'
+        # hopefully other things will be fine with this
       else
         raise PackageError, 'too many string tables'
       end
