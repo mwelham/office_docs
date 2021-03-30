@@ -116,7 +116,7 @@ module Office
       # But sometimes document_section is a Header or Footer, which can't.
       # main_doc.package.ensure_relationships document_section.part
 
-      relationship_id, _image_part = add_image_part image, document_section.part
+      relationship_id, _image_part = add_image_part_rel image, document_section.part
       image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
 
       if hyperlink

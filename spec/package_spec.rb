@@ -8,7 +8,7 @@ require_relative 'modules.rb'
 require_relative 'package_debug.rb'
 
 describe Office::Package do
-  describe '#add_image_part' do
+  describe '#add_image_part_rel' do
     include Reload
     using PackageDebug
 
@@ -46,7 +46,7 @@ describe Office::Package do
         # or Types/Default Extension="jpeg" ContentType="image/jpeg"
         it 'jpeg has content type' do
           part = main_part doc
-          rel_id, image_part = doc.add_image_part image, part
+          rel_id, image_part = doc.add_image_part_rel image, part
 
           # overrides not necessary for jpeg because they already exist
           # node_set = content_types.xml.nxpath(%|/*:Types/*:Override/@PartName[text() = '#{image}']|)
@@ -62,7 +62,7 @@ describe Office::Package do
 
         it 'adds rel of type image' do
           # here it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
-          rel_id, _image_part = doc.add_image_part image, main_part(doc)
+          rel_id, _image_part = doc.add_image_part_rel image, main_part(doc)
 
           rel_part = reload doc do |saved|
             main_part(saved).get_relationship_by_id rel_id
@@ -71,10 +71,10 @@ describe Office::Package do
           rel_part.type.should == 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
         end
 
-        it 'adds Relationshipo tag for image' do
+        it 'adds Relationship tag for image' do
           # here it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
           part = main_part(doc)
-          rel_id, image_part = doc.add_image_part image, part
+          rel_id, image_part = doc.add_image_part_rel image, part
 
           # now there should be a rel from main_part(doc) to the image part
           rel_part = part.get_relationship_by_id rel_id
@@ -99,7 +99,7 @@ describe Office::Package do
         it 'adds media file for image' do
           # it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
           part = main_part(doc)
-          rel_id, image_part = doc.add_image_part image, part
+          rel_id, image_part = doc.add_image_part_rel image, part
 
           saved_image_part = reload_document doc do |saved|
             saved.parts[image_part.name]
@@ -112,7 +112,7 @@ describe Office::Package do
         it 'adds image part' do
           # it doesn't really matter what part the image is added to, as long as it shows up in the saved zip/xml
           part = main_part(doc)
-          rel_id, image_part = doc.add_image_part image, part
+          rel_id, image_part = doc.add_image_part_rel image, part
 
           image_part = reload_document doc do |saved|
             # fetch part by relId and verify

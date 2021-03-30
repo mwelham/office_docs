@@ -163,20 +163,33 @@ module Office
       end
     end
 
+    # return rel_id for new relationship
+    # TODO can lookup rel_type from somewhere? Will always be related to dst_part anyway...?
+    def add_relationship(src_part, dst_part, rel_type)
+      ensure_relationships src_part
+      src_part.add_relationship(dst_part, rel_type)
+    end
+
     # part is the Office::Part to which the image should be added
-    def add_image_part(image, part)
-      prefix = File.join ?/, part.path_components, 'media/image'
+    # image will be added as a part
+    # rel will be added from part to the new image_part
+    def add_image_part_rel(image, part)
+      image_part = add_image_part(image, part.path_components)
+      relationship_id = add_relationship(part, image_part, IMAGE_RELATIONSHIP_TYPE)
+
+      [relationship_id, image_part]
+    end
+
+    # image will be added as a part underneath /<path_components>/media/imageX.<imgext>
+    # returns an ImagePart instance
+    def add_image_part(image, path_components)
+      prefix = File.join ?/, path_components, 'media/image'
 
       # unused_part_identifier is 1..n : Integer
       # .extension comes from the image
       part_name = "#{prefix}#{unused_part_identifier prefix}.#{image.format.downcase}"
 
-      image_part = add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
-
-      ensure_relationships part
-      relationship_id = part.add_relationship(image_part, IMAGE_RELATIONSHIP_TYPE)
-
-      [relationship_id, image_part]
+      add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
     end
 
     def debug_dump
