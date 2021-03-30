@@ -90,7 +90,9 @@ module Office
           end
         end
         raise PackageError.new("package '#{@filename}' is missing content types part") if @parts_by_name.empty?
-        entries.each { |e| parse_zip_entry(e) }
+        entries.each do |e|
+          parse_zip_entry(e) unless e.directory?
+        end
       end
     end
 
