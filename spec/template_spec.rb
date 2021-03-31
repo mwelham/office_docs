@@ -5,9 +5,9 @@ require_relative '../lib/office/excel'
 require_relative '../lib/office/excel/template.rb'
 
 describe Excel::Template do
-  let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_PLACEHOLDERS end
+  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_PLACEHOLDERS end
   let :data do
-    data = YAML.load_file BookFiles.content_path + 'placeholder-data.yml'
+    data = YAML.load_file FixtureFiles::Yaml::PLACEHOLDER_DATA
     # convert tabular data to hashy data
     data[:streams] = Excel::Template.tabular_hashify data[:streams]
     data

@@ -12,10 +12,10 @@ describe Office::Package do
     include Reload
     using PackageDebug
 
-    let :image do Magick::ImageList.new ImageFiles::TEST_IMAGE end
-    let :word do Office::WordDocument.new DocFiles::IMAGE_REPLACEMENT_TEST end
-    let :book do Office::ExcelWorkbook.new BookFiles::IMAGE_TEST end
-    let :simple do Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST end
+    let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+    let :word do Office::WordDocument.new FixtureFiles::Doc::IMAGE_REPLACEMENT_TEST end
+    let :book do Office::ExcelWorkbook.new FixtureFiles::Book::IMAGE_TEST end
+    let :simple do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_TEST end
 
     def main_part document
       candidates =
@@ -31,10 +31,10 @@ describe Office::Package do
     end
 
     docs = {
-      word: Office::WordDocument.new(DocFiles::IMAGE_REPLACEMENT_TEST),
-      book: Office::ExcelWorkbook.new(BookFiles::IMAGE_TEST),
-      simple: Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST),
-      empty: Office::WordDocument.new(DocFiles::EMPTY),
+      word: Office::WordDocument.new(FixtureFiles::Doc::IMAGE_REPLACEMENT_TEST),
+      book: Office::ExcelWorkbook.new(FixtureFiles::Book::IMAGE_TEST),
+      simple: Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST),
+      empty: Office::WordDocument.new(FixtureFiles::Doc::EMPTY),
     }
 
     docs.each do |name, doc|

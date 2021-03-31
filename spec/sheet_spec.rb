@@ -14,7 +14,7 @@ describe Office::Sheet do
   include XmlFixtures
   include ReloadWorkbook
 
-  let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_PLACEHOLDERS end
+  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_PLACEHOLDERS end
   let :sheet do book.sheets.first end
 
   describe 'placeholders' do
@@ -33,7 +33,7 @@ describe Office::Sheet do
   end
 
   describe 'cell operations' do
-    let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST end
+    let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_TEST end
 
     it 'replaces one cell' do
       the_value = "This is the new pump"
@@ -235,7 +235,7 @@ describe Office::Sheet do
   end
 
   describe 'range fetching' do
-    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :book do Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST) end
 
     it 'cells', performance: true do
       sheet = book.sheets.first
@@ -251,7 +251,7 @@ describe Office::Sheet do
   end
 
   describe 'csv' do
-    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :book do Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST) end
     let :sheet do book.sheets.first end
 
     it 'comparisons', performance: true do
@@ -292,8 +292,8 @@ describe Office::Sheet do
     # for Package#parts
     using PackageDebug
 
-    let :book do Office::ExcelWorkbook.new BookFiles::EMPTY end
-    let :image do Magick::ImageList.new ImageFiles::TEST_IMAGE end
+    let :book do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
+    let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
 
     it 'adds image, drawing and rels' do
       # preconditions

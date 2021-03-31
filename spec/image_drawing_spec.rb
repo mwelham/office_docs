@@ -66,13 +66,13 @@ module Office
 
       describe 'drawing.xml' do
         let :loc do MockLoc.new 0, 2 end
-        let :image do Magick::ImageList.new ImageFiles::TEST_IMAGE end
+        let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
         let :rel_id do 'rId2' end
         let :imdr do ImageDrawing.new img: image, loc: loc, rel_id: rel_id, extent: {width: 28, height: 21} end
 
         it 'matches the fixture' do
           # because it has MacOS line endings, and then remove the first comment line
-          expected_xml = File.read(XmlFiles::DRAWING).gsub("\r", "\n").sub(/<!--.*?-->\n*/,'')
+          expected_xml = File.read(FixtureFiles::Xml::DRAWING).gsub("\r", "\n").sub(/<!--.*?-->\n*/,'')
           imdr.xdoc.to_xml.should == expected_xml
         end
       end
@@ -80,7 +80,7 @@ module Office
 
     describe 'with reals' do
       let :loc do Office::Location.new 'C19' end
-      let :image do Magick::ImageList.new ImageFiles::TEST_IMAGE end
+      let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
       let :rel_id do Base64.urlsafe_encode64 "#{Time.now}/#{Thread::current.__id__}" end
 
       it 'normal drawing' do
