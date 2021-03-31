@@ -39,8 +39,26 @@ describe Office::Package do
 
     docs.each do |name, doc|
       describe name do
-        # TODO start sheet must contain absolutely no images or rels
-        it 'adds rels/.rels or whatever its called'
+        describe '#ensure_relationship' do
+          let :part do main_part doc end
+          let :image_part do doc.add_image_part image, part.path_components end
+
+          it 'adds rels/.rels or whatever its called' do
+            # preconditions
+            # no rels file exists
+            doc.parts[image_part.rels_name].should be_nil
+
+            doc.ensure_relationships image_part
+
+            # rels file now exists
+            doc.parts[image_part.rels_name].should be_a(Office::RelationshipsPart)
+
+            # contains a Relationships tag but nothing else
+            doc = doc.parts[image_part.rels_name].xml
+            doc.nxpath('/*:Relationships').size.should == 1
+            doc.nxpath('/*:Relationships/node()').size.should == 0
+          end
+        end
 
         # eg Types/Override PartName="/xl/media/image1.jpeg" ContentType="image/jpeg"
         # or Types/Default Extension="jpeg" ContentType="image/jpeg"

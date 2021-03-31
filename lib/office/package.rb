@@ -158,15 +158,14 @@ module Office
     # make sure that a maybe-new part has a related Relationships entry in the relevant rels file
     def ensure_relationships part
       unless part.has_relationships?
-        rel_name = File.join ?/, part.path_components, '_rels', part.name.split('/').last
         content = StringIO.new %|<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>|
-        rels_part = add_part("#{rel_name}.rels", content, RELATIONSHIP_CONTENT_TYPE)
+        rels_part = add_part(part.rels_name, content, RELATIONSHIP_CONTENT_TYPE)
         rels_part.map_relationships(self)
       end
     end
 
     # return rel_id for new relationship
-    # TODO can lookup rel_type from somewhere? Will always be related to dst_part anyway...?
+    # MAYBE can lookup rel_type from somewhere? Will always be related to dst_part anyway...?
     def add_relationship(src_part, dst_part, rel_type)
       ensure_relationships src_part
       src_part.add_relationship(dst_part, rel_type)

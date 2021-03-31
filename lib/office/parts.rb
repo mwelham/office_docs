@@ -14,6 +14,13 @@ module Office
       name.split('/').values_at(1..-2)
     end
 
+    # name of the _rels file for this part
+    # eg for part /xl/drawings/drawing1.xml
+    # the rels file is /xl/drawings/_rels/drawing1.xml.rels
+    def rels_name
+      File.join File.dirname(name), '_rels', "#{File.basename(name)}.rels"
+    end
+
     def save(zip_output)
       zip_output.put_next_entry @zip_entry_name || @name[1..-1] # strip off leading '/'
       zip_output << get_zip_content
