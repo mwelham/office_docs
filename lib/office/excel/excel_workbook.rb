@@ -140,9 +140,7 @@ module Office
       # unused_part_identifier is 1..n : Integer
       part_name = "#{prefix}#{unused_part_identifier prefix}.xml"
 
-      # TODO there must be a way to get an IO from nokogiri
-      # TODO massive round-trip - this encodes the nokogiri document as a String, and then XmlPart parses it.
-      add_part part_name, StringIO.new(drawing.to_xml), drawing.mime_type
+      add_part part_name, drawing.xdoc, drawing.mime_type
     end
   end
 end

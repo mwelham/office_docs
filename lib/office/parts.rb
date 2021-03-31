@@ -97,10 +97,15 @@ module Office
   class XmlPart < Part
     attr_accessor :xml # Nokogiri::XML::Document
 
-    def initialize(part_name, xml_io, content_type)
+    def initialize(part_name, xml_thing, content_type)
       @name = part_name
-      @xml = Nokogiri::XML::Document.parse(xml_io)
       @content_type = content_type
+      @xml = case xml_thing
+      when Nokogiri::XML::Document
+        xml_thing
+      else
+        Nokogiri::XML(xml_thing)
+      end
     end
 
     def get_zip_content
