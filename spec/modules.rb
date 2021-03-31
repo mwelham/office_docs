@@ -36,6 +36,18 @@ module ImageFiles
   end
 end
 
+module XmlFiles
+  def self.content_path
+    Pathname(__dir__) + "../test/content"
+  end
+
+  content_path.children.each do |path|
+    next unless path.to_s.end_with? '.xml'
+    const_name = path.basename('.xml').to_s.gsub(/[[:punct:]]/, ?_).upcase
+    const_set const_name, path.realpath.to_s
+  end
+end
+
 module Reload
   def reload document, filename = nil, &blk
     Dir.mktmpdir do |dir|
