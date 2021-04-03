@@ -1,0 +1,49 @@
+{{fields.ManaSign_photo_ |200x100}}
+{{fields.RepSign_photo_|200x100}}
+{{fields.Originator_Signature|50x100}}
+{{fields.Originator_Signature|50x100}}
+{{ fields.Image_Question | 100x100 }}
+{{ fields.Location_Question | 100x100 }}
+{{ fields.Group | image_size: [100x100]}}
+{{ fields.Group | map_size: [100x100]}}
+{{fields._4__Roof_Segment[0]._4_2_1_2__Sketch_roof_outline_and_dimension|860x640}}
+{{fields._4__Roof_Segment[1]._4_2_1_2__Sketch_roof_outline_and_dimension|860x640}}
+{{fields._4__Roof_Segment[0]._4_1_3__Please_take_a_photo_of_the_access|540x320}}
+{{fields._4__Roof_Segment[0]._4_2_1_2__Sketch_roof_outline_and_dimension|540x320}}
+{{fields._4__Roof_Segment[0]._4_2_4__Please_take_a_photo_of_the_roof|540x320}}
+{{fields._4__Roof_Segment[0]._4_4_2__Please_take_a_photo_of_the_lightning_protection|540x320}}
+{{fields._4__Roof_Segment[0]._4_4_4__Please_take_a_photo_of_the_air_terminal|540x320}}
+{{fields._4__Roof_Segment[0]._4_5_2__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._4__Roof_Segment[0]._4_5_4__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._4__Roof_Segment[0]._4_5_6__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._4__Roof_Segment[1]._4_1_3__Please_take_a_photo_of_the_access|540x320}}
+{{fields._4__Roof_Segment[1]._4_2_1_2__Sketch_roof_outline_and_dimension|540x320}}
+{{fields._4__Roof_Segment[1]._4_2_4__Please_take_a_photo_of_the_roof|540x320}}
+{{fields._4__Roof_Segment[1]._4_4_2__Please_take_a_photo_of_the_lightning_protection|540x320}}
+{{fields._4__Roof_Segment[1]._4_4_4__Please_take_a_photo_of_the_air_terminal|540x320}}
+{{fields._4__Roof_Segment[1]._4_5_2__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._4__Roof_Segment[1]._4_5_4__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._4__Roof_Segment[1]._4_5_6__Please_take_a_photo_to_show_shading|540x320}}
+{{fields._6__Tie_in_DB[0]._6_1_4__Please_take_a_photo_of_DB_Location|540x320}}
+{{fields._6__Tie_in_DB[0]._6_2_2__Please_take_a_photo_of_the_main_breaker|540x320}}
+{{fields._6__Tie_in_DB[0]._6_3_2__Please_take_a_photo_of_fault_level|540x320}}
+{{fields._6__Tie_in_DB[0]._6_4_2__Please_take_photo_of_the_spare_DB_space|540x320}}
+{{fields._6__Tie_in_DB[0]._6_5_3__Please_take_a_photo_of_the_available_wall_space|540x320}}
+{{fields._6__Tie_in_DB[1]._6_1_4__Please_take_a_photo_of_DB_Location|540x320}}
+{{fields._6__Tie_in_DB[1]._6_2_2__Please_take_a_photo_of_the_main_breaker|540x320}}
+{{fields._6__Tie_in_DB[1]._6_3_2__Please_take_a_photo_of_fault_level|540x320}}
+{{fields._6__Tie_in_DB[1]._6_4_2__Please_take_photo_of_the_spare_DB_space|540x320}}
+{{fields._6__Tie_in_DB[1]._6_5_3__Please_take_a_photo_of_the_available_wall_space|540x320}}
+{{fields._5__Inverter[0]._5_4__Please_take_a_photo_of_inverter_location|540x320}}
+{{fields._5__Inverter[1]._5_4__Please_take_a_photo_of_inverter_location|540x320}}
+{{fields._7__Cable_Routing._7_1_3__Please_take_a_photo_of_path|540x320}}
+{{fields._7__Cable_Routing._7_2_2__Please_take_a_photo_of_the_existing_wireways|540x320}}
+{{fields._7__Cable_Routing._7_3_2__Please_take_a_photo_where_wireways_are_required|540x320}}
+{{fields._8__Contractor_Site_Camp._8_1_3__Please_take_a_photo_of_site_camp_location|540x320}}
+{{fields._8__Contractor_Site_Camp._8_2_2__Please_take_a_photo_of_security|540x320}}
+{{fields.Photo_of_Building_Side_1|540x320}}
+{{fields.Photo_of_Building_Side_2|540x320}}
+{{fields.Photo_of_Building_Side_3|540x320}}
+{{fields.Photo_of_Building_Side_4|540x320}}
+{{fields.Detail_Sketches[0].Sketch|860x640}}
+{{fields.Detail_Sketches[1].Sketch|860x640}}

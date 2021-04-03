@@ -1,0 +1,163 @@
+# for peach lang grammar see https://github.com/pH-7/PeachLang/blob/master/src/grammar.y
+# pupper parser https://www.masterzen.fr/2011/12/27/puppet-internals-the-parser/
+# see https://gist.github.com/lnznt/2533003
+# see also rsec gem
+# -E will include runtime in parser
+# otherwise must require racc/parser.rb
+# racc -E -oplaceholder_grammar.rb placeholder_grammar.racc
+# racc -E -olib/office/excel/placeholder_grammar.rb lib/office/excel/placeholder_grammar.racc
+# racc -olib/office/excel/placeholder_grammar.rb lib/office/excel/placeholder_grammar.racc
+
+# for detailed example including tokenizer
+# https://practicingruby.com/articles/parsing-json-the-hard-way
+
+# rake rule
+# rule '.rb' => '.y' do |t|
+#   sh "racc -l -o #{t.name} #{t.source}"
+# end
+
+class Office::PlaceholderGrammar
+  token NUMBER IDENTIFIER LRQUOTE STRING BOOLEAN RANGE CHAR false true
+
+  start cuddled
+
+  # Note 1-token lookahead permitted for LALR(1) grammars
+  rule
+    # NOTE in the action, self is the PlaceholderGrammar instance, local vars are result and val
+    # val contains the set of matched tokens in the rule
+    # _values contains, uhhh, previous tokens?
+    # placeholder: field;
+    cuddled: '{' '{' placeholder '}' '}'
+
+    placeholder: field_path '|' directives | field_path;
+
+    field_path: nstep '.' field_path | nstep;
+
+    # for name or name[nnn]
+    nstep
+      : IDENTIFIER '[' NUMBER ']' { self.field_path << val[0]; self.field_path << Integer(val[2]) }
+      | IDENTIFIER { self.field_path << val[0] }
+      ;
+
+    directives: directive ',' directives | directive;
+    directive: extent | keyword | functor | naked;
+
+    # keywords: keyword ',' keywords | keyword
+    # keywords must (ideally) also handle:
+    # - bare symbols eg 'separator: ;'
+    # - unquoted values eg date_time_format: %d &m %y
+    #
+    # This could use a c-hack to parse values to /[,}]/ but that would require
+    # setting a flag on the lexer to change mode. And the tokenizer would have to be pull rather than push.
+
+    keyword: IDENTIFIER ':' composite_value { self.keywords[val[0].to_sym] = val[2] };
+
+    composite_value: value | '[' array_value ']';
+
+    array_value: extent | naked;
+
+    # functors: functor ',' functors | functor
+    functor: IDENTIFIER '(' values ')' { self.functors[val[0].to_sym] = val[2] };
+
+    naked: IDENTIFIER { self.keywords[val[0].to_sym] = true }
+
+    values: value ',' values | value;
+
+    value: string | boolean | extent
+      | NUMBER {result = Integer val[0]}
+      | RANGE
+      ;
+
+    boolean: false {result = false} | true {result = true};
+
+    string
+      : '"' STRING '"'
+      | "'" STRING "'"
+      | LRQUOTE STRING LRQUOTE
+      ;
+
+    # chars: CHAR chars | CHAR;
+
+    extent: NUMBER x NUMBER { self.image_extent = {width: val[0], height: val[2]} };
+
+    x: 'X' | 'x';
+
+  # start placeholder
+end
+
+---- header
+
+---- inner
+  def initialize
+    super
+    @field_path = []
+    @keywords = {}
+    @functors = {}
+  end
+
+  attr_reader :field_path
+  attr_accessor :image_extent
+
+  # really these have the same function but different syntaxes so keep them separate
+  attr_accessor :keywords
+  attr_accessor :functors
+
+  def to_h
+    {
+      field_path: field_path,
+      image_extent: image_extent,
+      keywords: keywords,
+      functors: functors,
+    }
+  end
+
+  def yydebug; true end
+
+  DQUOTE_RX = /"([^"\\]|\\["\\\/bfnrt])*?"/
+  SQUOTE_RX = /'([^'\\]|\\['\\\/bfnrt])*?'/
+  LRQUOTE_RX = /[“”]([^'\\]|\\['\\\/bfnrt])*?[“”]/
+
+  # The lexer.
+  def self.tokenize line
+    return enum_for __method__, line unless block_given?
+
+    s = StringScanner.new line
+    case
+      when s.scan(/true/); yield [:true, 'true']
+      when s.scan(/false/); yield [:false, 'false']
+      when s.scan(/(\d+)x(\d+)/i)
+        yield [:NUMBER, s.captures[0]]
+        yield [?x, ?x]
+        yield [:NUMBER, s.captures[1]]
+
+      when s.scan(/\d+/i);       yield [:NUMBER, s.matched]
+      when s.scan(/\w[\d\w_]*/); yield [:IDENTIFIER, s.matched]
+      when s.skip(/\s/);         # ignore white space
+      when s.scan(SQUOTE_RX)
+        str = s.matched
+        yield [str[0], str[0]]
+        yield [:STRING, s.matched[1...-1]]
+        yield [str[-1], str[-1]]
+
+      when s.scan(DQUOTE_RX)
+        str = s.matched
+        yield [str[0], str[0]]
+        yield [:STRING, s.matched[1...-1]]
+        yield [str[-1], str[-1]]
+
+      when s.scan(LRQUOTE_RX)
+        str = s.matched
+        yield [:LRQUOTE, str[0]]
+        yield [:STRING, s.matched[1...-1]]
+        yield [:LRQUOTE, str[-1]]
+
+      else
+        nc = s.getch
+        yield [nc, nc]
+    end until s.eos?
+  end
+
+  def read_tokens(tokens)
+    define_singleton_method(:next_token) { tokens.shift }
+    do_parse
+  end
