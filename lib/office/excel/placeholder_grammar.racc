@@ -33,7 +33,8 @@ class Office::PlaceholderGrammar
     # _values contains, uhhh, previous tokens?
     cuddled: '{' '{' placeholder '}' '}'
 
-    placeholder: field_path '|' directives | field_path;
+    # empty placeholders allowed
+    placeholder: | field_path '|' directives | field_path;
 
     field_path: nstep '.' field_path | nstep;
 
@@ -44,13 +45,18 @@ class Office::PlaceholderGrammar
       ;
 
     directives: directive ',' directives | directive;
-    directive: extent | keyword | functor | naked;
+    directive
+      : extent {self.image_extent = val[0]}
+      | keyword
+      | functor
+      | naked
+      ;
 
     keyword: IDENTIFIER ':' composite_value { self.keywords[val[0].to_sym] = val[2] };
 
     composite_value
-      : value
-      | '[' array_value ']'
+      : '[' array_value ']' {result = val[1]}
+      | value
       ;
 
     array_value: extent | naked;
@@ -59,7 +65,11 @@ class Office::PlaceholderGrammar
 
     naked: IDENTIFIER { self.keywords[val[0].to_sym] = true }
 
-    values: value ',' values | value;
+    # should this return single_value or [single_value] ? Probably the latter?
+    values
+      # tricksily concatenate multiple values into one
+      : value ',' values {result = [*Array(val[0]), *Array(val[2])]}
+      | value;
 
     value: string | boolean | extent
       | NUMBER {result = Integer val[0]}
@@ -69,13 +79,13 @@ class Office::PlaceholderGrammar
     boolean: false {result = false} | true {result = true};
 
     string
-      : '"' STRING '"'
-      | "'" STRING "'"
-      | LRQUOTE STRING LRQUOTE
+      : '"' STRING '"' {result = val[1]}
+      | "'" STRING "'" {result = val[1]}
+      | LRQUOTE STRING LRQUOTE {result = val[1]}
       | MAGIC_QUOTED
       ;
 
-    extent: NUMBER x NUMBER { self.image_extent = {width: val[0], height: val[2]} };
+    extent: NUMBER x NUMBER { result = {width: val[0], height: val[2]} };
 
     x: 'X' | 'x';
 end

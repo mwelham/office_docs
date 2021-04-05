@@ -10,7 +10,7 @@ require 'racc/parser.rb'
 module Office
   class PlaceholderGrammar < Racc::Parser
 
-module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 86)
+module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 96)
   def initialize
     super
     @field_path = []
@@ -130,7 +130,7 @@ module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_gra
 
 racc_action_table = [
     39,     2,    45,    46,    22,    21,    40,     3,    41,    42,
-    39,     4,    45,    46,    35,     5,    40,     9,    41,    42,
+    39,     4,    45,    46,    34,     5,    40,     9,    41,    42,
     43,    44,    26,    27,    29,    30,    39,    10,    45,    46,
     43,    44,    40,    11,    41,    42,    22,    21,    22,    53,
     29,    30,    12,    13,    14,     9,    43,    44,    24,    25,
@@ -141,7 +141,7 @@ racc_action_check = [
     26,     0,    26,    26,    11,    11,    26,     1,    26,    26,
     27,     2,    27,    27,    26,     3,    27,     4,    27,    27,
     26,    26,    21,    21,    22,    22,    58,     6,    58,    58,
-    27,    27,    58,     7,    58,    58,    25,    25,    35,    35,
+    27,    27,    58,     7,    58,    58,    25,    25,    34,    34,
     39,    39,     8,     9,    10,    12,    58,    58,    13,    16,
     24,    28,    43,    44,    45,    47,    48,    50,    54,    55,
     56 ]
@@ -150,80 +150,81 @@ racc_action_pointer = [
    -11,     7,    -1,    15,    14,   nil,    14,    19,    27,    27,
     31,     2,    42,    46,   nil,   nil,    31,   nil,   nil,   nil,
    nil,     3,     0,   nil,    33,    34,    -2,     8,    49,   nil,
-   nil,   nil,   nil,   nil,   nil,    36,   nil,   nil,   nil,    16,
+   nil,   nil,   nil,   nil,    36,   nil,   nil,   nil,   nil,    16,
    nil,   nil,   nil,    46,    47,    48,   nil,    34,    38,   nil,
     40,   nil,   nil,   nil,    36,    36,    56,   nil,    24,   nil,
    nil,   nil,   nil,   nil ]
 
 racc_action_default = [
-   -37,   -37,   -37,   -37,   -37,    64,   -37,    -3,    -5,    -7,
-   -37,   -37,   -37,   -37,    -1,    -2,    -9,   -10,   -11,   -12,
-   -13,   -20,   -37,    -4,   -37,   -37,   -37,   -37,   -37,   -35,
-   -36,    -6,    -8,   -14,   -15,   -37,   -23,   -24,   -25,   -26,
-   -27,   -28,   -29,   -37,   -37,   -37,   -33,   -37,   -22,   -34,
-   -37,   -17,   -18,   -20,   -37,   -37,   -37,   -19,   -37,   -16,
-   -30,   -31,   -32,   -21 ]
+   -38,   -38,   -38,   -38,    -2,    64,   -38,    -4,    -6,    -8,
+   -38,   -38,   -38,   -38,    -1,    -3,   -10,   -11,   -12,   -13,
+   -14,   -21,   -38,    -5,   -38,   -38,   -38,   -38,   -38,   -36,
+   -37,    -7,    -9,   -15,   -38,   -17,   -24,   -25,   -26,   -27,
+   -28,   -29,   -30,   -38,   -38,   -38,   -34,   -38,   -23,   -35,
+   -38,   -18,   -19,   -21,   -38,   -38,   -38,   -20,   -38,   -16,
+   -31,   -32,   -33,   -22 ]
 
 racc_goto_table = [
-    47,    17,    15,     7,     1,     6,    52,    33,    34,    50,
+    47,    17,    15,     7,     1,     6,    52,    33,    50,    35,
    nil,    23,   nil,   nil,   nil,    17,    32,   nil,   nil,   nil,
-   nil,   nil,   nil,   nil,   nil,    51,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,   nil,    51,   nil,   nil,   nil,   nil,   nil,
    nil,    63 ]
 
 racc_goto_check = [
     14,     7,     4,     3,     1,     2,    10,    11,    12,    13,
    nil,     3,   nil,   nil,   nil,     7,     4,   nil,   nil,   nil,
-   nil,   nil,   nil,   nil,   nil,     7,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,   nil,     7,   nil,   nil,   nil,   nil,   nil,
    nil,    14 ]
 
 racc_goto_pointer = [
    nil,     4,     1,    -1,    -9,   nil,   nil,   -10,   nil,   nil,
-   -29,   -19,   -18,   -26,   -27,   nil,   nil,   nil ]
+   -28,   -19,   -26,   -17,   -27,   nil,   nil,   nil ]
 
 racc_goto_default = [
    nil,   nil,   nil,   nil,   nil,     8,    16,    38,    18,    19,
-    20,   nil,    48,   nil,   nil,    36,    37,    28 ]
+    20,   nil,   nil,    48,   nil,    36,    37,    28 ]
 
 racc_reduce_table = [
   0, 0, :racc_error,
   5, 27, :_reduce_none,
+  0, 28, :_reduce_none,
   3, 28, :_reduce_none,
   1, 28, :_reduce_none,
   3, 29, :_reduce_none,
   1, 29, :_reduce_none,
-  4, 31, :_reduce_6,
-  1, 31, :_reduce_7,
+  4, 31, :_reduce_7,
+  1, 31, :_reduce_8,
   3, 30, :_reduce_none,
   1, 30, :_reduce_none,
+  1, 32, :_reduce_11,
   1, 32, :_reduce_none,
   1, 32, :_reduce_none,
   1, 32, :_reduce_none,
-  1, 32, :_reduce_none,
-  3, 34, :_reduce_14,
+  3, 34, :_reduce_15,
+  3, 37, :_reduce_16,
   1, 37, :_reduce_none,
-  3, 37, :_reduce_none,
-  1, 39, :_reduce_none,
-  1, 39, :_reduce_none,
-  4, 35, :_reduce_19,
-  1, 36, :_reduce_20,
-  3, 40, :_reduce_none,
+  1, 38, :_reduce_none,
+  1, 38, :_reduce_none,
+  4, 35, :_reduce_20,
+  1, 36, :_reduce_21,
+  3, 40, :_reduce_22,
   1, 40, :_reduce_none,
-  1, 38, :_reduce_none,
-  1, 38, :_reduce_none,
-  1, 38, :_reduce_none,
-  1, 38, :_reduce_26,
-  1, 38, :_reduce_none,
-  1, 42, :_reduce_28,
+  1, 39, :_reduce_none,
+  1, 39, :_reduce_none,
+  1, 39, :_reduce_none,
+  1, 39, :_reduce_27,
+  1, 39, :_reduce_none,
   1, 42, :_reduce_29,
-  3, 41, :_reduce_none,
-  3, 41, :_reduce_none,
-  3, 41, :_reduce_none,
+  1, 42, :_reduce_30,
+  3, 41, :_reduce_31,
+  3, 41, :_reduce_32,
+  3, 41, :_reduce_33,
   1, 41, :_reduce_none,
-  3, 33, :_reduce_34,
+  3, 33, :_reduce_35,
   1, 43, :_reduce_none,
   1, 43, :_reduce_none ]
 
-racc_reduce_n = 37
+racc_reduce_n = 38
 
 racc_shift_n = 64
 
@@ -314,8 +315,8 @@ Racc_token_to_s_table = [
   "functor",
   "naked",
   "composite_value",
-  "value",
   "array_value",
+  "value",
   "values",
   "string",
   "boolean",
@@ -337,64 +338,79 @@ Racc_debug_parser = false
 
 # reduce 5 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 41)
-  def _reduce_6(val, _values, result)
+# reduce 6 omitted
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 42)
+  def _reduce_7(val, _values, result)
      self.field_path << val[0]; self.field_path << Integer(val[2])
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 42)
-  def _reduce_7(val, _values, result)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 43)
+  def _reduce_8(val, _values, result)
      self.field_path << val[0]
     result
   end
 .,.,
 
-# reduce 8 omitted
-
 # reduce 9 omitted
 
 # reduce 10 omitted
 
-# reduce 11 omitted
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 48)
+  def _reduce_11(val, _values, result)
+    self.image_extent = val[0]
+    result
+  end
+.,.,
 
 # reduce 12 omitted
 
 # reduce 13 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 48)
-  def _reduce_14(val, _values, result)
+# reduce 14 omitted
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 54)
+  def _reduce_15(val, _values, result)
      self.keywords[val[0].to_sym] = val[2]
     result
   end
 .,.,
 
-# reduce 15 omitted
-
-# reduce 16 omitted
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 57)
+  def _reduce_16(val, _values, result)
+    result = val[1]
+    result
+  end
+.,.,
 
 # reduce 17 omitted
 
 # reduce 18 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 57)
-  def _reduce_19(val, _values, result)
+# reduce 19 omitted
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 63)
+  def _reduce_20(val, _values, result)
      self.functors[val[0].to_sym] = val[2]
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 59)
-  def _reduce_20(val, _values, result)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 65)
+  def _reduce_21(val, _values, result)
      self.keywords[val[0].to_sym] = true
     result
   end
 .,.,
 
-# reduce 21 omitted
-
-# reduce 22 omitted
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 70)
+  def _reduce_22(val, _values, result)
+    result = [*Array(val[0]), *Array(val[2])]
+    result
+  end
+.,.,
 
 # reduce 23 omitted
 
@@ -402,47 +418,64 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 59)
 
 # reduce 25 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 64)
-  def _reduce_26(val, _values, result)
+# reduce 26 omitted
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 74)
+  def _reduce_27(val, _values, result)
     result = Integer val[0]
     result
   end
 .,.,
 
-# reduce 27 omitted
+# reduce 28 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 68)
-  def _reduce_28(val, _values, result)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 78)
+  def _reduce_29(val, _values, result)
     result = false
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 68)
-  def _reduce_29(val, _values, result)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 78)
+  def _reduce_30(val, _values, result)
     result = true
     result
   end
 .,.,
 
-# reduce 30 omitted
-
-# reduce 31 omitted
-
-# reduce 32 omitted
-
-# reduce 33 omitted
-
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 77)
-  def _reduce_34(val, _values, result)
-     self.image_extent = {width: val[0], height: val[2]}
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 81)
+  def _reduce_31(val, _values, result)
+    result = val[1]
     result
   end
 .,.,
 
-# reduce 35 omitted
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 82)
+  def _reduce_32(val, _values, result)
+    result = val[1]
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 83)
+  def _reduce_33(val, _values, result)
+    result = val[1]
+    result
+  end
+.,.,
+
+# reduce 34 omitted
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 87)
+  def _reduce_35(val, _values, result)
+     result = {width: val[0], height: val[2]}
+    result
+  end
+.,.,
 
 # reduce 36 omitted
+
+# reduce 37 omitted
 
 def _reduce_none(val, _values, result)
   val[0]

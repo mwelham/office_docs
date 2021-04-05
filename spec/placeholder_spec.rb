@@ -1,15 +1,22 @@
 require_relative 'spec_helper'
 
 require_relative '../lib/office/excel/placeholder_grammar.rb'
+require_relative '../lib/office/excel/placeholder_lexer.rb'
 
 module Office
   describe PlaceholderGrammar do
     describe '#read_tokens' do
+      # surround with {{ }} if they aren't already
       def cuddle tokens
-        [
-          [?{, ?{], [?{, ?{], *tokens, [?}, ?}], [?}, ?}]
-        ]
+        if tokens.first(2) != [[?{, ?{], [?{, ?{]]
+          [
+            [?{, ?{], [?{, ?{], *tokens, [?}, ?}], [?}, ?}]
+          ]
+        else
+          tokens
+        end
       end
+
       # tokens are NUMBER IDENTIFIER QUOTE STRING QUOTE BOOLEAN
       it 'single field' do
         tokens = [[:IDENTIFIER, 'some_group']]
@@ -96,56 +103,100 @@ module Office
       end
     end
 
+    # NOTE generated from
+    #   Word::PlaceholderReplacer#get_replacement
+    # using
+    #   File.open('/tmp/all.txt','a'){|io| io.puts placeholder[:placeholder_text]}
+    # then
+    #   rake test:all
     describe '#parse' do
-      (Pathname(__dir__) +'fixtures/all-placeholders.txt').each_line do |line|
-        it "tokenizes #{line}" do
-          tokens = Array(PlaceholderGrammar.tokenize line)
-          subject.read_tokens tokens.dup
-          ->{subject.read_tokens tokens}.should_not raise_error
-        rescue
-          binding.pry
+      describe 'extracted' do
+        (Pathname(__dir__) +'fixtures/all-placeholders.txt').each_line do |line|
+          it "tokenizes #{line}" do
+            tokens = Array(PlaceholderLexer.tokenize line)
+            ->{subject.read_tokens tokens}.should_not raise_error
+          end
         end
       end
 
-      it "tokenizes unquoted keyword values" do
-        line = %<{{ submitted_at | date_time_format: %d &m %y, capitalize, separator: ;, justify  }}>
-        tokens = Array(PlaceholderGrammar.tokenize line)
-        subject.read_tokens tokens
-        subject.to_h.should == {
-          :field_path=>['submitted_at'],
-          :image_extent=>nil,
-          :keywords=>{:date_time_format=>"%d &m %y", :capitalize=>true, :separator=>";", :justify=>true},
-          :functors=>{}
-        }
-      end
+      describe 'fixtures' do
+        it "empty placeholder" do
+          tokens = Array(PlaceholderLexer.tokenize "{{}}")
+          subject.read_tokens(tokens).should == {
+            :field_path=>[],
+            :image_extent=>nil,
+            :keywords=>{},
+            :functors=>{}
+          }
+        end
 
-      it "tokenizes bracketed extent" do
-        line = %<{{ fields.Group | image_size: [100x200]}}>
-        tokens = Array(PlaceholderGrammar.tokenize line)
-        subject.read_tokens tokens
-        subject.to_h.should == {:field_path=>["fields", "Group"], :image_extent=>{}, :keywords=>{image_size: {:width=>"100", :height=>"200"}}, :functors=>{}}
+        it "tokenizes unquoted keyword values" do
+          line = %<{{ submitted_at | date_time_format: %d &m %y, capitalize, separator: ;, justify  }}>
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {
+            :field_path=>['submitted_at'],
+            :image_extent=>nil,
+            :keywords=>{:date_time_format=>"%d &m %y", :capitalize=>true, :separator=>";", :justify=>true},
+            :functors=>{}
+          }
+        end
+
+        it "bracketed image_size" do
+          line = %<{{ fields.Group | image_size: [100x200]}}>
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[fields Group], :image_extent=>nil, :keywords=>{image_size: {:width=>"100", :height=>"200"}}, :functors=>{}}
+        end
+
+        it 'image extent' do
+          line = '{{entries.your_picture|100x200}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[entries your_picture], :image_extent=>{:width=>"100", :height=>"200"}, :keywords=>{}, :functors=>{}}
+        end
+
+        it 'image functor size' do
+          line = '{{entries.your_picture|size(100,200)}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[entries your_picture], :image_extent=>nil, :functors=>{size: [100, 200]}, :keywords=>{}}
+        end
+
+        it 'multi-value functor' do
+          line = '{{doh|stuff(1,2,3,4,5)}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :functors=>{stuff: [1,2,3,4,5]}, :keywords=>{}}
+        end
+
+        it 'quoted layout keyword' do
+          line = '{{entries.entries.group|layout: "d3:g4"}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+        end
+
+        it 'bare layout keyword' do
+          line = '{{entries.entries.group|layout: d3:g4}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+        end
+
+        # breaks because of magic quoting
+        xit 'layout functor' do
+          line = '{{entries.entries.group|layout(d3:g4)}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          binding.pry
+          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>{}, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+        end
       end
     end
 
     describe '#parse' do
-      xit 'image extent' do
-        ph = Placeholder.parse 'entries.your_picture|100x200'
-        ph.name.should == 'entries.your_picture'
-        ph.options.should == {extent: [100,200]}
-      end
-
-      xit 'image extent' do
-        ph = Placeholder.parse 'entries.your_picture|size(100,200)'
-        ph.name.should == 'entries.your_picture'
-        ph.options.should == {size: [100,200]}
-      end
-
-      xit 'image extent' do
-        ph = Placeholder.parse 'entries.entries.group|layout: "d3:g4"'
-        ph.name.should == 'entries.entries.group'
-        ph.options.should == {layout: %w[d3 g4]}
-      end
+      it 'implement lex then parse'
     end
   end
-
 end
