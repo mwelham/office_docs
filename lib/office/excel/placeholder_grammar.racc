@@ -30,29 +30,39 @@ class Office::PlaceholderGrammar
   rule
     # NOTE in the action, self is the PlaceholderGrammar instance, local vars are result and val
     # val contains the set of matched tokens in the rule
-    # _values contains, uhhh, previous tokens?
-    cuddled: '{' '{' placeholder '}' '}'
+    # parser DOES NOT return the final value of the top rule. You must set it on self somewhere.
+    cuddled
+      : '{' '{' placeholder '}' '}'
+      | placeholder
+      ;
 
     # empty placeholders allowed
-    placeholder: | field_path '|' directives | field_path;
+    placeholder
+      :
+      | field_path '|' directives {self.field_path = val[0]}
+      | field_path {self.field_path = val[0]}
+      ;
 
-    field_path: nstep '.' field_path | nstep;
+    field_path
+      : nstep '.' field_path {result = [*Array(val[0]), *Array(val[2])]}
+      | nstep
+      ;
 
-    # for name or name[nnn]
+    # for name or name[nnn], so must always return an array
     nstep
-      : IDENTIFIER '[' NUMBER ']' { self.field_path << val[0]; self.field_path << Integer(val[2]) }
-      | IDENTIFIER { self.field_path << val[0] }
+      : IDENTIFIER '[' NUMBER ']' {result = [val[0], Integer(val[2])] }
+      | IDENTIFIER { result = val }
       ;
 
     directives: directive ',' directives | directive;
     directive
       : extent {self.image_extent = val[0]}
-      | keyword
-      | functor
-      | naked
+      | keyword {self.keywords.merge! val[0]}
+      | functor {self.functors.merge! val[0]}
+      | naked {self.keywords.merge! val[0]}
       ;
 
-    keyword: IDENTIFIER ':' composite_value { self.keywords[val[0].to_sym] = val[2] };
+    keyword: IDENTIFIER ':' composite_value { result = {val[0].to_sym => val[2]} };
 
     composite_value
       : '[' array_value ']' {result = val[1]}
@@ -61,9 +71,9 @@ class Office::PlaceholderGrammar
 
     array_value: extent | naked;
 
-    functor: IDENTIFIER '(' values ')' { self.functors[val[0].to_sym] = val[2] };
+    functor: IDENTIFIER '(' values ')' { result = {val[0].to_sym => val[2]} };
 
-    naked: IDENTIFIER { self.keywords[val[0].to_sym] = true }
+    naked: IDENTIFIER { result = {val[0].to_sym => true} }
 
     # should this return single_value or [single_value] ? Probably the latter?
     values
@@ -108,7 +118,7 @@ end
     @functors = {}
   end
 
-  attr_reader :field_path
+  attr_accessor :field_path
   attr_accessor :image_extent
 
   # really these have the same function but different syntaxes so keep them separate
@@ -124,10 +134,9 @@ end
     }
   end
 
-  def yydebug; true end
+  # TODO try the simple_parse entry point again
 
   def read_tokens(tokens)
-    # @yydebug = true
     en = case tokens
     when Array; tokens.each
     when Enumerable; tokens
@@ -138,6 +147,7 @@ end
     rescue StopIteration
       nil
     end
+    # return value from this is the first token on the stack
     do_parse
     to_h
   end
@@ -146,8 +156,9 @@ end
 
   # ERROR_TOKEN_ID is an internal ID of token which caused error. You can get
   # string representation of this ID by calling #token_to_str.
+  # ID always seems to be 1 which returns 'error' from token_to_str
 
-  # ERROR_VALUE is a value of error token.
+  # ERROR_VALUE is a value of error token
 
   # value_stack is a stack of symbol values. DO NOT MODIFY this object.
 
@@ -155,8 +166,6 @@ end
 
   # If this method returns, parsers enter “error recovering mode”.
   def on_error(error_token_id, error_value, value_stack)
-    str = token_to_str error_token_id
-    puts "error at #{error_value} with #{value_stack.inspect}"
-    # binding.pry unless $dont
+    # str = token_to_str error_token_id
     super
   end

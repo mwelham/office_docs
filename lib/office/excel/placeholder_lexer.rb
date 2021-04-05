@@ -25,8 +25,16 @@ module Office
         when s.scan(/:(?>\s*)([^'"“”\[].*?)\s*([,})])/)
           # yield : to not break the grammar too much
           yield ?:, ?:
-          # yield this as a special kind of STRING
-          yield :MAGIC_QUOTED, s.captures[0]
+
+          # try to reuse type conversions and existing lexing
+          subtokens = Array tokenize s.captures[0]
+          if subtokens.size == 1 && subtokens.first.first.is_a?(Symbol)
+            yield *subtokens.first
+          else
+            # otherwise yield this as a special kind of STRING, which includes naked punctuation
+            # and space-separated stuff, and weirdly-quoted stuff.
+            yield :MAGIC_QUOTED, s.captures[0]
+          end
           # this steals , } ) from the rest of the lexer, so just yield it here
           yield s.captures[1], s.captures[1]
 

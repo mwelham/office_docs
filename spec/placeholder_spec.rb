@@ -6,17 +6,6 @@ require_relative '../lib/office/excel/placeholder_lexer.rb'
 module Office
   describe PlaceholderGrammar do
     describe '#read_tokens' do
-      # surround with {{ }} if they aren't already
-      def cuddle tokens
-        if tokens.first(2) != [[?{, ?{], [?{, ?{]]
-          [
-            [?{, ?{], [?{, ?{], *tokens, [?}, ?}], [?}, ?}]
-          ]
-        else
-          tokens
-        end
-      end
-
       # tokens are NUMBER IDENTIFIER QUOTE STRING QUOTE BOOLEAN
       it 'single field' do
         tokens = [[:IDENTIFIER, 'some_group']]
@@ -30,7 +19,7 @@ module Office
         # maybe pass the enum direct with :each ?
         # rv = subject.yyparse enum, :next
 
-        rv = subject.read_tokens cuddle tokens
+        rv = subject.read_tokens tokens
         subject.field_path.should == %w[some_group]
       end
 
@@ -41,7 +30,7 @@ module Office
           [:IDENTIFIER, 'level'],
         ]
 
-        subject.read_tokens cuddle tokens
+        subject.read_tokens tokens
         subject.field_path.should == %w[some_group level]
       end
 
@@ -55,7 +44,7 @@ module Office
           ['x', 'x'],
           [:NUMBER, 100],
         ]
-        subject.read_tokens cuddle tokens
+        subject.read_tokens tokens
         subject.field_path.should == %w[some_group level]
         subject.image_extent.should == {width: 200, height: 100}
       end
@@ -68,7 +57,7 @@ module Office
           ['|', '|'],
         ]
 
-        ->{subject.read_tokens cuddle tokens}.should raise_error(Racc::ParseError)
+        ->{subject.read_tokens tokens}.should raise_error(Racc::ParseError)
       end
 
       it 'field path with keywords' do
@@ -81,7 +70,7 @@ module Office
           [?:, ?:],
           [:false, :false],
         ]
-        rv = subject.read_tokens cuddle tokens
+        rv = subject.read_tokens tokens
         subject.field_path.should == %w[some_group level]
         subject.keywords.should == {show_coordinate_info: false}
       end
@@ -97,7 +86,7 @@ module Office
           [:RANGE, 'A1:G7'],
           [?), ?)],
         ]
-        rv = subject.read_tokens cuddle tokens
+        rv = subject.read_tokens tokens
         subject.field_path.should == %w[some_group level]
         subject.functors.should == {layout: 'A1:G7'}
       end
@@ -115,6 +104,7 @@ module Office
           it "tokenizes #{line}" do
             tokens = Array(PlaceholderLexer.tokenize line)
             ->{subject.read_tokens tokens}.should_not raise_error
+            # binding.pry if line =~ /show_coordinate_info:/
           end
         end
       end
@@ -140,6 +130,20 @@ module Office
             :keywords=>{:date_time_format=>"%d &m %y", :capitalize=>true, :separator=>";", :justify=>true},
             :functors=>{}
           }
+        end
+
+        it 'boolean keyword' do
+          line = '{{doh|hedge: true}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :keywords=>{hedge: true}, :functors=>{}}
+        end
+
+        it 'numeric keyword' do
+          line = '{{doh|nuts: 17}}'
+          tokens = Array(PlaceholderLexer.tokenize line)
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :keywords=>{nuts: 17}, :functors=>{}}
         end
 
         it "bracketed image_size" do
