@@ -73,7 +73,7 @@ class Office::PlaceholderGrammar
 
     value: string | boolean | extent
       | NUMBER {result = Integer val[0]}
-      | RANGE
+      | range
       ;
 
     boolean: false {result = false} | true {result = true};
@@ -88,6 +88,14 @@ class Office::PlaceholderGrammar
     extent: NUMBER x NUMBER { result = {width: val[0], height: val[2]} };
 
     x: 'X' | 'x';
+
+    range
+      # this branch is never used. But leave it here so that the fallout from
+      # MAGIC_QUOTED is obvious.
+      : IDENTIFIER ':' IDENTIFIER {result = "#{val[0]}:#{val[2]}"}
+      | IDENTIFIER ':' MAGIC_QUOTED {result = "#{val[0]}:#{val[2]}"}
+      | RANGE
+      ;
 end
 
 ---- header

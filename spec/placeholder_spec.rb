@@ -104,7 +104,7 @@ module Office
     end
 
     # NOTE generated from
-    #   Word::PlaceholderReplacer#get_replacement
+    #   Word::PlaceholderEvaluator#initialize
     # using
     #   File.open('/tmp/all.txt','a'){|io| io.puts placeholder[:placeholder_text]}
     # then
@@ -170,27 +170,27 @@ module Office
           subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :functors=>{stuff: [1,2,3,4,5]}, :keywords=>{}}
         end
 
-        it 'quoted layout keyword' do
-          line = '{{entries.entries.group|layout: "d3:g4"}}'
-          tokens = Array(PlaceholderLexer.tokenize line)
-          subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
-        end
+        describe "layout" do
+          it 'quoted layout keyword' do
+            line = '{{entries.entries.group|layout: "d3:g4"}}'
+            tokens = Array(PlaceholderLexer.tokenize line)
+            subject.read_tokens tokens
+            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+          end
 
-        it 'bare layout keyword' do
-          line = '{{entries.entries.group|layout: d3:g4}}'
-          tokens = Array(PlaceholderLexer.tokenize line)
-          subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
-        end
+          it 'bare layout keyword' do
+            line = '{{entries.entries.group|layout: d3:g4}}'
+            tokens = Array(PlaceholderLexer.tokenize line)
+            subject.read_tokens tokens
+            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+          end
 
-        # breaks because of magic quoting
-        xit 'layout functor' do
-          line = '{{entries.entries.group|layout(d3:g4)}}'
-          tokens = Array(PlaceholderLexer.tokenize line)
-          subject.read_tokens tokens
-          binding.pry
-          subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>{}, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+          # breaks because of magic quoting
+          it 'layout functor' do
+            line = '{{entries.entries.group|layout(d3:g4)}}'
+            subject.read_tokens PlaceholderLexer.tokenize line
+            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :functors=>{layout: 'd3:g4'}, :keywords=>{}}
+          end
         end
       end
     end
