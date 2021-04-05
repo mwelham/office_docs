@@ -1,7 +1,12 @@
+# best ref at https://github.com/ruby/racc
+# and https://github.com/ruby/racc/blob/master/sample/hash.y
 # for peach lang grammar see https://github.com/pH-7/PeachLang/blob/master/src/grammar.y
 # pupper parser https://www.masterzen.fr/2011/12/27/puppet-internals-the-parser/
 # see https://gist.github.com/lnznt/2533003
+# GOLD for error recovery and rust lex/yacc https://tratt.net/laurie/blog/entries/automatic_syntax_error_recovery.html
+# GOLD Fischer et al error recovery https://minds.wisconsin.edu/bitstream/handle/1793/58168/TR363.pdf?sequence=1&isAllowed=y
 # see also rsec gem
+# noncanonical LALR http://www.lsv.fr/Publis/PAPERS/PDF/schmitz-dlt06.pdf
 # -E will include runtime in parser
 # otherwise must require racc/parser.rb
 # racc -E -oplaceholder_grammar.rb placeholder_grammar.racc
@@ -17,7 +22,7 @@
 # end
 
 class Office::PlaceholderGrammar
-  token NUMBER IDENTIFIER LRQUOTE STRING BOOLEAN RANGE CHAR false true
+  token NUMBER IDENTIFIER LRQUOTE MAGIC_QUOTED STRING BOOLEAN RANGE CHAR false true
 
   start cuddled
 
@@ -26,7 +31,6 @@ class Office::PlaceholderGrammar
     # NOTE in the action, self is the PlaceholderGrammar instance, local vars are result and val
     # val contains the set of matched tokens in the rule
     # _values contains, uhhh, previous tokens?
-    # placeholder: field;
     cuddled: '{' '{' placeholder '}' '}'
 
     placeholder: field_path '|' directives | field_path;
@@ -42,21 +46,15 @@ class Office::PlaceholderGrammar
     directives: directive ',' directives | directive;
     directive: extent | keyword | functor | naked;
 
-    # keywords: keyword ',' keywords | keyword
-    # keywords must (ideally) also handle:
-    # - bare symbols eg 'separator: ;'
-    # - unquoted values eg date_time_format: %d &m %y
-    #
-    # This could use a c-hack to parse values to /[,}]/ but that would require
-    # setting a flag on the lexer to change mode. And the tokenizer would have to be pull rather than push.
-
     keyword: IDENTIFIER ':' composite_value { self.keywords[val[0].to_sym] = val[2] };
 
-    composite_value: value | '[' array_value ']';
+    composite_value
+      : value
+      | '[' array_value ']'
+      ;
 
     array_value: extent | naked;
 
-    # functors: functor ',' functors | functor
     functor: IDENTIFIER '(' values ')' { self.functors[val[0].to_sym] = val[2] };
 
     naked: IDENTIFIER { self.keywords[val[0].to_sym] = true }
@@ -74,15 +72,12 @@ class Office::PlaceholderGrammar
       : '"' STRING '"'
       | "'" STRING "'"
       | LRQUOTE STRING LRQUOTE
+      | MAGIC_QUOTED
       ;
-
-    # chars: CHAR chars | CHAR;
 
     extent: NUMBER x NUMBER { self.image_extent = {width: val[0], height: val[2]} };
 
     x: 'X' | 'x';
-
-  # start placeholder
 end
 
 ---- header
@@ -126,38 +121,79 @@ end
       when s.scan(/true/); yield [:true, 'true']
       when s.scan(/false/); yield [:false, 'false']
       when s.scan(/(\d+)x(\d+)/i)
-        yield [:NUMBER, s.captures[0]]
-        yield [?x, ?x]
-        yield [:NUMBER, s.captures[1]]
+        yield :NUMBER, s.captures[0]
+        yield ?x, ?x
+        yield :NUMBER, s.captures[1]
 
-      when s.scan(/\d+/i);       yield [:NUMBER, s.matched]
-      when s.scan(/\w[\d\w_]*/); yield [:IDENTIFIER, s.matched]
+      # hoop-jumping to handle keywords with:
+      # - bare symbols eg 'separator: ;'
+      # - unquoted values eg 'date_time_format: %d &m %y'
+      when s.scan(/:(?>\s*)([^'"“”\[].*?)\s*([,}])/)
+        yield ?:, ?:
+        yield :MAGIC_QUOTED, s.captures[0]
+        yield s.captures[1], s.captures[1]
+
+      when s.scan(/\d+/i);       yield :NUMBER, s.matched
+      when s.scan(/\w[\d\w_]*/); yield :IDENTIFIER, s.matched
       when s.skip(/\s/);         # ignore white space
+
+      # hoop-jumping to match various kinds of quotes
+      # TODO consolidate these
       when s.scan(SQUOTE_RX)
         str = s.matched
-        yield [str[0], str[0]]
-        yield [:STRING, s.matched[1...-1]]
-        yield [str[-1], str[-1]]
+        yield str[0], str[0]
+        yield :STRING, s.matched[1...-1]
+        yield str[-1], str[-1]
 
       when s.scan(DQUOTE_RX)
         str = s.matched
-        yield [str[0], str[0]]
-        yield [:STRING, s.matched[1...-1]]
-        yield [str[-1], str[-1]]
+        yield str[0], str[0]
+        yield :STRING, s.matched[1...-1]
+        yield str[-1], str[-1]
 
       when s.scan(LRQUOTE_RX)
         str = s.matched
-        yield [:LRQUOTE, str[0]]
-        yield [:STRING, s.matched[1...-1]]
-        yield [:LRQUOTE, str[-1]]
+        yield :LRQUOTE, str[0]
+        yield :STRING, s.matched[1...-1]
+        yield :LRQUOTE, str[-1]
 
       else
         nc = s.getch
-        yield [nc, nc]
+        yield nc, nc
     end until s.eos?
   end
 
   def read_tokens(tokens)
-    define_singleton_method(:next_token) { tokens.shift }
+    # @yydebug = true
+    en = case tokens
+    when Array; tokens.each
+    when Enumerable; tokens
+    end
+
+    binding.pry if en.is_a? Array
+    define_singleton_method(:next_token) do
+      en.next
+    rescue StopIteration
+      nil
+    end
     do_parse
+  end
+
+  # This method is called when a parse error is found.
+
+  # ERROR_TOKEN_ID is an internal ID of token which caused error. You can get
+  # string representation of this ID by calling #token_to_str.
+
+  # ERROR_VALUE is a value of error token.
+
+  # value_stack is a stack of symbol values. DO NOT MODIFY this object.
+
+  # This method raises ParseError by default.
+
+  # If this method returns, parsers enter “error recovering mode”.
+  def on_error(error_token_id, error_value, value_stack)
+    str = token_to_str error_token_id
+    puts "error at #{error_value} with #{value_stack.inspect}"
+    # binding.pry unless $dont
+    super
   end
