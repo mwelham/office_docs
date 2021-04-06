@@ -21,6 +21,9 @@
 #   sh "racc -l -o #{t.name} #{t.source}"
 # end
 
+# Can install racc without c compiler using
+# config --without-ext (bundler?)
+
 class Office::PlaceholderGrammar
   token NUMBER IDENTIFIER LRQUOTE MAGIC_QUOTED STRING BOOLEAN RANGE CHAR false true
 
@@ -31,6 +34,8 @@ class Office::PlaceholderGrammar
     # NOTE in the action, self is the PlaceholderGrammar instance, local vars are result and val
     # val contains the set of matched tokens in the rule
     # parser DOES NOT return the final value of the top rule. You must set it on self somewhere.
+
+    # {{ }} are optional
     cuddled
       : '{' '{' placeholder '}' '}'
       | placeholder
@@ -43,6 +48,8 @@ class Office::PlaceholderGrammar
       | field_path {self.field_path = val[0]}
       ;
 
+    # dotted and [n] field path eg fields.some_group[1].first_name
+    # recursively builds up the path in val[2], hence the Array calls.
     field_path
       : nstep '.' field_path {result = [*Array(val[0]), *Array(val[2])]}
       | nstep
@@ -54,6 +61,8 @@ class Office::PlaceholderGrammar
       | IDENTIFIER { result = val }
       ;
 
+    # things after the |
+    # eg keyword: value, 150x330, layout(c6:g7)
     directives: directive ',' directives | directive;
     directive
       : extent {self.image_extent = val[0]}
@@ -62,17 +71,26 @@ class Office::PlaceholderGrammar
       | naked {self.keywords.merge! val[0]}
       ;
 
+    # keywords with trailing :
+    # eg date_format: "%d-%b-%y"
     keyword: IDENTIFIER ':' composite_value { result = {val[0].to_sym => val[2]} };
 
+    # sometimes keywords have single values that use [] as quoted rather than
+    # array delimiters. ¯\_(/")_/¯
     composite_value
-      : '[' array_value ']' {result = val[1]}
+      : '[' bracketed_value ']' {result = val[1]}
       | value
       ;
 
-    array_value: extent | naked;
+    bracketed_value: extent | naked;
 
+    # excel-function style keywords
+    # eg layout(a3:g15) and even separator(';')
+    # MAGIC_QUOTED doesn't work for these.
     functor: IDENTIFIER '(' values ')' { result = {val[0].to_sym => val[2]} };
 
+    # keywords like justify and capitalize that appear without a trailing :
+    # eg fields.title|justify,separator: ;,capitalize
     naked: IDENTIFIER { result = {val[0].to_sym => true} }
 
     # should this return single_value or [single_value] ? Probably the latter?
@@ -86,8 +104,11 @@ class Office::PlaceholderGrammar
       | range
       ;
 
+    # srsly? You want a comment for this?
     boolean: false {result = false} | true {result = true};
 
+    # Various kinds of quoted strings. Fancy quotes “” are used interchangeably
+    # by careless users, so we accept that.
     string
       : '"' STRING '"' {result = val[1]}
       | "'" STRING "'" {result = val[1]}
@@ -95,10 +116,13 @@ class Office::PlaceholderGrammar
       | MAGIC_QUOTED
       ;
 
+    # WWWxHHH image extent
+    # eg 640x480 640X480 1024 x 648 3840 X 2160
     extent: NUMBER x NUMBER { result = {width: Integer(val[0]), height: Integer(val[2])} };
 
     x: 'X' | 'x';
 
+    # excel-style A1:Z26 style ranges
     range
       # this branch is never used. But leave it here so that the fallout from
       # MAGIC_QUOTED is obvious.
@@ -146,6 +170,7 @@ require_relative 'lexer_error_info'
     else raise "how to handle tokens from #{tokens.inspect}"
     end
 
+    # The slower alternative:
     # define_singleton_method(:next_token) do
     #   en.next
     # rescue StopIteration
@@ -153,10 +178,13 @@ require_relative 'lexer_error_info'
     # end
     # return value from this is the first token on the stack
     # do_parse
+
     # yyparse needs the end token
     yen = en + [nil].each
-    # each_entry to yield [symbol,value] pairs rather than symbol then value
+    # each_entry for an enumerable that yields [symbol,value] pairs rather than symbol then value
+    # This seems to be able to take partial sequences?
     yyparse yen, :each_entry
+
     to_h
   end
 

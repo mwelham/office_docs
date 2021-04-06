@@ -2,14 +2,18 @@ require_relative 'lexer_error_info'
 
 module Office
   # It should be possible to adapt this lexer to read out of a nokogiri doc and parse the placeholders like that.
+  # doc.nxpath('//*:p/text()')
   module PlaceholderLexer
     using LexerErrorInfo
 
+    # Only difference is the kind of quote matched
+    # mostly borrowed from some json lexer
     DQUOTE_RX = /"([^"\\]|\\["\\\/bfnrt])*?"/
     SQUOTE_RX = /'([^'\\]|\\['\\\/bfnrt])*?'/
     LRQUOTE_RX = /[“”]([^'\\]|\\[“”\\\/bfnrt])*?[“”]/
 
-    # The lexer. yield symbol, value pairs where value is extended with
+    # The lexer.
+    # yield (symbol, value) pairs where value is extended with
     # some lexer info.
     def self.tokenize line
       return enum_for __method__, line unless block_given?
@@ -23,6 +27,7 @@ module Office
     end
 
     # yield plain value, ie no special lexer info
+    # s is a Scanner
     def self.nopos_tokenize s
       case
         when s.scan(/true/); yield [:true, 'true']
@@ -54,7 +59,7 @@ module Office
           yield s.captures[1], s.captures[1]
 
         when s.scan(/\d+/i);       yield :NUMBER, s.matched
-        when s.scan(/\w[\d\w_]*/); yield :IDENTIFIER, s.matched
+        when s.scan(/\w[\d\w]*/); yield :IDENTIFIER, s.matched
         when s.skip(/\s/);         # ignore white space
 
         # hoop-jumping to match various kinds of quotes

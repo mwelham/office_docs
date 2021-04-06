@@ -75,14 +75,13 @@ module Office
         # NOTE generated from
         #   Word::PlaceholderEvaluator#initialize
         # using
-        #   File.open('/tmp/all.txt','a'){|io| io.puts placeholder[:placeholder_text]}
+        #   File.open('<...>/fixtures/all-placeholders.txt','a'){|io| io.puts placeholder[:placeholder_text]}
         # then
         #   rake test:all
         (Pathname(__dir__) +'fixtures/all-placeholders.txt').each_line do |line|
           it "tokenizes #{line}" do
             tokens = PlaceholderLexer.tokenize line
             ->{subject.read_tokens tokens}.should_not raise_error
-            # binding.pry if line =~ /show_coordinate_info:/
           end
         end
       end
