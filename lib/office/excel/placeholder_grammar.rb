@@ -78,7 +78,11 @@ module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_gra
     when 0
       # get the string being parsed up to the point where it failed
       # error_value is inserted by Racc, so it doesn't have lexer_pos etc info. So value_stack instead.
-      msg_str = value_stack.last.lexer_string[0..value_stack.last.lexer_pos] || error_value || ''
+      msg_str = if value_stack.last
+        value_stack.last.lexer_string[0..value_stack.last.lexer_pos] || error_value || ''
+      else
+        value_stack.first&.lexer_string || error_value || ''
+      end
       raise ParseError, "Unexpected end after #{msg_str}"
     else
       # get the string being parsed up to the point where it failed

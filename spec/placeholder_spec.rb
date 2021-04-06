@@ -98,6 +98,16 @@ module Office
           }
         end
 
+        it "really empty placeholder" do
+          tokens = PlaceholderLexer.tokenize ""
+          subject.read_tokens(tokens).should == {
+            :field_path=>[],
+            :image_extent=>nil,
+            :keywords=>{},
+            :functors=>{}
+          }
+        end
+
         it "tokenizes unquoted keyword values" do
           line = %<{{ submitted_at | date_time_format: %d &m %y, capitalize, separator: ;, justify  }}>
           tokens = PlaceholderLexer.tokenize line
@@ -207,6 +217,16 @@ module Office
         end
 
         describe 'failures' do
+          it 'first half placeholder' do
+            tokens = PlaceholderLexer.tokenize "{{"
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, 'Unexpected end after {{')
+          end
+
+          it 'second half placeholder' do
+            tokens = PlaceholderLexer.tokenize "}}"
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, 'Error at 0:0. Unexpected } at }')
+          end
+
           it 'field path trailing .' do
             tokens = PlaceholderLexer.tokenize "some_group.level."
             ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, 'Unexpected end after some_group.level.')
