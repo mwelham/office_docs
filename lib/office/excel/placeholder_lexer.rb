@@ -62,20 +62,16 @@ module Office
         when s.scan(/\w[\d\w]*/); yield :IDENTIFIER, s.matched
         when s.skip(/\s/);         # ignore white space
 
-        # hoop-jumping to match various kinds of quotes
-        # TODO consolidate these. There must be a better way to do quote-matching. Maybe regex back-references?
-        when s.scan(SQUOTE_RX)
+        # hoop-jumping to match various kinds of quotes.
+        # unfortunately backreferences don't seem to work inside of
+        # [] character classes, so we have 2 different regexes here.
+        when s.scan(SQUOTE_RX), s.scan(DQUOTE_RX)
           str = s.matched
           yield str[0], str[0]
           yield :STRING, s.matched[1...-1]
           yield str[-1], str[-1]
 
-        when s.scan(DQUOTE_RX)
-          str = s.matched
-          yield str[0], str[0]
-          yield :STRING, s.matched[1...-1]
-          yield str[-1], str[-1]
-
+        # because “” are usually not paired properly, so we allow them in any order.
         when s.scan(LRQUOTE_RX)
           str = s.matched
           yield :LRQUOTE, str[0]
