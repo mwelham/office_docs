@@ -11,7 +11,7 @@ require_relative 'lexer_error_info'
 module Office
   class PlaceholderGrammar < Racc::Parser
 
-module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 135)
+module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 139)
   using LexerErrorInfo
 
   class ParseError < RuntimeError; end
@@ -58,6 +58,7 @@ module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_gra
     # yyparse needs the end token
     yen = en + [nil].each
     # each_entry for an enumerable that yields [symbol,value] pairs rather than symbol then value
+    # This seems to be able to take partial sequences?
     yyparse yen, :each_entry
 
     to_h
@@ -307,39 +308,39 @@ Racc_debug_parser = false
 
 # reduce 3 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 43)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 46)
   def _reduce_4(val, _values, result)
-    self.field_path = val[0]
+    self.field_path = val.first
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 44)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 47)
   def _reduce_5(val, _values, result)
-    self.field_path = val[0]
+    self.field_path = val.first
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 50)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 53)
   def _reduce_6(val, _values, result)
-    result = [*Array(val[0]), *Array(val[2])]
+    result = [*Array(val.first), *Array(val.last)]
     result
   end
 .,.,
 
 # reduce 7 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 56)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 59)
   def _reduce_8(val, _values, result)
-    result = [val[0], Integer(val[2])]
+    result = [val[0].to_sym, val[2].to_i]
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 57)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 60)
   def _reduce_9(val, _values, result)
-     result = val
+     result = [val.first.to_sym]
     result
   end
 .,.,
@@ -348,42 +349,42 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 57)
 
 # reduce 11 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 64)
-  def _reduce_12(val, _values, result)
-    self.image_extent = val[0]
-    result
-  end
-.,.,
-
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 65)
-  def _reduce_13(val, _values, result)
-    self.keywords.merge! val[0]
-    result
-  end
-.,.,
-
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 66)
-  def _reduce_14(val, _values, result)
-    self.functors.merge! val[0]
-    result
-  end
-.,.,
-
 module_eval(<<'.,.,', 'placeholder_grammar.racc', 67)
+  def _reduce_12(val, _values, result)
+    self.image_extent = val.first
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 68)
+  def _reduce_13(val, _values, result)
+    self.keywords.merge! val.first
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 69)
+  def _reduce_14(val, _values, result)
+    self.functors.merge! val.first
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 70)
   def _reduce_15(val, _values, result)
-    self.keywords.merge! val[0]
+    self.keywords.merge! val.first
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 72)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 75)
   def _reduce_16(val, _values, result)
-     result = {val[0].to_sym => val[2]}
+     result = {val.first.to_sym => val.last}
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 77)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 80)
   def _reduce_17(val, _values, result)
     result = val[1]
     result
@@ -396,23 +397,23 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 77)
 
 # reduce 20 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 86)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 89)
   def _reduce_21(val, _values, result)
      result = {val[0].to_sym => val[2]}
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 90)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 93)
   def _reduce_22(val, _values, result)
-     result = {val[0].to_sym => true}
+     result = {val.first.to_sym => true}
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 95)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 98)
   def _reduce_23(val, _values, result)
-    result = [*Array(val[0]), *Array(val[2])]
+    result = [*Array(val.first), *Array(val.last)]
     result
   end
 .,.,
@@ -425,44 +426,44 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 95)
 
 # reduce 27 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 99)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 102)
   def _reduce_28(val, _values, result)
-    result = Integer val[0]
+    result = Integer val.first
     result
   end
 .,.,
 
 # reduce 29 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 104)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 107)
   def _reduce_30(val, _values, result)
     result = false
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 104)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 107)
   def _reduce_31(val, _values, result)
     result = true
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 109)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 112)
   def _reduce_32(val, _values, result)
     result = val[1]
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 110)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 113)
   def _reduce_33(val, _values, result)
     result = val[1]
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 111)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 114)
   def _reduce_34(val, _values, result)
     result = val[1]
     result
@@ -471,9 +472,9 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 111)
 
 # reduce 35 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 116)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 120)
   def _reduce_36(val, _values, result)
-     result = {width: Integer(val[0]), height: Integer(val[2])}
+     result = {width: val.first.to_i, height: val.last.to_i}
     result
   end
 .,.,
@@ -482,16 +483,16 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 116)
 
 # reduce 38 omitted
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 124)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 128)
   def _reduce_39(val, _values, result)
-    result = "#{val[0]}:#{val[2]}"
+    result = "#{val.first}:#{val.last}"
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'placeholder_grammar.racc', 125)
+module_eval(<<'.,.,', 'placeholder_grammar.racc', 129)
   def _reduce_40(val, _values, result)
-    result = "#{val[0]}:#{val[2]}"
+    result = "#{val.first}:#{val.last}"
     result
   end
 .,.,

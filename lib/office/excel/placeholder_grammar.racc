@@ -44,36 +44,36 @@ class Office::PlaceholderGrammar
     # empty placeholders allowed
     placeholder
       :
-      | field_path '|' directives {self.field_path = val[0]}
-      | field_path {self.field_path = val[0]}
+      | field_path '|' directives {self.field_path = val.first}
+      | field_path {self.field_path = val.first}
       ;
 
     # dotted and [n] field path eg fields.some_group[1].first_name
     # recursively builds up the path in val[2], hence the Array calls.
     field_path
-      : nstep '.' field_path {result = [*Array(val[0]), *Array(val[2])]}
+      : nstep '.' field_path {result = [*Array(val.first), *Array(val.last)]}
       | nstep
       ;
 
     # for name or name[nnn], so must always return an array
     nstep
-      : IDENTIFIER '[' NUMBER ']' {result = [val[0], Integer(val[2])] }
-      | IDENTIFIER { result = val }
+      : IDENTIFIER '[' NUMBER ']' {result = [val[0].to_sym, val[2].to_i] }
+      | IDENTIFIER { result = [val.first.to_sym] }
       ;
 
     # things after the |
     # eg keyword: value, 150x330, layout(c6:g7)
     directives: directive ',' directives | directive;
     directive
-      : extent {self.image_extent = val[0]}
-      | keyword {self.keywords.merge! val[0]}
-      | functor {self.functors.merge! val[0]}
-      | naked {self.keywords.merge! val[0]}
+      : extent {self.image_extent = val.first}
+      | keyword {self.keywords.merge! val.first}
+      | functor {self.functors.merge! val.first}
+      | naked {self.keywords.merge! val.first}
       ;
 
     # keywords with trailing :
     # eg date_format: "%d-%b-%y"
-    keyword: IDENTIFIER ':' composite_value { result = {val[0].to_sym => val[2]} };
+    keyword: IDENTIFIER ':' composite_value { result = {val.first.to_sym => val.last} };
 
     # sometimes keywords have single values that use [] as quoted rather than
     # array delimiters. ¯\_(/")_/¯
@@ -91,16 +91,16 @@ class Office::PlaceholderGrammar
 
     # keywords like justify and capitalize that appear without a trailing :
     # eg fields.title|justify,separator: ;,capitalize
-    naked: IDENTIFIER { result = {val[0].to_sym => true} }
+    naked: IDENTIFIER { result = {val.first.to_sym => true} }
 
     # should this return single_value or [single_value] ? Probably the latter?
     values
       # tricksily concatenate multiple values into one
-      : value ',' values {result = [*Array(val[0]), *Array(val[2])]}
+      : value ',' values {result = [*Array(val.first), *Array(val.last)]}
       | value;
 
     value: string | boolean | extent
-      | NUMBER {result = Integer val[0]}
+      | NUMBER {result = Integer val.first}
       | range
       ;
 
@@ -118,7 +118,7 @@ class Office::PlaceholderGrammar
 
     # WWWxHHH image extent
     # eg 640x480 640X480 1024 x 648 3840 X 2160
-    extent: NUMBER x NUMBER { result = {width: Integer(val[0]), height: Integer(val[2])} };
+    extent: NUMBER x NUMBER { result = {width: val.first.to_i, height: val.last.to_i} };
 
     x: 'X' | 'x';
 
@@ -126,8 +126,8 @@ class Office::PlaceholderGrammar
     range
       # this branch is never used. But leave it here so that the fallout from
       # MAGIC_QUOTED is obvious.
-      : IDENTIFIER ':' IDENTIFIER {result = "#{val[0]}:#{val[2]}"}
-      | IDENTIFIER ':' MAGIC_QUOTED {result = "#{val[0]}:#{val[2]}"}
+      : IDENTIFIER ':' IDENTIFIER {result = "#{val.first}:#{val.last}"}
+      | IDENTIFIER ':' MAGIC_QUOTED {result = "#{val.first}:#{val.last}"}
       | RANGE
       ;
 end

@@ -9,7 +9,7 @@ module Office
       # tokens are NUMBER IDENTIFIER QUOTE STRING QUOTE BOOLEAN
       it 'single field' do
         subject.read_tokens [[:IDENTIFIER, 'some_group']]
-        subject.field_path.should == %w[some_group]
+        subject.field_path.should == %i[some_group]
       end
 
       it 'field path' do
@@ -20,7 +20,7 @@ module Office
         ]
 
         subject.read_tokens tokens
-        subject.field_path.should == %w[some_group level]
+        subject.field_path.should == %i[some_group level]
       end
 
       it 'field path with extent' do
@@ -34,7 +34,7 @@ module Office
           [:NUMBER, 100],
         ]
         subject.read_tokens tokens
-        subject.field_path.should == %w[some_group level]
+        subject.field_path.should == %i[some_group level]
         subject.image_extent.should == {width: 200, height: 100}
       end
 
@@ -49,7 +49,7 @@ module Office
           [:false, :false],
         ]
         rv = subject.read_tokens tokens
-        subject.field_path.should == %w[some_group level]
+        subject.field_path.should == %i[some_group level]
         subject.keywords.should == {show_coordinate_info: false}
       end
 
@@ -65,7 +65,7 @@ module Office
           [?), ?)],
         ]
         rv = subject.read_tokens tokens
-        subject.field_path.should == %w[some_group level]
+        subject.field_path.should == %i[some_group level]
         subject.functors.should == {layout: 'A1:G7'}
       end
     end
@@ -112,7 +112,7 @@ module Office
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {
-            :field_path=>['submitted_at'],
+            :field_path=>[:submitted_at],
             :image_extent=>nil,
             :keywords=>{:date_time_format=>"%d &m %y", :capitalize=>true, :separator=>";", :justify=>true},
             :functors=>{}
@@ -124,7 +124,7 @@ module Office
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {
-            :field_path=>['submitted_at'],
+            :field_path=>[:submitted_at],
             :image_extent=>nil,
             :keywords=>{:date_time_format=>"%d   &m  %y", :capitalize=>true, :separator=>";", :justify=>true},
             :functors=>{}
@@ -135,49 +135,49 @@ module Office
           line = '{{doh|hedge: true}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :keywords=>{hedge: true}, :functors=>{}}
+          subject.to_h.should == {:field_path=>%i[doh], :image_extent=>nil, :keywords=>{hedge: true}, :functors=>{}}
         end
 
         it 'numeric keyword' do
           line = '{{doh|nuts: 17}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :keywords=>{nuts: 17}, :functors=>{}}
+          subject.to_h.should == {:field_path=>%i[doh], :image_extent=>nil, :keywords=>{nuts: 17}, :functors=>{}}
         end
 
         it "bracketed image_size" do
           line = %<{{ fields.Group | image_size: [100x200]}}>
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[fields Group], :image_extent=>nil, :keywords=>{image_size: {:width=>100, :height=>200}}, :functors=>{}}
+          subject.to_h.should == {:field_path=>%i[fields Group], :image_extent=>nil, :keywords=>{image_size: {:width=>100, :height=>200}}, :functors=>{}}
         end
 
         it 'image extent' do
           line = '{{entries.your_picture|100x200}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
         end
 
         it 'size functor arguments' do
           line = '{{entries.your_picture|size(100,200)}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[entries your_picture], :image_extent=>nil, :functors=>{size: [100, 200]}, :keywords=>{}}
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>nil, :functors=>{size: [100, 200]}, :keywords=>{}}
         end
 
         it 'size functor extent' do
           line = '{{entries.your_picture|extent_size(100x200)}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[entries your_picture], :image_extent=>nil, :functors=>{extent_size: {height: 200, width: 100}}, :keywords=>{}}
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>nil, :functors=>{extent_size: {height: 200, width: 100}}, :keywords=>{}}
         end
 
         it 'multi-value functor' do
           line = '{{doh|stuff(1,2,3,4,5)}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
-          subject.to_h.should == {:field_path=>%w[doh], :image_extent=>nil, :functors=>{stuff: [1,2,3,4,5]}, :keywords=>{}}
+          subject.to_h.should == {:field_path=>%i[doh], :image_extent=>nil, :functors=>{stuff: [1,2,3,4,5]}, :keywords=>{}}
         end
 
         it 'everything' do
@@ -185,7 +185,7 @@ module Office
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {
-            :field_path=>["group", "where", "_whatever", 0, "classes", 3, "full_name"],
+            :field_path=>[:group, :where, :_whatever, 0, :classes, 3, :full_name],
             :image_extent=>nil,
             :keywords=>{:justify=>true, :transition=>";", :neutralise=>"ph", :ph=>10},
             :functors=>{:date_format=>"%d-%b-%y", :layout=>"aaf4:aag7", froomative: true, negatory: 15}
@@ -197,21 +197,21 @@ module Office
             line = '{{entries.entries.group|layout: "d3:g4"}}'
             tokens = PlaceholderLexer.tokenize line
             subject.read_tokens tokens
-            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+            subject.to_h.should == {:field_path=>%i[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
           end
 
           it 'bare layout keyword' do
             line = '{{entries.entries.group|layout: d3:g4}}'
             tokens = PlaceholderLexer.tokenize line
             subject.read_tokens tokens
-            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
+            subject.to_h.should == {:field_path=>%i[entries entries group], :image_extent=>nil, :keywords=>{layout: 'd3:g4'}, :functors=>{}}
           end
 
           # breaks because of magic quoting
           it 'layout functor' do
             line = '{{entries.entries.group|layout(d3:g4)}}'
             subject.read_tokens PlaceholderLexer.tokenize(line)
-            subject.to_h.should == {:field_path=>%w[entries entries group], :image_extent=>nil, :functors=>{layout: 'd3:g4'}, :keywords=>{}}
+            subject.to_h.should == {:field_path=>%i[entries entries group], :image_extent=>nil, :functors=>{layout: 'd3:g4'}, :keywords=>{}}
           end
         end
 
