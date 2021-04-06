@@ -6,11 +6,16 @@
 
 require 'racc/parser.rb'
 
+require_relative 'lexer_error_info'
 
 module Office
   class PlaceholderGrammar < Racc::Parser
 
-module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 114)
+module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_grammar.racc', 115)
+  using LexerErrorInfo
+
+  class ParseError < RuntimeError; end
+
   def initialize
     super
     @field_path = []
@@ -34,41 +39,52 @@ module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_gra
     }
   end
 
-  def yydebug; true end
-
   def read_tokens(tokens)
-    # @yydebug = true
     en = case tokens
     when Array; tokens.each
     when Enumerable; tokens
+    else raise "how to handle tokens from #{tokens.inspect}"
     end
 
-    define_singleton_method(:next_token) do
-      en.next
-    rescue StopIteration
-      nil
-    end
+    # define_singleton_method(:next_token) do
+    #   en.next
+    # rescue StopIteration
+    #   nil
+    # end
     # return value from this is the first token on the stack
-    do_parse
+    # do_parse
+    # yyparse needs the end token
+    yen = en + [nil].each
+    # each_entry to yield [symbol,value] pairs rather than symbol then value
+    yyparse yen, :each_entry
     to_h
   end
 
+  # docs from Racc:
   # This method is called when a parse error is found.
-
-  # ERROR_TOKEN_ID is an internal ID of token which caused error. You can get
+  #
+  # error_token_id is an internal ID of token which caused error. You can get
   # string representation of this ID by calling #token_to_str.
   # ID always seems to be 1 which returns 'error' from token_to_str
-
-  # ERROR_VALUE is a value of error token
-
+  # error_value is a value of error token
   # value_stack is a stack of symbol values. DO NOT MODIFY this object.
-
-  # This method raises ParseError by default.
-
   # If this method returns, parsers enter “error recovering mode”.
-  def on_error(error_token_id, error_value, value_stack)
+  def on_error(error_token_id, error_value, value_stack )
     # str = token_to_str error_token_id
     super
+  rescue Racc::ParseError
+    # value_stack.flatten.map &:lexer_pos
+    case error_token_id
+    when 0
+      # get the string being parsed up to the point where it failed
+      # error_value is inserted by Racc, so it doesn't have lexer_pos etc info. So value_stack instead.
+      msg_str = value_stack.last.lexer_string[0..value_stack.last.lexer_pos] || error_value || ''
+      raise ParseError, "Unexpected end after #{msg_str}"
+    else
+      # get the string being parsed up to the point where it failed
+      msg_str = error_value.lexer_string[0...(error_value.lexer_pos+error_value.length)] || error_value || ''
+      raise ParseError, "Error at 0:#{error_value.lexer_pos}. Unexpected #{error_value} at #{msg_str}"
+    end
   end
 ...end placeholder_grammar.racc/module_eval...
 ##### State transition tables begin ###
@@ -450,7 +466,7 @@ module_eval(<<'.,.,', 'placeholder_grammar.racc', 93)
 
 module_eval(<<'.,.,', 'placeholder_grammar.racc', 97)
   def _reduce_36(val, _values, result)
-     result = {width: val[0], height: val[2]}
+     result = {width: Integer(val[0]), height: Integer(val[2])}
     result
   end
 .,.,

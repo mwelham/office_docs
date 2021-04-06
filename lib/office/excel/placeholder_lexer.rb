@@ -1,14 +1,29 @@
+require_relative 'lexer_error_info'
+
 module Office
+  # It should be possible to adapt this lexer to read out of a nokogiri doc and parse the placeholders like that.
   module PlaceholderLexer
+    using LexerErrorInfo
+
     DQUOTE_RX = /"([^"\\]|\\["\\\/bfnrt])*?"/
     SQUOTE_RX = /'([^'\\]|\\['\\\/bfnrt])*?'/
     LRQUOTE_RX = /[“”]([^'\\]|\\[“”\\\/bfnrt])*?[“”]/
 
-    # The lexer.
+    # The lexer. yield symbol, value pairs where value is extended with
+    # some lexer info.
     def self.tokenize line
       return enum_for __method__, line unless block_given?
-
       s = StringScanner.new line
+      # Do a workaround here and attach the current pos and string ref
+      # to every value yielded, so if an error occurs those can be used
+      # for making nice error messages.
+      nopos_tokenize s do |token, value|
+        yield token, value.spos(s)
+      end
+    end
+
+    # yield plain value, ie no special lexer info
+    def self.nopos_tokenize s
       case
         when s.scan(/true/); yield [:true, 'true']
         when s.scan(/false/); yield [:false, 'false']
@@ -21,12 +36,12 @@ module Office
         # - bare symbols eg 'separator: ;'
         # - unquoted values eg 'date_time_format: %d &m %y'
         # but causes some trouble for functor(a3:g7) because of the leading :
-        # so this is not really a content-free grammar.
+        # so this is not really a context-free grammar.
         when s.scan(/:(?>\s*)([^'"“”\[].*?)\s*([,})])/)
           # yield : to not break the grammar too much
           yield ?:, ?:
 
-          # try to reuse type conversions and existing lexing
+          # try to reuse existing lexing
           subtokens = Array tokenize s.captures[0]
           if subtokens.size == 1 && subtokens.first.first.is_a?(Symbol)
             yield *subtokens.first
