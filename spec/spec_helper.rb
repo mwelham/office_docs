@@ -1,3 +1,13 @@
+unless ENV['NO_RAKE_GRAMMAR']
+  # we're not running from inside rake, so do the racc dependency manually
+
+  # build the parser from the racc file
+  puts "rake grammar"
+  system "rake -f #{__dir__}/../Rakefile grammar"
+  # die if grammar build failed
+  exit $?.to_i if $? != 0
+end
+
 require 'rspec'
 
 RSpec.configure do |config|
@@ -10,6 +20,12 @@ RSpec.configure do |config|
 
   # exclude things marked as performance benchmarks
   config.filter_run_excluding performance: true, display_ui: true, extracted: true
+
+  if config.inclusion_filter[:all]
+    config.inclusion_filter.clear
+    config.exclusion_filter.clear
+    config.filter_run_excluding display_ui: true
+  end
 
   # to get coverage output in ./coverage/index.html say
   #

@@ -9,6 +9,14 @@ Gem::Specification.new do |spec|
   spec.files       = ["lib/office_docs.rb"]
   spec.homepage    = "https://github.com/devicemagic/office_docs"
 
+  # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
+  # to allow pushing to a single host or delete this section to allow pushing to any host.
+  if spec.respond_to?(:metadata)
+    spec.metadata["allowed_push_host"] = ''
+  else
+    raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
+  end
+
   spec.add_dependency("nokogiri", ">= 1.10.10")
   spec.add_dependency("rmagick", ">= 2.12.2")
   spec.add_dependency("rubyzip", ">= 1.0.0")
