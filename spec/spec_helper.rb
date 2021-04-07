@@ -9,7 +9,7 @@ RSpec.configure do |config|
   config.example_status_persistence_file_path = "spec/examples.txt"
 
   # exclude things marked as performance benchmarks
-  config.filter_run_excluding performance: true, display_ui: true
+  config.filter_run_excluding performance: true, display_ui: true, extracted: true
 
   # to get coverage output in ./coverage/index.html say
   #

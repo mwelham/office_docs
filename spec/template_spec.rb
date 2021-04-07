@@ -3,13 +3,24 @@ require_relative 'spec_helper'
 require 'yaml'
 require_relative '../lib/office/excel'
 require_relative '../lib/office/excel/template.rb'
+require_relative '../lib/office/excel/placeholder.rb'
+
+require_relative 'package_debug'
 
 describe Excel::Template do
-  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_PLACEHOLDERS end
+  using PackageDebug
+
+  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::PLACEHOLDERS end
+  let :book2 do Office::ExcelWorkbook.new FixtureFiles::Book::PLACEHOLDERS_TWO end
+  let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
   let :data do
     data = YAML.load_file FixtureFiles::Yaml::PLACEHOLDER_DATA
     # convert tabular data to hashy data
     data[:streams] = Excel::Template.tabular_hashify data[:streams]
+    # data.extend Excel::Template.
+    # append an image
+    # TODO what kind of value will be here from the rails/forms side?
+    data[:logo] = image
     data
   end
 
@@ -24,6 +35,36 @@ describe Excel::Template do
       placeholders.call.should be_empty
     end
 
+    it 'placeholder does partial replacement' do
+      cell = book.sheets.first['B11']
+      cell.value.should == "very {{important}} thing"
+      ph = cell.placeholder
+      ph[] = "we can carry"
+      cell.value.should == "very we can carry thing"
+    end
+
+    it 'image insertion replacement' do
+      # H20 and L20
+      sheet = book.sheets.first
+      cell = sheet['H20']
+      cell.value.should == "{{logo|133x100}}"
+
+      # get image data
+      placeholder = Office::Placeholder.parse cell.placeholder.to_s
+
+      image = data.dig *placeholder.field_path
+
+      # add image to sheet
+      sheet.add_image image, cell.location, extent: placeholder.image_extent
+      cell.value = nil
+
+      # post replacement
+      cell.value.should be_nil
+
+      sheet['H20'].value.should be_nil
+      book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
+    end
+
     it 'modifies input book' do
       target_book = Excel::Template.render!(book, data)
       target_book.object_id.should == book.object_id
@@ -31,58 +72,77 @@ describe Excel::Template do
 
     it 'displays replacements', display_ui: true do
       Excel::Template.render!(book, data)
-      reload_workbook book do |book|
-        `localc #{book.filename}`
-      end
+      # reload_workbook book2 do |book| `localc #{book.filename}` end
+      reload_workbook book do |book| `localc #{book.filename}` end
     end
   end
 
   describe described_class::Evaluator do
-    let :data do
-      data = {controller: {streams: [{start: 'the party'}, {q1: 'steel', "q1:era": 'damascus'}]}}
+    # make data understand evaluate
+    def evaluatorize data
       data.extend(described_class)
+
+      # really a testing convenience. Should go eventually.
+      def data.split_evaluate expr_str
+        # split on . and [] so "streams[0].start" becomes [:streams, 0, :start]
+        field_path = expr_str.split(/[\[.\]]+/).map! do |part|
+          # convert to integer, then symbol
+          Integer part rescue part.to_sym
+        end
+        self.evaluate field_path
+      end
+
+      data
+    end
+
+    let :data do
+      evaluatorize controller: {streams: [{start: 'the party'}, {q1: 'steel', "q1:era": 'damascus'}]}
     end
 
     it 'normal' do
-      data.evaluate('controller.streams[0].start').should == 'the party'
+      data.split_evaluate('controller.streams[0].start').should == 'the party'
     end
 
     it 'wrong index' do
-      data.evaluate('controller.streams[1999].start').should be_nil
+      ->{data.split_evaluate('controller.streams[1999].start')}.should raise_error(Excel::Template::PathNotFound, /not found in data/)
     end
 
     it 'spaces' do
       data.dig(:controller, :streams, 0)[:'the word'] = 'wyrd'
-      data.evaluate('controller.streams[0].the word').should == 'wyrd'
+      data.split_evaluate('controller.streams[0].the word').should == 'wyrd'
     end
 
     it 'weirdness' do
-      data.evaluate('controller..streams[0]].start').should == 'the party'
+      data.split_evaluate('controller..streams[0]].start').should == 'the party'
     end
 
     it 'colons in names' do
-      data.evaluate('controller.streams[1].q1').should == 'steel'
-      data.evaluate('controller.streams[1].q1:era').should == 'damascus'
+      data.split_evaluate('controller.streams[1].q1').should == 'steel'
+      data.split_evaluate('controller.streams[1].q1:era').should == 'damascus'
     end
 
     it 'attributes' do
-      data = {first_part: {q1: 't5', :'q1:timestamp' => '2020-12-10 23:01:15'}}
-      data.extend(described_class)
-      data.evaluate('first_part.q1').should == 't5'
-      data.evaluate('first_part.q1:timestamp').should == '2020-12-10 23:01:15'
+      data = evaluatorize first_part: {q1: 't5', :'q1:timestamp' => '2020-12-10 23:01:15'}
+
+      data.split_evaluate('first_part.q1').should == 't5'
+      data.split_evaluate('first_part.q1:timestamp').should == '2020-12-10 23:01:15'
     end
 
-    it 'single' do
-      data.evaluate('c').should be_nil
+    it 'single nil allowed' do
+      data.split_evaluate('c').should be_nil
     end
 
-    it 'raises' do
-      ->{data.evaluate('').should == 'the party'}.should raise_error(/invalid expression/i)
+    it 'last step nil allowed' do
+      data.split_evaluate('controller.streams[0].oops').should be_nil
     end
 
-    it 'returns nil' do
+    it 'raises for empty expression' do
+      ->{data.split_evaluate('')}.should raise_error(/invalid/i)
+    end
+
+    it 'not found' do
       expr = 'controller.circuits[0].start'
-      data.evaluate(expr).should be_nil
+      ->{data.split_evaluate(expr)}.should raise_error(Excel::Template::PathNotFound, /not found in data/)
     end
   end
 

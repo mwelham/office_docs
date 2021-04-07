@@ -1,7 +1,6 @@
 require_relative 'spec_helper'
 
-require_relative '../lib/office/excel/placeholder_grammar.rb'
-require_relative '../lib/office/excel/placeholder_lexer.rb'
+require_relative '../lib/office/excel/placeholder.rb'
 
 module Office
   describe PlaceholderGrammar do
@@ -71,7 +70,7 @@ module Office
     end
 
     describe 'parse' do
-      describe 'extracted' do
+      describe 'extracted', extracted: true do
         # NOTE generated from
         #   Word::PlaceholderEvaluator#initialize
         # using
@@ -119,6 +118,12 @@ module Office
           }
         end
 
+        it "fails on field whitespaces" do
+          line = %<{{controller.streams[0].the word}>
+          tokens = PlaceholderLexer.tokenize line
+          ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, /Unexpected word at/)
+        end
+
         it "weird whitespaces" do
           line = %<{{   submitted_at      |  date_time_format: %d   &m  %y,capitalize,separator:;,justify}     }>
           tokens = PlaceholderLexer.tokenize line
@@ -154,6 +159,13 @@ module Office
 
         it 'image extent' do
           line = '{{entries.your_picture|100x200}}'
+          tokens = PlaceholderLexer.tokenize line
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
+        end
+
+        xit 'spaced extent' do
+          line = '{{entries.your_picture| 100  X 200}}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
@@ -264,9 +276,31 @@ module Office
         end
       end
     end
+  end
 
-    describe 'parse' do
-      it 'implement lex then parse'
+  describe Placeholder do
+    describe '.parse' do
+      it 'fairly complex' do
+        line = %<{{ group.where._whatever[0].classes[3].full_name |justify,transition: ;,  320X200   ,date_format("%d-%b-%y"),layout(aaf4:aag7),neutralise: 'ph', ph: 10,froomative(true),negatory(15)}}>
+        ph = Placeholder.parse line
+
+        ph.field_path.should == [:group, :where, :_whatever, 0, :classes, 3, :full_name]
+        ph.options.should == {
+          :justify=>true,
+          :transition=>";",
+          :neutralise=>"ph",
+          :ph=>10,
+          :date_format=>"%d-%b-%y",
+          :layout=>"aaf4:aag7",
+          :froomative=>true,
+          :negatory=>15}
+      end
+
+      it 'fails and raises' do
+        line = %<{{ group.where._whatever[0].classes[3].full name |justify,transition: ;,  320X200   ,date_format("%d-%b-%y"),layout(aaf4:aag7),neutralise: 'ph', ph: 10,froomative(true),negatory(15)}}>
+        ->{Placeholder.parse line}.should raise_error(Office::PlaceholderGrammar::ParseError, /Unexpected name/)
+      end
     end
   end
 end
+
