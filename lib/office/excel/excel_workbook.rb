@@ -140,7 +140,7 @@ module Office
       # unused_part_identifier is 1..n : Integer
       part_name = "#{prefix}#{unused_part_identifier prefix}.xml"
 
-      add_part part_name, drawing.xdoc, drawing.mime_type
+      add_part part_name, drawing, DRAWING_CONTENT_TYPE
     end
   end
 end

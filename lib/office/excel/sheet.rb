@@ -599,6 +599,44 @@ module Office
       Range.new location, furthest
     end
 
+    # fetch the drawing part for this sheet
+    def drawing_part
+      @drawing_part ||= fetch_drawing_part || create_drawing_part
+    end
+
+    private def fetch_drawing_part
+      if drawing_node = node.nxpath('*:worksheet/*:drawing').first
+        drawing_rel_id = drawing_node['r:id']
+        rel_part = worksheet_part.get_relationship_by_id drawing_rel_id
+        rel_part.target_part
+      end
+    end
+
+    # create, attach and return a drawing part
+    private def create_drawing_part
+      # create drawing (with unique-enough tmp value in blip@r:embed)
+      drawing = ImageDrawing.build_wsdr.doc
+
+      # drawing part added to workbook as drawings/drawingX ...
+      # TODO should this be workbook or worksheet?
+      drawing_part = workbook.add_drawing_part(drawing, workbook.workbook_part.path_components)
+
+      # ... with rel from sheet to drawing
+      drawing_rel_id = workbook.add_relationship(worksheet_part, drawing_part, DRAWING_RELATIONSHIP_TYPE)
+
+      # append the <drawing r:id="rIdX"/> node as a child of worksheet
+      Nokogiri::XML::Builder.with node.nxpath('*:worksheet').first do |bld|
+        bld.drawing 'r:id': drawing_rel_id
+      end
+
+      drawing_part
+    end
+
+    # fetch the wsDr node in the drawing (which all images are attached to)
+    def drawing_wsdr_node
+      drawing_part.xml.nxpath('*:wsDr').first
+    end
+
     # add the image to display anchored at loc, with optional width x height
     # return the drawing part containing the image
     # TODO use stretch if placeholder extent is larger than native image
@@ -608,17 +646,13 @@ module Office
       # image part added to workbook as media/imageX
       image_part = workbook.add_image_part(image, workbook.workbook_part.path_components)
 
-      # create drawing (with unique-enough tmp value in blip@r:embed)
+      # create anchor in drawing (with unique-enough tmp value in blip@r:embed)
       tmp_rel_id = "tmp_rel_id-#{Base64.urlsafe_encode64 "#{Time.now}/#{Thread::current.__id__}"}"
-      drawing = ImageDrawing.new img: image, loc: loc, rel_id: tmp_rel_id, extent: extent
-
-      # drawing part added to workbook as drawings/drawingX ...
-      drawing_part = workbook.add_drawing_part(drawing, workbook.workbook_part.path_components)
-
-      # ... with rel from sheet to drawing
-      drawing_rel_id = workbook.add_relationship(worksheet_part, drawing_part, DRAWING_RELATIONSHIP_TYPE)
+      image_drawing = ImageDrawing.new wsdr_node: drawing_wsdr_node, img: image, loc: loc, rel_id: tmp_rel_id, extent: extent
+      image_drawing.build_anchor!
 
       # ... and rel from drawing -> image
+      # TODO does this still apply?
       image_rel_id = workbook.add_relationship(drawing_part, image_part, IMAGE_RELATIONSHIP_TYPE)
 
       # Using tmp value update r:embed to rId from the image rel remember that
@@ -627,12 +661,7 @@ module Office
       blip_node, = drawing_part.xml.nxpath(%|/*:wsDr/*:oneCellAnchor/*:pic/*:blipFill/*:blip[@r:embed = '#{tmp_rel_id}']|)
       blip_node['r:embed'] = image_rel_id
 
-      # append the <drawing r:id="rIdX"/> node as a child of worksheet
-      Nokogiri::XML::Builder.with node.nxpath('*:worksheet').first do |bld|
-        bld.drawing 'r:id': drawing_rel_id
-      end
-
-      drawing_part
+      image_part
     end
   end
 end

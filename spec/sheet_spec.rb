@@ -289,6 +289,42 @@ describe Office::Sheet do
     end
   end
 
+  describe '#drawing_part' do
+    # for Package#parts
+    using PackageDebug
+
+    let :book_with_image do Office::ExcelWorkbook.new FixtureFiles::Book::IMAGE_FROM_GOOGLE end
+    let :book_no_image do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
+    let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+
+    it 'has a drawing part' do
+      sheet = book_with_image.sheets.first
+      sheet.drawing_part.should be_a(Office::XmlPart)
+    end
+
+    it 'creates a drawing' do
+      sheet = book_no_image.sheets.first
+      sheet.send(:fetch_drawing_part).should be_nil
+      sheet.send(:create_drawing_part).should be_a(Office::XmlPart)
+    end
+
+    it 'fetch or create drawing' do
+      sheet = book_no_image.sheets.first
+      sheet.send(:fetch_drawing_part).should be_nil
+      sheet.drawing_part.should be_a(Office::XmlPart)
+    end
+
+    it 'fetches wsDr node' do
+      sheet = book_with_image.sheets.first
+      sheet.drawing_wsdr_node.name.should == 'wsDr'
+    end
+
+    it 'creates wsDr node' do
+      sheet = book_no_image.sheets.first
+      sheet.drawing_wsdr_node.name.should == 'wsDr'
+    end
+  end
+
   describe '#add_image' do
     # for Package#parts
     using PackageDebug
@@ -375,6 +411,33 @@ describe Office::Sheet do
 
         # finally just eyeball it
         # `localc --nologo #{saved.filename}`
+      end
+    end
+
+    it 'adds two images' do
+      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 0
+
+      loc1 = Office::Location.new('A1')
+      sheet.add_image(image, loc1, extent: {width: 133, height: 100})
+      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 1
+
+      loc2 = Office::Location.new('F2')
+      sheet.add_image(image, loc2)
+      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+
+      reload book do |book|
+        sheet = book.sheets.first
+
+        # has two images
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+
+        # first image in the right place
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:col').text.should == loc1.coli.to_s
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:row').text.should == loc1.rowi.to_s
+
+        # second image in the right place
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:col').text.should == loc2.coli.to_s
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:row').text.should == loc2.rowi.to_s
       end
     end
   end
