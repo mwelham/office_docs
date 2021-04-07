@@ -27,14 +27,10 @@ describe Nokogiri::XML::Searchable do
       t.map(&:text).should == mini_ts_only
     end
 
-    # note that atttributes do not require namespaces
+    # note that attributes do not require namespaces
     it 'does not interfere with attributes' do
       nodeset = mini_shared_string_doc.nspath '//~rPr/~rFont[@val="Arial"]/@val'
       nodeset.text.should == 'Arial' * 7
-    end
-
-    describe 'non-root node with namespace declarations' do
-      it 'to be continued'
     end
 
     describe 'multiple namespaces' do
