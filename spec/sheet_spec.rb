@@ -258,9 +258,10 @@ describe Office::Sheet do
       require 'benchmark'
       Benchmark.bmbm do |results|
         results.report 'to_excel_csv' do sheet.to_excel_csv end
-        results.report 'old_range_to_csv' do sheet.send :old_range_to_csv end
+        # results.report 'old_range_to_csv' do sheet.send :old_range_to_csv end
         results.report 'range_to_csv' do sheet.range_to_csv end
         results.report 'cells_of to_csv' do sheet.cells_of(&:formatted_value).to_csv end
+        results.report 'preload cells_of to_csv' do sheet.preload_rows; sheet.cells_of(&:formatted_value).to_csv end
       end
     end
   end

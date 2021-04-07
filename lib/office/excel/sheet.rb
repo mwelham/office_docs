@@ -296,19 +296,33 @@ module Office
     # TODO perhaps allow caching of ranges and/or sets, to get the access
     # pattern from higher-level usages.
 
-    # auto-caches row so much faster for things that sequentially access several cells in a row.
-    # returns a hash of coli => Cell
+    # auto-caches row, therefore much faster for things that sequentially access
+    # several cells in a row.
+    # returns a hash of coli => cell_node for each row
     private def row_cell_nodes_at loc
       @row_cells ||= Array.new
       @row_cells[loc.rowi] ||= begin
-        # Fetch the row node and build cell nodes immediately, otherwise
-        # self[loc] usages re-search row cell nodes in a row sequentially from
-        # the beginning each time.
-        row_node = row_node_at loc
+        # avoid binding loc into the hash block which would prevent garbage collection
+        rowix = loc.rowi
 
-        if row_node
-          Hash.new do |h,k|
-            h[k] = row_node.element_children[k]
+        # When a caller indexes colix, populate the full row.
+        # No point waiting for future requests because row_node.element_children
+        # iterates from the beginning each time.
+        Hash.new do |ha, colix|
+          if row_node = row_node_ix(rowix)
+            # populate cells for the entire row, and return the cell at colix (if it exists)
+            row_node.element_children.reduce nil do |memo_cell,cell_node|
+              loc = Location.new(cell_node[:r])
+              ha[loc.coli] = cell_node
+
+              # Return value from the Hash.new block must be the cell at colix.
+              # So make that the return value from the reduce block.
+              if loc.coli == colix
+                cell_node
+              else
+                memo_cell
+              end
+            end
           end
         end
       end
@@ -320,7 +334,17 @@ module Office
       row_node_ix loc.rowi, loc.row_r
     end
 
-    # fetch node from xml with r=row_r and cached it at rowix
+    def preload_rows
+      @row_nodes ||= begin
+        ary = Array.new
+        data_node.nxpath("*:row").each do |row_node|
+          @row_nodes[row_node[:r].to_i-1] = row_node
+        end
+        ary
+      end
+    end
+
+    # fetch node from xml with r=row_r and cache it at rowix
     private def row_node_ix rowix, row_r = rowix+1
       @row_nodes ||= Array.new
       @row_nodes[rowix] ||= begin
@@ -335,20 +359,16 @@ module Office
     def cell_nodes_of range: dimension, &blk
       blk ||= -> i,_c,_r {i} # identity if not specified. Slowdown compared to plain value is microseconds at x10000 repetitions
 
-      # TODO can be more efficient than this, because each cell requires a hash
-      # lookup. Which is fast in ruby, but not as fast as a straightforward
-      # iteration of row_node.element_children
       range.each_rowi.map do |rowix|
+        cell_nodes_map = row_cell_nodes_at(Location[0,rowix])
         range.each_coli.map do |colix|
-          row = row_node_ix(rowix)
-          cell_node = row && row.element_children[colix]
-          blk.call cell_node, colix, rowix
+          blk.call cell_nodes_map[colix], colix, rowix
         end
       end
     end
 
     # yield a set of enumerators (rows), each of which yields a cell node along
-    # with col,row indexes some of [colix,rowix]
+    # with col,row indexes as [colix,rowix]
     # will yield nil if no cell found at a location
     def lazy_cell_nodes_of range: dimension, &row_blk
       return enum_for :lazy_cell_nodes_of, range: range unless block_given?
@@ -356,14 +376,16 @@ module Office
       # TODO can be more efficient than this, because each cell requires a hash
       # lookup. Which is fast in ruby, but not as fast as a straightforward
       # iteration of row_node.element_children
-      range.each_rowi.each do |rowix|
+      range.each_rowi do |rowix|
         # have to construct this with an Enumerator, otherwise 'yield' calls
         # row_blk with the cell. Which is obvs not correct.
         cell_enum = Enumerator.new do |yielder|
+          # Use a hash because row children are not always in the correct cell order ...
+          cell_nodes_map = row_cell_nodes_at(Location[0,rowix])
+
+          # and look them up from the range
           range.each_coli.each do |colix|
-            row = row_node_ix(rowix)
-            cell_node = row && row.element_children[colix]
-            yielder.yield cell_node, colix, rowix
+            yielder.yield cell_nodes_map[colix], colix, rowix
           end
         end
         yield cell_enum
