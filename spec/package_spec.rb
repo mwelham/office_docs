@@ -54,9 +54,9 @@ describe Office::Package do
             doc.parts[image_part.rels_name].should be_a(Office::RelationshipsPart)
 
             # contains a Relationships tag but nothing else
-            doc = doc.parts[image_part.rels_name].xml
-            doc.nxpath('/*:Relationships').size.should == 1
-            doc.nxpath('/*:Relationships/node()').size.should == 0
+            rel = doc.parts[image_part.rels_name].xml
+            rel.nxpath('/*:Relationships').size.should == 1
+            rel.nxpath('/*:Relationships/node()').size.should == 0
           end
         end
 
@@ -138,6 +138,23 @@ describe Office::Package do
 
           # outside block so we know the block actually executed
           image_part.should be_a(Office::ImagePart)
+        end
+
+        describe '#to_data' do
+          it 'with value filename' do
+            doc.to_data.should be_a(String)
+            doc.to_data.should_not be_empty
+            doc.to_data.encoding.should == Encoding::ASCII_8BIT
+          end
+
+          it 'with nil filename' do
+            doc.instance_variable_get(:@filename).should_not be_nil
+            doc.remove_instance_variable :@filename
+
+            doc.to_data.should be_a(String)
+            doc.to_data.should_not be_empty
+            doc.to_data.encoding.should == Encoding::ASCII_8BIT
+          end
         end
       end
     end

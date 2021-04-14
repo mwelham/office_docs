@@ -17,7 +17,9 @@ module Office
 
     def to_data
       Dir.mktmpdir do |dir|
-        path = File.join dir, File.basename(@filename)
+        # generate a unique-enough filename
+        tmp_filename = @filename || (now = Time.now; "#{now.to_i}.#{now.tv_nsec}")
+        path = File.join dir, File.basename(tmp_filename)
         save path
         File.open(path, 'rb:ASCII-8BIT', &:read)
       end
