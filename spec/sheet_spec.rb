@@ -289,7 +289,7 @@ describe Office::Sheet do
     end
   end
 
-  describe '#drawing_part' do
+  describe 'images' do
     # for Package#parts
     using PackageDebug
 
@@ -297,147 +297,163 @@ describe Office::Sheet do
     let :book_no_image do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
     let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
 
-    it 'has a drawing part' do
-      sheet = book_with_image.sheets.first
-      sheet.drawing_part.should be_a(Office::XmlPart)
-    end
+    describe 'has_drawing' do
+      it 'has drawing' do
+        sheet = book_with_image.sheets.first
+        sheet.should have_drawing
+      end
 
-    it 'creates a drawing' do
-      sheet = book_no_image.sheets.first
-      sheet.send(:fetch_drawing_part).should be_nil
-      sheet.send(:create_drawing_part).should be_a(Office::XmlPart)
-    end
-
-    it 'fetch or create drawing' do
-      sheet = book_no_image.sheets.first
-      sheet.send(:fetch_drawing_part).should be_nil
-      sheet.drawing_part.should be_a(Office::XmlPart)
-    end
-
-    it 'fetches wsDr node' do
-      sheet = book_with_image.sheets.first
-      sheet.drawing_wsdr_node.name.should == 'wsDr'
-    end
-
-    it 'creates wsDr node' do
-      sheet = book_no_image.sheets.first
-      sheet.drawing_wsdr_node.name.should == 'wsDr'
-    end
-  end
-
-  describe '#add_image' do
-    # for Package#parts
-    using PackageDebug
-
-    let :book do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
-    let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
-
-    it 'adds image, drawing and rels' do
-      # preconditions
-      # book has no media.image parts
-      book.parts.select{|name,part| name =~ %r|media/image|}.should be_empty
-
-      # book has no drawing parts / rels
-      book.parts.select{|name,part| name =~ %r|drawing|}.should be_empty
-
-      # sheet has no drawing node / rels
-      sheet.node.nxpath("/*:worksheet/*:drawing/@r:id").should be_empty
-
-      # add the image
-      loc = Office::Location.new 'B2'
-      sheet.add_image(image, loc)
-
-      # save and check reloaded file - '; book' means book is local and unassigned.
-      reload book do |saved; book|
-        # media/image exists
-        image_parts = saved.parts.select{|name,part| name =~ %r|media/image|}
-        image_parts.size.should == 1
-        image_parts.first.then do |(name, part)|
-          name.should == '/xl/media/image1.jpeg'
-          part.should be_a(Office::ImagePart)
-        end.should_not be_nil
-
-        # rel from drawing -> image exists with IMAGE_RELATIONSHIP_TYPE
-        image_rel_parts = saved.parts.select{|name,part| name =~ %r|drawing.*rels|}
-        image_rel_parts.size.should == 1
-
-        image_rel_id =
-        image_rel_parts.first.then do |(name, part)|
-          name.should == '/xl/drawings/_rels/drawing1.xml.rels'
-          part.should be_a(Office::RelationshipsPart)
-
-          rel_nodes = part.xml.nxpath('//*:Relationship')
-          rel_nodes.size.should == 1
-
-          rel_node = rel_nodes.first
-          rel_node[:Type].should == Office::IMAGE_RELATIONSHIP_TYPE
-          rel_node[:Target].should == '../media/image1.jpeg'
-          rel_node[:Id]
-        end
-
-        # drawings/drawing exists and references image_rel_id
-        drawing_parts = saved.parts.select{|name,part| name =~ %r|drawings/drawing|}
-        drawing_parts.size.should == 1
-        drawing_parts.first.tap do |(name, part)|
-          name.should == '/xl/drawings/drawing1.xml'
-          part.should be_a(Office::XmlPart)
-
-          # blip r:embed uses image rel_id
-          part.xml.nxpath('//*:blip/@r:embed').text.should == image_rel_id
-        end
-
-        # rel from sheet to drawing exists with DRAWING_RELATIONSHIP_TYPE
-        drawing_rel_parts = saved.parts.select{|name,part| name =~ %r|sheet.*rels|}
-        drawing_rel_parts.size.should == 1
-
-        drawing_rel_id =
-        drawing_rel_parts.first.then do |(name, part)|
-          name.should == '/xl/worksheets/_rels/sheet1.xml.rels'
-          part.should be_a(Office::RelationshipsPart)
-
-          rel_nodes = part.xml.nxpath('//*:Relationship')
-          rel_nodes.size.should == 1
-
-          rel_node = rel_nodes.first
-          rel_node[:Type].should == Office::DRAWING_RELATIONSHIP_TYPE
-          rel_node[:Target].should == '../drawings/drawing1.xml'
-          rel_node[:Id]
-        end
-
-        # drawing tag in sheet exists with drawing_rel_id
-        drawing_nodes = sheet.node.nxpath("/*:worksheet/*:drawing/@r:id")
-        drawing_nodes.size.should == 1
-        drawing_nodes.first.text.should == drawing_rel_id
-
-        # finally just eyeball it
-        # `localc --nologo #{saved.filename}`
+      it 'does not have drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.should_not have_drawing
       end
     end
 
-    it 'adds two images' do
-      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 0
+    describe '#drawing_part' do
+      it 'has a drawing part' do
+        sheet = book_with_image.sheets.first
+        sheet.should have_drawing
+        sheet.drawing_part.should be_a(Office::XmlPart)
+      end
 
-      loc1 = Office::Location.new('A1')
-      sheet.add_image(image, loc1, extent: {width: 133, height: 100})
-      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 1
+      it 'creates a drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.should_not have_drawing
+        sheet.send(:fetch_drawing_part).should be_nil
+        sheet.send(:create_drawing_part).should be_a(Office::XmlPart)
+      end
 
-      loc2 = Office::Location.new('F2')
-      sheet.add_image(image, loc2)
-      sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+      it 'fetch or create drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.send(:fetch_drawing_part).should be_nil
+        sheet.drawing_part.should be_a(Office::XmlPart)
+      end
 
-      reload book do |book|
-        sheet = book.sheets.first
+      it 'fetches wsDr node' do
+        sheet = book_with_image.sheets.first
+        sheet.drawing_wsdr_node.name.should == 'wsDr'
+      end
 
-        # has two images
+      it 'creates wsDr node' do
+        sheet = book_no_image.sheets.first
+        sheet.drawing_wsdr_node.name.should == 'wsDr'
+      end
+    end
+
+    describe '#add_image' do
+      # for Package#parts
+      using PackageDebug
+
+      let :book do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
+      let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+
+      it 'adds image, drawing and rels' do
+        # preconditions
+        # book has no media.image parts
+        book.parts.select{|name,part| name =~ %r|media/image|}.should be_empty
+
+        # book has no drawing parts / rels
+        book.parts.select{|name,part| name =~ %r|drawing|}.should be_empty
+
+        # sheet has no drawing node / rels
+        sheet.node.nxpath("/*:worksheet/*:drawing/@r:id").should be_empty
+
+        # add the image
+        loc = Office::Location.new 'B2'
+        sheet.add_image(image, loc)
+
+        # save and check reloaded file - '; book' means book is local and unassigned.
+        reload book do |saved; book|
+          # media/image exists
+          image_parts = saved.parts.select{|name,part| name =~ %r|media/image|}
+          image_parts.size.should == 1
+          image_parts.first.then do |(name, part)|
+            name.should == '/xl/media/image1.jpeg'
+            part.should be_a(Office::ImagePart)
+          end.should_not be_nil
+
+          # rel from drawing -> image exists with IMAGE_RELATIONSHIP_TYPE
+          image_rel_parts = saved.parts.select{|name,part| name =~ %r|drawing.*rels|}
+          image_rel_parts.size.should == 1
+
+          image_rel_id =
+          image_rel_parts.first.then do |(name, part)|
+            name.should == '/xl/drawings/_rels/drawing1.xml.rels'
+            part.should be_a(Office::RelationshipsPart)
+
+            rel_nodes = part.xml.nxpath('//*:Relationship')
+            rel_nodes.size.should == 1
+
+            rel_node = rel_nodes.first
+            rel_node[:Type].should == Office::IMAGE_RELATIONSHIP_TYPE
+            rel_node[:Target].should == '../media/image1.jpeg'
+            rel_node[:Id]
+          end
+
+          # drawings/drawing exists and references image_rel_id
+          drawing_parts = saved.parts.select{|name,part| name =~ %r|drawings/drawing|}
+          drawing_parts.size.should == 1
+          drawing_parts.first.tap do |(name, part)|
+            name.should == '/xl/drawings/drawing1.xml'
+            part.should be_a(Office::XmlPart)
+
+            # blip r:embed uses image rel_id
+            part.xml.nxpath('//*:blip/@r:embed').text.should == image_rel_id
+          end
+
+          # rel from sheet to drawing exists with DRAWING_RELATIONSHIP_TYPE
+          drawing_rel_parts = saved.parts.select{|name,part| name =~ %r|sheet.*rels|}
+          drawing_rel_parts.size.should == 1
+
+          drawing_rel_id =
+          drawing_rel_parts.first.then do |(name, part)|
+            name.should == '/xl/worksheets/_rels/sheet1.xml.rels'
+            part.should be_a(Office::RelationshipsPart)
+
+            rel_nodes = part.xml.nxpath('//*:Relationship')
+            rel_nodes.size.should == 1
+
+            rel_node = rel_nodes.first
+            rel_node[:Type].should == Office::DRAWING_RELATIONSHIP_TYPE
+            rel_node[:Target].should == '../drawings/drawing1.xml'
+            rel_node[:Id]
+          end
+
+          # drawing tag in sheet exists with drawing_rel_id
+          drawing_nodes = sheet.node.nxpath("/*:worksheet/*:drawing/@r:id")
+          drawing_nodes.size.should == 1
+          drawing_nodes.first.text.should == drawing_rel_id
+
+          # finally just eyeball it
+          # `localc --nologo #{saved.filename}`
+        end
+      end
+
+      it 'adds two images' do
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 0
+
+        loc1 = Office::Location.new('A1')
+        sheet.add_image(image, loc1, extent: {width: 133, height: 100})
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 1
+
+        loc2 = Office::Location.new('F2')
+        sheet.add_image(image, loc2)
         sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
 
-        # first image in the right place
-        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:col').text.should == loc1.coli.to_s
-        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:row').text.should == loc1.rowi.to_s
+        reload book do |book|
+          sheet = book.sheets.first
 
-        # second image in the right place
-        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:col').text.should == loc2.coli.to_s
-        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:row').text.should == loc2.rowi.to_s
+          # has two images
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+
+          # first image in the right place
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:col').text.should == loc1.coli.to_s
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:row').text.should == loc1.rowi.to_s
+
+          # second image in the right place
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:col').text.should == loc2.coli.to_s
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:row').text.should == loc2.rowi.to_s
+        end
       end
     end
   end

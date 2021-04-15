@@ -604,10 +604,23 @@ module Office
       @drawing_part ||= fetch_drawing_part || create_drawing_part
     end
 
-    private def fetch_drawing_part
+    # 15-Apr-2021 so far this only exists so that external code can find out
+    # whether image creation works. Which is better than having external code
+    # digging far into Sheet internals.
+    def has_drawing?
+      !!drawing_rel_id
+    end
+
+    private def drawing_rel_id
+      # Nokogiri::XML::Element does not understand #dig
       if drawing_node = node.nxpath('*:worksheet/*:drawing').first
-        drawing_rel_id = drawing_node['r:id']
-        rel_part = worksheet_part.get_relationship_by_id drawing_rel_id
+        drawing_node['r:id']
+      end
+    end
+
+    private def fetch_drawing_part
+      if dri = drawing_rel_id
+        rel_part = worksheet_part.get_relationship_by_id dri
         rel_part.target_part
       end
     end
