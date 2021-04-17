@@ -164,8 +164,8 @@ module Office
           subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
         end
 
-        xit 'spaced extent' do
-          line = '{{entries.your_picture| 100  X 200}}'
+        it 'spaced extent' do
+          line = '{{entries.your_picture| 100  X 200    }}'
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>{:width=>100, :height=>200}, :keywords=>{}, :functors=>{}}
@@ -180,6 +180,20 @@ module Office
 
         it 'size functor extent' do
           line = '{{entries.your_picture|extent_size(100x200)}}'
+          tokens = PlaceholderLexer.tokenize line
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>nil, :functors=>{extent_size: {height: 200, width: 100}}, :keywords=>{}}
+        end
+
+        it 'one space functor extent' do
+          line = '{{entries.your_picture|extent_size( 100 x 200 )}}'
+          tokens = PlaceholderLexer.tokenize line
+          subject.read_tokens tokens
+          subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>nil, :functors=>{extent_size: {height: 200, width: 100}}, :keywords=>{}}
+        end
+
+        it 'spaced functor extent' do
+          line = "{{entries.your_picture|extent_size(  100  x  \n200  )}}"
           tokens = PlaceholderLexer.tokenize line
           subject.read_tokens tokens
           subject.to_h.should == {:field_path=>%i[entries your_picture], :image_extent=>nil, :functors=>{extent_size: {height: 200, width: 100}}, :keywords=>{}}
