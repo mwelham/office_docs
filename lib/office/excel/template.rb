@@ -108,9 +108,17 @@ module Excel
             cell.placeholder[] = val.to_s
 
           when Array
-            # TODO insert this during repeat groups work
             tabular = placeholder.options[:tabular]
-            cell.value = "Groups not yet implemented, tabular: #{tabular}"
+            tabular_data =
+            case val.first
+            when Array
+              # assume array of arrays
+              val
+            when Hash
+              table_of_hash val
+            end
+
+            sheet.accept!(cell.location, tabular_data)
 
           else
             raise "How to insert #{val.inspect} into sheet?"
@@ -121,6 +129,12 @@ module Excel
       workbook
     end
 
+    # convert an array of hashes to a table of rows
+    module_function def table_of_hash hash
+      headers = [make_hash_counter]
+      Array tablify hash, headers
+    end
+
     # Convert a tabular array (ie [field_names, *records]) to an
     # array of {field_name => value} hashes, one for each record.
     module_function def tabular_hashify(tabular_array)
@@ -129,6 +143,76 @@ module Excel
 
       # convert each row to a hash
       records.map {|ary| field_names.zip(ary).to_h }
+    end
+
+    # headers track possibly varying headers across different child blocks
+    module_function def tablify singular_value_hashes, headers, &blk
+      return enum_for __method__, singular_value_hashes, headers unless block_given?
+
+      # not all hashes contain the same keys, so we need to keep track, always
+      # put the same fields in the same positions, and append fields that show
+      # up for the first time.
+      values = singular_value_hashes.map do |singular_value_hash|
+        field_values = []
+        singular_value_hash.each do |field,value|
+          field_index = headers.last[field]
+          field_values[field_index] = value
+        end
+        field_values
+      end
+
+      # yield rows
+      values.each &blk
+    end
+
+    module_function def make_hash_counter
+      Hash.new{|h,k| h[k] = h.size}
+    end
+
+    # convert headers to largest
+    # headers = ary.select{|(t,*r)| t == :header}.map{|ry| ry.last.flat_map{|headers| headers&.keys || [nil]}}.max_by(&:length)
+    # rows = ary.select{|t,_| t == :row}.map{|(_t,r)|r.flatten}
+    # Convert a nested has of values and array to an
+    # array of arrays with repeated data
+    # TODO keep track of headers (which may not be unique between levels)
+    # headers should probably be an array of header => pos, one per level
+    module_function def table_of(node, prefix: [], headers: [make_hash_counter], &blk)
+      return enum_for __method__, node, prefix: prefix, headers: headers unless block_given?
+
+      case node
+      when Array
+        node.each do |child|
+          table_of child, prefix: prefix, headers: headers, &blk
+        end
+
+        # to signal child end-of-block
+        yield :header, headers
+
+      when Hash
+        # separate values (vals) from arrays (kids)
+        kids, vals = node.partition{|_k,v| Array === v || Hash === v}
+
+        # wrap in an Array to unpack it to values on next recursive call
+        # then unwrap it because it will only ever be 1 row
+        # headers here are for the vals only
+        # NOTE nheaders here is same as vals.to_h.keys
+        nprefix = tablify([vals.to_h], headers).to_a
+
+        if kids.empty?
+          # no further nesting so yield this whole row
+          yield :row, prefix + nprefix
+        else
+          # more nesting, so yield this prefix with each nested row
+          # yield child array with locally-appended prefix
+          headers = [*headers, nil, make_hash_counter]
+          kids.each do |(key, node)|
+            # yield data rows individually
+            table_of node, prefix: [*prefix, *nprefix, key], headers: headers, &blk
+          end
+        end
+      else
+        node
+      end
     end
   end
 end

@@ -35,6 +35,19 @@ describe Excel::Template do
       placeholders.call.should be_empty
     end
 
+    it 'modifies input book' do
+      target_book = Excel::Template.render!(book, data)
+      target_book.object_id.should == book.object_id
+    end
+
+    it 'displays replacements', display_ui: true do
+      Excel::Template.render!(book, data)
+      # reload_workbook book2 do |book| `localc #{book.filename}` end
+      reload_workbook book do |book| `localc #{book.filename}` end
+    end
+  end
+
+  describe 'replacement' do
     it 'placeholder does partial replacement' do
       cell = book.sheets.first['B11']
       cell.value.should == "very {{important}} thing"
@@ -65,15 +78,33 @@ describe Excel::Template do
       book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
     end
 
-    it 'modifies input book' do
-      target_book = Excel::Template.render!(book, data)
-      target_book.object_id.should == book.object_id
+    it 'lazy cell problem' do
+      # hmm. The LazyCell problem
+      # Also, we can make it add the same cell twice. Oops. Possibly LazyCell fallout?
+      sheet = book.sheets.first
+      str = '{{fields.Groups.Subgroup|tabular}}'
+      cell = sheet['C12']
+      cell.value.should be_nil
+      cell.value = str
+      cell.value.should == str
     end
 
-    it 'displays replacements', display_ui: true do
-      Excel::Template.render!(book, data)
-      # reload_workbook book2 do |book| `localc #{book.filename}` end
-      reload_workbook book do |book| `localc #{book.filename}` end
+    it 'table no insertion' do
+      sheet = book.sheets.first
+      cell = sheet['A18']
+      cell.value.should == "{{streams|tabular}}"
+      placeholder = Office::Placeholder.parse cell.placeholder.to_s
+
+      values = data.dig *placeholder.field_path
+      tabular_data = Excel::Template.table_of_hash(values)
+
+      # write data to sheet
+      sheet.accept!(cell.location, tabular_data)
+
+      # fetch the data
+      sheet.invalidate_row_cache
+      range = cell.location * [tabular_data.first.count, tabular_data.count]
+      sheet.cells_of(range, &:to_ruby).should == tabular_data
     end
   end
 
@@ -146,7 +177,6 @@ describe Excel::Template do
     end
   end
 
-  # uncomment when ExcelWorkbook#dup implemented
   describe '.render' do
     it 'calls render!' do
       Excel::Template.should_receive :render!
