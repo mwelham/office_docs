@@ -16,10 +16,9 @@ module Office
     # loc is something that understands rowi and coli as 0-based indices, eg Office::Location
     # rel_id is a string containing the relationship id to the image resource displayed by this drawing.
     # extent is optional width x height in pixels
-    def initialize wsdr_node:, img:, loc:, rel_id:, extent: nil
+    def initialize img:, loc:, rel_id:, extent: nil
       @img, @loc, @rel_id  = img, loc, rel_id
       @extent = self.class.dotify extent
-      @wsdr_node = wsdr_node
     end
 
     # make extent hashes dottable
@@ -39,22 +38,18 @@ module Office
     def name; File.basename @img.base_filename end
     def rel_id; @rel_id end
 
-    # the xml document for this drawing, created from initialization parameters.
-    def xdoc
-      @xdox ||= build_anchor!.doc
+    def largest_cnvpr_id wsdr_node
+      wsdr_node.nxpath('//*:cNvPr/@*:id').map(&:text).max&.to_i || 0
     end
 
-    # xml for this drawing as a String
-    def to_xml; xdoc.to_xml end
-
-    # Append a onceCellAnchor tag to the given wsDr tag (which should be in a
+    # Append a oneCellAnchor tag to the given wsDr tag (which should be in a
     # drawing.xml properly reference from the sheet).
     #
-    # Also returns the Nokogiri::XML::Builder.
-    def build_anchor!
+    # Returns the updated wsdr_node.
+    def build_anchor wsdr_node
       r_ns = NAMESPACE_DECLS.slice :'xmlns:r'
-      Nokogiri::XML::Builder.with @wsdr_node do |bld|
-        bld.oneCellAnchor do
+      Nokogiri::XML::Builder.with wsdr_node do |bld|
+        anchor_builder = bld.oneCellAnchor do
           bld.from do
             bld.col col
             bld.colOff 0
@@ -66,7 +61,7 @@ module Office
             bld.nvPicPr do
               # this can also have title: for a caption. But it doesn't seem to show up for xlsx files.
               # id: must be unique in this document. There's only one image for this drawing, so this complies.
-              bld.cNvPr id: 0, name: name
+              bld.cNvPr id: (largest_cnvpr_id(wsdr_node)+1), name: name
               bld.cNvPicPr preferRelativeResize: 0
             end
             bld.blipFill do
@@ -86,7 +81,7 @@ module Office
           end
           bld.clientData fLocksWithSheet: 0
         end
-      end
+      end.doc
     end
 
     def self.build_wsdr

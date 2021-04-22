@@ -726,8 +726,8 @@ module Office
 
       # create anchor in drawing (with unique-enough tmp value in blip@r:embed)
       tmp_rel_id = "tmp_rel_id-#{Base64.urlsafe_encode64 "#{Time.now}/#{Thread::current.__id__}"}"
-      image_drawing = ImageDrawing.new wsdr_node: drawing_wsdr_node, img: image, loc: loc, rel_id: tmp_rel_id, extent: extent
-      image_drawing.build_anchor!
+      image_drawing = ImageDrawing.new img: image, loc: loc, rel_id: tmp_rel_id, extent: extent
+      image_drawing.build_anchor drawing_wsdr_node
 
       # ... and rel from drawing -> image
       # TODO does this still apply?

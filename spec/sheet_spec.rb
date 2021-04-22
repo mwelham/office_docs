@@ -429,7 +429,7 @@ describe Office::Sheet do
 
       it 'adds image, drawing and rels' do
         # preconditions
-        # book has no media.image parts
+        # book has no media/image parts
         book.parts.select{|name,part| name =~ %r|media/image|}.should be_empty
 
         # book has no drawing parts / rels
@@ -520,8 +520,8 @@ describe Office::Sheet do
         sheet.add_image(image, loc2)
         sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
 
-        reload book do |book|
-          sheet = book.sheets.first
+        reload book do |saved; book, sheet|
+          sheet = saved.sheets.first
 
           # has two images
           sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
@@ -533,6 +533,7 @@ describe Office::Sheet do
           # second image in the right place
           sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:col').text.should == loc2.coli.to_s
           sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:row').text.should == loc2.rowi.to_s
+          # `localc --nologo #{saved.filename}`
         end
       end
     end
