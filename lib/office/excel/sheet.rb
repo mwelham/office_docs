@@ -668,11 +668,20 @@ module Office
       # TODO does this still apply?
       image_rel_id = workbook.add_relationship(drawing_part, image_part, IMAGE_RELATIONSHIP_TYPE)
 
-      # Using tmp value update r:embed to rId from the image rel remember that
-      # drawing might have been copied so we need to update the active one, ie
-      # drawing_part.xml
-      blip_node, = drawing_part.xml.nxpath(%|/*:wsDr/*:oneCellAnchor/*:pic/*:blipFill/*:blip[@r:embed = '#{tmp_rel_id}']|)
-      blip_node['r:embed'] = image_rel_id
+      # Using tmp value update r:embed attribute to rId from the image rel.
+      # Remember that drawing might have been copied so we need to update the
+      # active one, ie drawing_part.xml
+      # Also, the r:embed attribute needs the r namespace to be declared. If
+      # this code constructed the drawing's wsDr tag it will be fine, but if something
+      # else did then it may have optimised the namespaces and removed r. So don't
+      # assume that r:embed will work properly in an xpath.
+      # Also also, I suspect that a namespace being declared in the same node
+      # where an attribute refers to that namespace might tickle a bug in
+      # nokogiri or libxml2.
+      blip_node, = drawing_part.xml.nxpath(%|/*:wsDr/*:oneCellAnchor/*:pic/*:blipFill/*:blip[@*:embed = '#{tmp_rel_id}']|)
+
+      # Assuming there will only be one namespace for embed.
+      blip_node.attributes['embed'].value = image_rel_id
 
       image_part
     end

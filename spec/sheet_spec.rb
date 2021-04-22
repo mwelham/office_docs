@@ -347,6 +347,38 @@ describe Office::Sheet do
       let :book do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
       let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
 
+      describe "existing image with 'optimised' wsDr namespace declarations" do
+        let :book do
+          Office::ExcelWorkbook.new FixtureFiles::Book::TEMPLATE_FIRE_PUMP_FLOW
+        end
+
+        let :expected_namespaces do
+          Office::ImageDrawing::NAMESPACE_DECLS.transform_keys(&:to_s)
+        end
+
+        it do
+          # This is a correct xpath expression. But libxml2 rejects it.
+          # sheet.drawing_part.xml.nxpath('//(*:oneCellAnchor|*:twoCellAnchor)')
+
+          # there should be 2 existing images
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor | //*:twoCellAnchor').count.should == 2
+
+          # the blip tags should have r: namespace otherwise this test is pointless
+          sheet.drawing_part.xml.nxpath('//*:blip').each do |blip_node|
+            blip_node.namespaces.should == expected_namespaces
+          end
+
+          # wsDr does NOT contain the r: namespace
+          sheet.drawing_part.xml.nxpath('/*:wsDr').map(&:namespaces).should == [expected_namespaces.slice('xmlns:xdr', 'xmlns:a')]
+
+          loc = Office::Location.new 'B2'
+          sheet.add_image(image, loc)
+
+          # ... and then there were 3
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor | //*:twoCellAnchor').count.should == 3
+        end
+      end
+
       it 'adds image, drawing and rels' do
         # preconditions
         # book has no media.image parts

@@ -6,6 +6,13 @@ module Office
     # DrawingML use EMUs which are English Metric Units.
     PIXELS_TO_EMUS = 9525
 
+    NAMESPACE_DECLS = {
+      :'xmlns:xdr'   => 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing',
+      :'xmlns:a'     => 'http://schemas.openxmlformats.org/drawingml/2006/main',
+      :'xmlns:r'     => 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+    }
+
+
     # img is something that understands (or really columns:Pixel, rows:Pixel and base_filename:String), eg ImageMagick
     # loc is something that understands rowi and coli as 0-based indices, eg Office::Location
     # rel_id is a string containing the relationship id to the image resource displayed by this drawing.
@@ -46,6 +53,7 @@ module Office
     #
     # Also returns the Nokogiri::XML::Builder.
     def build_anchor!
+      r_ns = NAMESPACE_DECLS.slice :'xmlns:r'
       Nokogiri::XML::Builder.with @wsdr_node do |bld|
         bld.oneCellAnchor do
           bld.from do
@@ -63,7 +71,9 @@ module Office
               bld.cNvPicPr preferRelativeResize: 0
             end
             bld.blipFill do
-              bld[:a].blip cstate: 'print', 'r:embed': rel_id
+              # NOTE blip must have the namespace declaration. Excel over-optimises the wsDr
+              # tag which quite often doesn't contain the r namespace.
+              bld[:a].blip **r_ns, cstate: 'print', 'r:embed': rel_id
               bld[:a].stretch do
                 bld[:a].fillRect
               end
@@ -81,13 +91,6 @@ module Office
     end
 
     def self.build_wsdr
-      # we only need the namespaces we refer to
-      namespace_decls = {
-        :'xmlns:xdr'   => 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing',
-        :'xmlns:a'     => 'http://schemas.openxmlformats.org/drawingml/2006/main',
-        :'xmlns:r'     => 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-      }
-
       # apparently this is the only way to get standalone
       # because to_xml(encoding: "UTF-8" standalone: "yes") leaves out the standalone
       # TODO verify that - maybe one of the write_to or to_xml options works https://github.com/sparklemotion/nokogiri/wiki/Cheat-sheet#working-with-a-nokogirixmlnode
@@ -95,8 +98,9 @@ module Office
 
       # TODO this generates LF only - will that work ok with MacOS and Windows?
       # builder code was fine in the sheet and cell code so probably will be fine.
+      # we only need the namespaces we refer to
       Nokogiri::XML::Builder.with xml_decl do |bld|
-        bld[:xdr].wsDr namespace_decls
+        bld[:xdr].wsDr NAMESPACE_DECLS
       end # builder
     end
   end
