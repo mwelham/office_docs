@@ -4,6 +4,12 @@ Provide access to internal structure of docx and xlsx files.
 
 Provide placeholder templating for content.
 
+## Standards
+
+The standards documents and xsds are available here:
+
+https://www.ecma-international.org/publications-and-standards/standards/ecma-376/
+
 ## Tests
 
 Most of the `docx` tests are in minispec. All of the `xlsx` tests and some

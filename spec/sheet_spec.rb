@@ -340,6 +340,53 @@ describe Office::Sheet do
       end
     end
 
+    describe 'private #fixup_drawing_tag_order' do
+      let :book do
+        Office::ExcelWorkbook.new FixtureFiles::Book::EMAIL_TEST_4
+      end
+
+      # validate that the drawing and extLst tags are in the correct order
+      it do
+        # This actually contains an incorrect ordering from a previous run
+        sheet.node.root.element_children.map(&:name).last(2).should == %w[extLst drawing]
+
+        sheet.send :fixup_drawing_tag_order
+
+        # tag ordering should now be correct
+        sheet.node.root.element_children.map(&:name).last(2).should == %w[drawing extLst]
+      end
+    end
+
+    describe 'private #create_drawing_part' do
+      let :book do
+        Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY
+      end
+
+      # validate that the drawing and extLst tags are in the correct order
+      it 'empty sheet gets drawing tag in correct position' do
+        sheet.node.root.element_children.map(&:name).should_not include('drawing')
+
+        # insert a fake extLst so we can ensure drawing is inserted before it
+        sheet.node.root << <<~EOX
+        <extLst>
+        <ext xmlns:mx="http://schemas.microsoft.com/office/mac/excel/2008/main" uri="{64002731-A6B0-56B0-2670-7721B7C09600}">
+        <mx:PLV Mode="0" OnePage="0" WScale="0"/>
+        </ext>
+        </extLst>
+        EOX
+
+        sheet.node.root.element_children.map(&:name).should == %w[
+          sheetPr dimension sheetViews sheetFormatPr sheetData printOptions pageMargins pageSetup headerFooter extLst]
+
+        loc = Office::Location.new 'C3'
+        sheet.add_image(image, loc)
+
+        # tag ordering should now be correct
+        sheet.node.root.element_children.map(&:name).should == %w[
+          sheetPr dimension sheetViews sheetFormatPr sheetData printOptions pageMargins pageSetup headerFooter drawing extLst]
+      end
+    end
+
     describe '#add_image' do
       # for Package#parts
       using PackageDebug
@@ -371,10 +418,11 @@ describe Office::Sheet do
           # wsDr does NOT contain the r: namespace
           sheet.drawing_part.xml.nxpath('/*:wsDr').map(&:namespaces).should == [expected_namespaces.slice('xmlns:xdr', 'xmlns:a')]
 
-          loc = Office::Location.new 'B2'
-          sheet.add_image(image, loc)
+          # Where {{fields.Inspector_Signature}} would be
+          loc = Office::Location.new 'F73'
+          ->{sheet.add_image(image, loc)}.should_not raise_error
 
-          # ... and then there were 3
+          # and then there were 3
           sheet.drawing_part.xml.nxpath('//*:oneCellAnchor | //*:twoCellAnchor').count.should == 3
         end
       end

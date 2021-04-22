@@ -625,13 +625,76 @@ module Office
       end
     end
 
+    # From OfficeOpenXML-XMLSchema-Strict.zip/sml.xsd/xsd:complexType[@name="CT_Worksheet"]
+    # Hash of tag name to integer order
+    SHEET_CHILD_NODE_ORDER = (<<~EOTS).split(/\s+/).each_with_index.each_with_object({}){|(name,index),ha| ha[name] = index }
+      sheetPr
+      dimension
+      sheetViews
+      sheetFormatPr
+      cols
+      sheetData
+      sheetCalcPr
+      sheetProtection
+      protectedRanges
+      scenarios
+      autoFilter
+      sortState
+      dataConsolidate
+      customSheetViews
+      mergeCells
+      phoneticPr
+      conditionalFormatting
+      dataValidations
+      hyperlinks
+      printOptions
+      pageMargins
+      pageSetup
+      headerFooter
+      rowBreaks
+      colBreaks
+      customProperties
+      cellWatches
+      ignoredErrors
+      smartTags
+      drawing
+      drawingHF
+      picture
+      oleObjects
+      controls
+      webPublishItems
+      tableParts
+      extLst
+    EOTS
+
+    # Sort child nodes in the order specified by sml.xsd, otherwise Excel throws
+    # its toys.
+    private def fixup_drawing_tag_order
+      # Sort non-text nodes in the right order. Unknown node names at the end.
+      sorted_child_node_ary = node.root.element_children.sort_by{|n| SHEET_CHILD_NODE_ORDER[n.name] || Float::INFINITY}
+
+      # Unlink all child nodes ...
+      child_ary = node.root.children.unlink
+
+      # ... then reattach iteratively in the correct order while respecting
+      # text nodes (ie whitespace).
+      child_ary.reduce 0 do |node_index, child_node|
+        if child_node.text?
+          node.root << child_node
+          node_index
+        else
+          node.root << sorted_child_node_ary[node_index]
+          node_index + 1
+        end
+      end
+    end
+
     # create, attach and return a drawing part
     private def create_drawing_part
-      # create drawing (with unique-enough tmp value in blip@r:embed)
+      # create drawing
       drawing = ImageDrawing.build_wsdr.doc
 
       # drawing part added to workbook as drawings/drawingX ...
-      # TODO should this be workbook or worksheet?
       drawing_part = workbook.add_drawing_part(drawing, workbook.workbook_part.path_components)
 
       # ... with rel from sheet to drawing
@@ -641,6 +704,8 @@ module Office
       Nokogiri::XML::Builder.with node.nxpath('*:worksheet').first do |bld|
         bld.drawing 'r:id': drawing_rel_id
       end
+
+      fixup_drawing_tag_order
 
       drawing_part
     end

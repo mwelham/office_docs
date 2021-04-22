@@ -12,7 +12,6 @@ module Office
       :'xmlns:r'     => 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
     }
 
-
     # img is something that understands (or really columns:Pixel, rows:Pixel and base_filename:String), eg ImageMagick
     # loc is something that understands rowi and coli as 0-based indices, eg Office::Location
     # rel_id is a string containing the relationship id to the image resource displayed by this drawing.
