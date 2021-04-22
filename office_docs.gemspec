@@ -1,12 +1,12 @@
 Gem::Specification.new do |spec|
   spec.name        = "office_docs"
-  spec.version     = "0.6.0"
+  spec.version     = "0.6.1"
   spec.date        = "2015-12-01"
   spec.summary     = "Manipulate Microsoft Office Open XML files"
   spec.description = "Generate and modify Word .docx and Excel .xlsx files"
   spec.authors     = ["Mike Welham", "Matthew Hirst"]
   spec.email       = "mikew@devicemagic.com"
-  spec.files       = ["lib/office_docs.rb"]
+  spec.files       = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^\.(git|ruby)|^(|test|spec|features)/}) }
   spec.homepage    = "https://github.com/devicemagic/office_docs"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
