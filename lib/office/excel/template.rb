@@ -269,65 +269,85 @@ module Excel
       end
     end
 
-    module_function def distribute node, row_so_far = [], path = [], paths = {}, last_index = nil
+    module_function def group_hash node
+      empty = Hash.new{|h,k| h[k] = {}}
+      node.each_with_object empty do |(name,value), groups|
+        value_type =
+        case value
+        # when ->_{Array === value && value.size == 1}; Hash
+        when Array; Array
+        when Hash; Hash
+        else Object
+        end
+
+        empty[value_type][name] = value
+      end
+    end
+
+    module_function def distribute node, row_so_far = [], path = [], paths = {}, last_index = nil, &blk
       # for each name/value in the hash:
       # see if paths[path + [name]] has an index
       # if not add it and increment last_index
       case node
       when Hash
-        # TODO to_h is not necessary, just change param destructuring
-        kids, vals = node.partition{|_k,v| Array === v || Hash === v}.map(&:to_h)
+        value_types = group_hash node
 
-        # collect singular values
-        # NOTE dup is necessary to copy the prefix to each result row, otherwise
-        # it gets overwritten by the singular value assignment, below.
-        paths, last_index, prefix = vals.reduce([paths, last_index, row_so_far.dup]) do |(paths, last_index, row), (name, value)|
-          distribute value, row, (path + [name]), paths, last_index
+        # collect Object/singular values to construct prefix
+        paths, last_index, prefix = value_types[Object].reduce([paths, last_index, row_so_far]) do |(paths, last_index, row), (name, value)|
+          # no blk passed here because augmented prefix will come back as return value
+          distribute value, row, (path + [name]), paths, last_index do |*| end
         end
 
-        # process array values, ie child nodes, if they exist
-        paths, last_index, row =
-        if kids.any?
-          # accumulate separate rows rather than accumulating in one
-          paths, last_index, row = kids.reduce([paths, last_index, []]) do |(paths, last_index, rows), (name, value)|
-            npaths, index, row = distribute value, prefix, (path + [name]), paths, last_index
-            # Another way of looking at the Hash/Array distinction.
-            # Hashes come back with 1 row, Arrays have 1 or more.
-            case row
-            when Row
-              [npaths, index, (rows << row)]
-            when ->_{ Array === row && row.size == 1 && Row === row.first}
-              [npaths, index, (rows << row)]
-            when ->_{ Array === row && row.size == 1}
-              [npaths, index, (rows << Row.new(row))]
-            when Array
-              [npaths, index, (rows + row)]
-            else
-              raise "unknown class #{row.inspect}"
-            end
-          end
-          [paths, last_index, row]
+        # process hash values, which may or may not contain array children
+
+        # process array values.
+        # TODO ? Effectively an array of size 1 is the same as a hash value
+        hashes, arrays = value_types[Hash], value_types[Array]
+        case [hashes.size, arrays.size]
+        when [0, 0]
+          # This is at a node with only leafs, so yield as a row.
+          blk.call prefix
+          # also return as a row. Because. Maybe its useful.
+          [paths, last_index, prefix]
         else
-          # This is an actual row, not a recursive walk artifact. So wrap it in
-          # a non-array to protect against flattening.
-          [paths, last_index, Row.new(prefix)]
+          # put hashes (ie things containing prefixes) before arrays
+          kids = hashes.merge arrays
+          # accumulate separate rows rather than accumulating in one
+          kids.reduce([paths, last_index, []]) do |(paths, last_index, rows), (name, value)|
+            npaths, index, row = distribute value, prefix, (path + [name]), paths, last_index, &blk
+            [npaths, index, (rows + [row])]
+          end
         end
 
-        [paths, last_index, row]
       when Array
         # necessarily returns an array of rows
         node.reduce([paths, last_index, []]) do |(paths, last_index, rows), child_node|
-          paths, index, row = distribute child_node, row_so_far, path, paths, last_index
+          paths, index, row = distribute child_node, row_so_far, path, paths, last_index, &blk
           [paths, index, (rows + [row])]
         end
+
       else
         # singular value, so increment index if necessary
         unless index = paths[path]
           index = paths[path] = last_index ? last_index + 1 : 0
         end
-        row_so_far[index] = node
-        [paths, index, row_so_far]
+        # put value in the correct place in the array
+        # TODO .dup here is quite inefficient.
+        (new_row = row_so_far.dup)[index] = node
+        [paths, index, new_row]
       end
+    end
+
+    module_function def table node
+      rows = []
+      # distribute the values from the tree into a rectangular format
+      paths, index, nested_rows = distribute node do |row| rows << row end
+      # pad each row to maximum length in case we want to transpose
+      rows.each{|r| r[index] ||= nil}
+      # make headers from dotted paths
+      headers = paths.sort_by{|_,index| index}.map{|name,_| name.join ?.}
+      # put headers with
+      rows.unshift headers
     end
   end
 end
