@@ -291,9 +291,22 @@ module Excel
           # accumulate separate rows rather than accumulating in one
           paths, last_index, row = kids.reduce([paths, last_index, []]) do |(paths, last_index, rows), (name, value)|
             npaths, index, row = distribute value, prefix, (path + [name]), paths, last_index
-            [npaths, index, (rows + row)]
+            # Another way of looking at the Hash/Array distinction.
+            # Hashes come back with 1 row, Arrays have 1 or more.
+            case row
+            when Row
+              [npaths, index, (rows << row)]
+            when ->_{ Array === row && row.size == 1 && Row === row.first}
+              [npaths, index, (rows << row)]
+            when ->_{ Array === row && row.size == 1}
+              [npaths, index, (rows << Row.new(row))]
+            when Array
+              [npaths, index, (rows + row)]
+            else
+              raise "unknown class #{row.inspect}"
+            end
           end
-          [paths, last_index, row.flatten]
+          [paths, last_index, row]
         else
           # This is an actual row, not a recursive walk artifact. So wrap it in
           # a non-array to protect against flattening.
