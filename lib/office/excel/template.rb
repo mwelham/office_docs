@@ -245,6 +245,76 @@ module Excel
         end
       end
       rows
+    # path is a set of keys, leaf is index for now (augment with row later?)
+    # paths is an accumulator - the map from each possible path to its index
+    # last index will be somewhere in paths, so track it separately
+    module_function def path_indices node, path = [], paths = {}, last_index = 0
+      case node
+      when Hash
+        # for each name/value in the hash:
+        # see if paths[path + [name]] has an index
+        # if not add it and increment last_index
+        node.reduce [paths, last_index] do |(paths, last_index), (name, value)|
+          extended_path = path + [name]
+          path_indices value, extended_path, paths, last_index
+        end
+      when Array
+        node.reduce [paths, last_index] do |(paths, last_index), child_node|
+          path_indices child_node, path, paths, last_index
+        end
+      else
+        # singular value, so increment index if necessary
+        incremented_index = paths[path] ||= last_index + 1
+        [paths, incremented_index]
+      end
+    end
+
+    module_function def distribute node, row_so_far = [], path = [], paths = {}, last_index = nil
+      # for each name/value in the hash:
+      # see if paths[path + [name]] has an index
+      # if not add it and increment last_index
+      case node
+      when Hash
+        # TODO to_h is not necessary, just change param destructuring
+        kids, vals = node.partition{|_k,v| Array === v || Hash === v}.map(&:to_h)
+
+        # collect singular values
+        # NOTE dup is necessary to copy the prefix to each result row, otherwise
+        # it gets overwritten by the singular value assignment, below.
+        paths, last_index, prefix = vals.reduce([paths, last_index, row_so_far.dup]) do |(paths, last_index, row), (name, value)|
+          distribute value, row, (path + [name]), paths, last_index
+        end
+
+        # process array values, ie child nodes, if they exist
+        paths, last_index, row =
+        if kids.any?
+          # accumulate separate rows rather than accumulating in one
+          paths, last_index, row = kids.reduce([paths, last_index, []]) do |(paths, last_index, rows), (name, value)|
+            npaths, index, row = distribute value, prefix, (path + [name]), paths, last_index
+            [npaths, index, (rows + row)]
+          end
+          [paths, last_index, row.flatten]
+        else
+          # This is an actual row, not a recursive walk artifact. So wrap it in
+          # a non-array to protect against flattening.
+          [paths, last_index, Row.new(prefix)]
+        end
+
+        [paths, last_index, row]
+      when Array
+        # necessarily returns an array of rows
+        node.reduce([paths, last_index, []]) do |(paths, last_index, rows), child_node|
+          paths, index, row = distribute child_node, row_so_far, path, paths, last_index
+          [paths, index, (rows + [row])]
+        end
+      else
+        # singular value, so increment index if necessary
+        unless index = paths[path]
+          index = paths[path] = last_index ? last_index + 1 : 0
+        end
+        row_so_far[index] = node
+        [paths, index, row_so_far]
+      end
     end
   end
 end
