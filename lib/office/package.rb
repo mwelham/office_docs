@@ -16,15 +16,12 @@ module Office
     end
 
     def to_data
-      original_filename = @filename
-      file = Tempfile.new('OfficePackage')
-      file.close
-      begin
-        save(file.path)
-        File.open(file.path, 'rb:ASCII-8BIT') { |f| return f.read }
-      ensure
-        @filename = original_filename
-        file.delete
+      Dir.mktmpdir do |dir|
+        # generate a unique-enough filename
+        tmp_filename = @filename || (now = Time.now; "#{now.to_i}.#{now.tv_nsec}")
+        path = File.join dir, File.basename(tmp_filename)
+        save path
+        File.open(path, 'rb:ASCII-8BIT', &:read)
       end
     end
 
@@ -95,7 +92,9 @@ module Office
           end
         end
         raise PackageError.new("package '#{@filename}' is missing content types part") if @parts_by_name.empty?
-        entries.each { |e| parse_zip_entry(e) }
+        entries.each do |e|
+          parse_zip_entry(e) unless e.directory?
+        end
       end
     end
 
@@ -156,6 +155,44 @@ module Office
     def get_relationship_targets(type)
       raise "package '#{@filename}' is missing package-level relationships" if @relationships.nil?
       @relationships.get_relationship_targets(type)
+    end
+
+    # make sure that a maybe-new part has a related Relationships entry in the relevant rels file
+    def ensure_relationships part
+      unless part.has_relationships?
+        content = StringIO.new %|<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>|
+        rels_part = add_part(part.rels_name, content, RELATIONSHIP_CONTENT_TYPE)
+        rels_part.map_relationships(self)
+      end
+    end
+
+    # return rel_id for new relationship
+    # MAYBE can lookup rel_type from somewhere? Will always be related to dst_part anyway...?
+    def add_relationship(src_part, dst_part, rel_type)
+      ensure_relationships src_part
+      src_part.add_relationship(dst_part, rel_type)
+    end
+
+    # part is the Office::Part to which the image should be added
+    # image will be added as a part
+    # rel will be added from part to the new image_part
+    def add_image_part_rel(image, part)
+      image_part = add_image_part(image, part.path_components)
+      relationship_id = add_relationship(part, image_part, IMAGE_RELATIONSHIP_TYPE)
+
+      [relationship_id, image_part]
+    end
+
+    # image will be added as a part underneath /<path_components>/media/imageX.<imgext>
+    # returns an ImagePart instance
+    def add_image_part(image, path_components)
+      prefix = File.join ?/, path_components, 'media/image'
+
+      # unused_part_identifier is 1..n : Integer
+      # .extension comes from the image
+      part_name = "#{prefix}#{unused_part_identifier prefix}.#{image.format.downcase}"
+
+      add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
     end
 
     def debug_dump

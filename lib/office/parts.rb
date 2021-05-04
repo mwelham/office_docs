@@ -14,6 +14,13 @@ module Office
       name.split('/').values_at(1..-2)
     end
 
+    # name of the _rels file for this part
+    # eg for part /xl/drawings/drawing1.xml
+    # the rels file is /xl/drawings/_rels/drawing1.xml.rels
+    def rels_name
+      File.join File.dirname(name), '_rels', "#{File.basename(name)}.rels"
+    end
+
     def save(zip_output)
       zip_output.put_next_entry @zip_entry_name || @name[1..-1] # strip off leading '/'
       zip_output << get_zip_content
@@ -90,10 +97,15 @@ module Office
   class XmlPart < Part
     attr_accessor :xml # Nokogiri::XML::Document
 
-    def initialize(part_name, xml_io, content_type)
+    def initialize(part_name, xml_thing, content_type)
       @name = part_name
-      @xml = Nokogiri::XML::Document.parse(xml_io)
       @content_type = content_type
+      @xml = case xml_thing
+      when Nokogiri::XML::Document
+        xml_thing
+      else
+        Nokogiri::XML(xml_thing)
+      end
     end
 
     def get_zip_content
@@ -231,14 +243,7 @@ module Office
     end
 
     def relative_path_from_owner(part_name)
-      owner_components = @owner_name.downcase.split('/')
-      target_components = part_name.downcase.split('/')
-      return part_name unless owner_components.first == target_components.first
-      owner_components.each do |c|
-        break unless target_components.first == c
-        target_components.shift
-      end
-      target_components.join('/')
+      Pathname(part_name).relative_path_from(Pathname(@owner_name).parent).to_s
     end
 
     def debug_dump

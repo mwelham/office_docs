@@ -5,3 +5,4 @@ docs
 scratch
 spec/examples.txt
 coverage
+pkg/

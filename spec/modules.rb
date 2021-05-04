@@ -1,21 +1,41 @@
-module BookFiles
+module FixtureFiles
   def self.content_path
     Pathname(__dir__) + "../test/content"
   end
 
-  content_path.children.each do |path|
-    next unless path.to_s.end_with? '.xlsx'
-    const_name = path.basename('.xlsx').to_s.gsub(/[[:punct:]]/, ?_).upcase
-    const_set const_name, path.realpath.to_s
+  module Book; end
+  module Doc; end
+  module Image; end
+  module Xml; end
+  module Yaml; end
+
+  content_path.glob('*.*').each do |path|
+    the_mod =
+    case path.extname
+    when '.xlsx'; Book
+    when '.docx'; Doc
+    when '.jpg'; Image
+    when '.xml'; Xml
+    when '.yml'; Yaml
+    else; raise "Unknown module for #{path}"
+    end
+
+    const_name = path.basename(path.extname).to_s.gsub(/[[:punct:]]/, ?_).upcase
+    the_mod.const_set const_name, path.realpath.to_s
   end
 end
 
-module ReloadWorkbook
-  def reload_workbook workbook, filename = nil, &blk
+module Reload
+  def reload document, filename = nil, &blk
     Dir.mktmpdir do |dir|
-      filename = File.join dir, (filename || File.basename(workbook.filename))
-      workbook.save filename
-      yield Office::ExcelWorkbook.new(filename)
+      filename = File.join dir, (filename || File.basename(document.filename))
+      document.save filename
+      yield document.class.new(filename)
     end
   end
+
+  alias reload_workbook reload
+  alias reload_document reload
 end
+
+ReloadWorkbook = Reload

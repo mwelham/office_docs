@@ -236,13 +236,30 @@ module Office
       raise
     end
 
+    class Placeholder
+      def initialize cell, start, length
+        @cell, @start, @length = cell, start, length
+      end
+
+      attr_reader :start, :length
+
+      def to_s; @cell.value[start,length] end
+
+      def []=(rhs)
+        cell_value = @cell.value
+        cell_value[start,length] = rhs
+        # NOTE this will cause @cell to drop its reference to this instance
+        @cell.value = cell_value
+      end
+    end
+
     # contains the first placeholder. There might be more than one.
     def placeholder
       # to invalidate this, use remove_instance_variable
       if instance_variable_defined? :@placeholder
         @placeholder
       else
-        placeholder = case
+        cuddled_placeholder = case
         when shared?
           to_ruby
 
@@ -256,10 +273,12 @@ module Office
 
         end
 
+        # This can cache nil
         @placeholder =
-        if placeholder
-          placeholder =~ /\{\{(.*?)\}\}/
-          $1
+        if cuddled_placeholder
+          if start = cuddled_placeholder =~ /\{\{(.*?)\}\}/
+            Placeholder.new self, start, $&.length
+          end
         end
       end
     end
@@ -312,7 +331,7 @@ module Office
 
     # Again running into conflation of the type/object and the format
     def formatted_value
-      return shared_string.node.text if shared?
+      return shared_string.text if shared?
       return value if inline?
 
       unformatted_value = value

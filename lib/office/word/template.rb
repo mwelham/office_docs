@@ -54,15 +54,6 @@ module Word
     #
 
     def render(data, options = {})
-      # TODO this doesn't seem to do anything?
-      paragraph_sets = [main_doc.paragraphs]
-      main_doc.headers.each do |header|
-        paragraph_sets << header.paragraphs
-      end
-      main_doc.footers.each do |footer|
-        paragraph_sets << footer.paragraphs
-      end
-
       containers = [main_doc, main_doc.headers, main_doc.footers].flatten
       containers.each do |container|
         expand_for_loops(container, data, options)

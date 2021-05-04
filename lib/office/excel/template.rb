@@ -1,5 +1,6 @@
 require_relative '../constants'
 require_relative '../nokogiri_extensions'
+require_relative '../excel/placeholder.rb'
 
 # Top-level Excel template rendering.
 #
@@ -7,6 +8,7 @@ require_relative '../nokogiri_extensions'
 # template with data, using placeholder syntax like
 #
 #  {{driver.controller.streams[1].start}}
+#  {{driver.controller.streams[1].photo | 133x100}}
 #
 # data must be a HoHA (Hash of Hashes and Arrays), also known as 'a json' :-p
 #
@@ -21,31 +23,37 @@ module Excel
   # 'module' because there's no state, and therefore no justification for
   # creating an instance to hold said non-existent state.
   module Template
-    # %r because / breaks my editor's syntax highlighting with the double } :-s
-    PLACEHOLDER_RX = %r|{{.*?}}|
+    class PathNotFound < RuntimeError; end
 
     module Evaluator
       # Fetch the value from self for the given expr_str, which should be
       # something like "controller.streams[0].start".
       #
       # depends on #dig
-      #
-      # TODO this will probably end up being too naive, because we might want
-      # more information about which prefix evaluated to nil.
-      def evaluate(expr_str)
-        # split on . and [] so "streams[0].start" becomes [:streams, 0, :start]
-        parts = expr_str.split(/[\[.\]]+/).map! do |part|
-          # convert to integer, then symbol
-          Integer part rescue part.to_sym
+      def evaluate(field_path)
+        field_path.any? or raise ArgumentError, "Invalid field_path: #{field_path.inspect}"
+
+        # go down field_path, and get the value at each stage.
+        # a nil return on the very last step is permitted, otherwise an exception will be raised.
+        val, parts_done = field_path.reduce [self, []] do |(obj, path), part|
+          break [obj, path] if obj.is_a?(PathNotFound)
+
+          if (rv = obj.dig(part)).nil?
+            # Don't double-cuddle {{ }} here otherwise specs break because those cells then look like placeholders again.
+            msg = "{#{Office::Placeholder.rejoin field_path}} not found in data"
+            msg << " from {#{Office::Placeholder.rejoin path}}" if path.any?
+            msg << ?.
+            [PathNotFound.new(msg), path << part]
+            # raise PathNotFound, "#{part} => nil for path [#{Office::Placeholder.rejoin path}] from [#{Office::Placeholder.rejoin field_path}] on\n #{obj.to_yaml}\n\n from #{self.to_yaml}"
+          else
+            [rv, path << part]
+          end
         end
 
-        dig *parts
-      rescue ArgumentError => ex
-        # check that we're getting the exception from dig and not somewhere else
-        if ex.message == 'wrong number of arguments (given 0, expected 1+)'
-          raise "Invalid expression: #{expr_str.inspect}"
+        if val.is_a?(PathNotFound)
+          raise val if field_path != parts_done
         else
-          raise
+          val
         end
       end
     end
@@ -78,22 +86,34 @@ module Excel
         sheet.each_placeholder do |cell|
           val =
           begin
-            data.evaluate(cell.placeholder)
+            placeholder = Office::Placeholder.parse cell.placeholder.to_s
+            data.evaluate placeholder.field_path
           rescue
             # TODO maybe use actual xlsx error cells here?
             # TODO maybe have an error callback?
-            "ERROR for cell.placeholder: #{$!.message}"
+            # TODO test that this doesn't swallow relevant exceptions
+            "ERROR: #{$!.message}"
           end
 
-          cell.value =
-          if cell.value.length > cell.placeholder.length + 4
-            # cell contains text surrounding {{placeholder}}
-            # TODO maybe this is Cell responsibility?
-            # TODO maybe use the word placeholder code here?
-            # NOTE we can't rely on Excel formatting of value here, so just convert to a string
-            cell.value.gsub(PLACEHOLDER_RX, val.to_s)
+          case val
+          # or respond_to? :to_blob
+          when Magick::ImageList, Magick::Image
+            # add image anchored at this cell
+            image_part = sheet.add_image val, cell.location, extent: placeholder.image_extent
+            # clear cell value
+            # TODO implement delete cell
+            cell.value = nil
+
+          when String, Numeric, Date, DateTime, Time, TrueClass, FalseClass, NilClass
+            cell.placeholder[] = val.to_s
+
+          when Array
+            # TODO insert this during repeat groups work
+            tabular = placeholder.options[:tabular]
+            cell.value = "Groups not yet implemented, tabular: #{tabular}"
+
           else
-            val
+            raise "How to insert #{val.inspect} into sheet?"
           end
         end
       end

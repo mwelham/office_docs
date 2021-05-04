@@ -5,13 +5,16 @@ require_relative '../lib/office/constants'
 require_relative '../lib/office/nokogiri_extensions'
 
 require_relative 'xml_fixtures'
+require_relative 'package_debug.rb'
+
+require 'ostruct'
 
 # copy of the minitest test cases, because specs are easier to zero in on
 describe Office::Sheet do
   include XmlFixtures
   include ReloadWorkbook
 
-  let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_PLACEHOLDERS end
+  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_PLACEHOLDERS end
   let :sheet do book.sheets.first end
 
   describe 'placeholders' do
@@ -30,7 +33,7 @@ describe Office::Sheet do
   end
 
   describe 'cell operations' do
-    let :book do Office::ExcelWorkbook.new BookFiles::SIMPLE_TEST end
+    let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_TEST end
 
     it 'replaces one cell' do
       the_value = "This is the new pump"
@@ -232,7 +235,7 @@ describe Office::Sheet do
   end
 
   describe 'range fetching' do
-    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :book do Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST) end
 
     it 'cells', performance: true do
       sheet = book.sheets.first
@@ -248,16 +251,17 @@ describe Office::Sheet do
   end
 
   describe 'csv' do
-    let :book do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :book do Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST) end
     let :sheet do book.sheets.first end
 
     it 'comparisons', performance: true do
       require 'benchmark'
       Benchmark.bmbm do |results|
         results.report 'to_excel_csv' do sheet.to_excel_csv end
-        results.report 'old_range_to_csv' do sheet.send :old_range_to_csv end
+        # results.report 'old_range_to_csv' do sheet.send :old_range_to_csv end
         results.report 'range_to_csv' do sheet.range_to_csv end
         results.report 'cells_of to_csv' do sheet.cells_of(&:formatted_value).to_csv end
+        results.report 'preload cells_of to_csv' do sheet.preload_rows; sheet.cells_of(&:formatted_value).to_csv end
       end
     end
   end
@@ -282,6 +286,256 @@ describe Office::Sheet do
 
     it 'unknown object location' do
       ->{sheet[Object.new]}.should raise_error(Office::LocatorError)
+    end
+  end
+
+  describe 'images' do
+    # for Package#parts
+    using PackageDebug
+
+    let :book_with_image do Office::ExcelWorkbook.new FixtureFiles::Book::IMAGE_FROM_GOOGLE end
+    let :book_no_image do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
+    let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+
+    describe 'has_drawing' do
+      it 'has drawing' do
+        sheet = book_with_image.sheets.first
+        sheet.should have_drawing
+      end
+
+      it 'does not have drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.should_not have_drawing
+      end
+    end
+
+    describe '#drawing_part' do
+      it 'has a drawing part' do
+        sheet = book_with_image.sheets.first
+        sheet.should have_drawing
+        sheet.drawing_part.should be_a(Office::XmlPart)
+      end
+
+      it 'creates a drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.should_not have_drawing
+        sheet.send(:fetch_drawing_part).should be_nil
+        sheet.send(:create_drawing_part).should be_a(Office::XmlPart)
+      end
+
+      it 'fetch or create drawing' do
+        sheet = book_no_image.sheets.first
+        sheet.send(:fetch_drawing_part).should be_nil
+        sheet.drawing_part.should be_a(Office::XmlPart)
+      end
+
+      it 'fetches wsDr node' do
+        sheet = book_with_image.sheets.first
+        sheet.drawing_wsdr_node.name.should == 'wsDr'
+      end
+
+      it 'creates wsDr node' do
+        sheet = book_no_image.sheets.first
+        sheet.drawing_wsdr_node.name.should == 'wsDr'
+      end
+    end
+
+    describe 'private #fixup_drawing_tag_order' do
+      let :book do
+        Office::ExcelWorkbook.new FixtureFiles::Book::EMAIL_TEST_4
+      end
+
+      # validate that the drawing and extLst tags are in the correct order
+      it do
+        # This actually contains an incorrect ordering from a previous run
+        sheet.node.root.element_children.map(&:name).last(2).should == %w[extLst drawing]
+
+        sheet.send :fixup_drawing_tag_order
+
+        # tag ordering should now be correct
+        sheet.node.root.element_children.map(&:name).last(2).should == %w[drawing extLst]
+      end
+    end
+
+    describe 'private #create_drawing_part' do
+      let :book do
+        Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY
+      end
+
+      # validate that the drawing and extLst tags are in the correct order
+      it 'empty sheet gets drawing tag in correct position' do
+        sheet.node.root.element_children.map(&:name).should_not include('drawing')
+
+        # insert a fake extLst so we can ensure drawing is inserted before it
+        sheet.node.root << <<~EOX
+        <extLst>
+        <ext xmlns:mx="http://schemas.microsoft.com/office/mac/excel/2008/main" uri="{64002731-A6B0-56B0-2670-7721B7C09600}">
+        <mx:PLV Mode="0" OnePage="0" WScale="0"/>
+        </ext>
+        </extLst>
+        EOX
+
+        sheet.node.root.element_children.map(&:name).should == %w[
+          sheetPr dimension sheetViews sheetFormatPr sheetData printOptions pageMargins pageSetup headerFooter extLst]
+
+        loc = Office::Location.new 'C3'
+        sheet.add_image(image, loc)
+
+        # tag ordering should now be correct
+        sheet.node.root.element_children.map(&:name).should == %w[
+          sheetPr dimension sheetViews sheetFormatPr sheetData printOptions pageMargins pageSetup headerFooter drawing extLst]
+      end
+    end
+
+    describe '#add_image' do
+      # for Package#parts
+      using PackageDebug
+
+      let :book do Office::ExcelWorkbook.new FixtureFiles::Book::EMPTY end
+      let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+
+      describe "existing image with 'optimised' wsDr namespace declarations" do
+        let :book do
+          Office::ExcelWorkbook.new FixtureFiles::Book::TEMPLATE_FIRE_PUMP_FLOW
+        end
+
+        let :expected_namespaces do
+          Office::ImageDrawing::NAMESPACE_DECLS.transform_keys(&:to_s)
+        end
+
+        it do
+          # This is a correct xpath expression. But libxml2 rejects it.
+          # sheet.drawing_part.xml.nxpath('//(*:oneCellAnchor|*:twoCellAnchor)')
+
+          # there should be 2 existing images
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor | //*:twoCellAnchor').count.should == 2
+
+          # the blip tags should have r: namespace otherwise this test is pointless
+          sheet.drawing_part.xml.nxpath('//*:blip').each do |blip_node|
+            blip_node.namespaces.should == expected_namespaces
+          end
+
+          # wsDr does NOT contain the r: namespace
+          sheet.drawing_part.xml.nxpath('/*:wsDr').map(&:namespaces).should == [expected_namespaces.slice('xmlns:xdr', 'xmlns:a')]
+
+          # Where {{fields.Inspector_Signature}} would be
+          loc = Office::Location.new 'F73'
+          ->{sheet.add_image(image, loc)}.should_not raise_error
+
+          # and then there were 3
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor | //*:twoCellAnchor').count.should == 3
+        end
+      end
+
+      it 'adds image, drawing and rels' do
+        # preconditions
+        # book has no media/image parts
+        book.parts.select{|name,part| name =~ %r|media/image|}.should be_empty
+
+        # book has no drawing parts / rels
+        book.parts.select{|name,part| name =~ %r|drawing|}.should be_empty
+
+        # sheet has no drawing node / rels
+        sheet.node.nxpath("/*:worksheet/*:drawing/@r:id").should be_empty
+
+        # add the image
+        loc = Office::Location.new 'B2'
+        sheet.add_image(image, loc)
+
+        # save and check reloaded file - '; book' means book is local and unassigned.
+        reload book do |saved; book|
+          # media/image exists
+          image_parts = saved.parts.select{|name,part| name =~ %r|media/image|}
+          image_parts.size.should == 1
+          image_parts.first.then do |(name, part)|
+            name.should == '/xl/media/image1.jpeg'
+            part.should be_a(Office::ImagePart)
+          end.should_not be_nil
+
+          # rel from drawing -> image exists with IMAGE_RELATIONSHIP_TYPE
+          image_rel_parts = saved.parts.select{|name,part| name =~ %r|drawing.*rels|}
+          image_rel_parts.size.should == 1
+
+          image_rel_id =
+          image_rel_parts.first.then do |(name, part)|
+            name.should == '/xl/drawings/_rels/drawing1.xml.rels'
+            part.should be_a(Office::RelationshipsPart)
+
+            rel_nodes = part.xml.nxpath('//*:Relationship')
+            rel_nodes.size.should == 1
+
+            rel_node = rel_nodes.first
+            rel_node[:Type].should == Office::IMAGE_RELATIONSHIP_TYPE
+            rel_node[:Target].should == '../media/image1.jpeg'
+            rel_node[:Id]
+          end
+
+          # drawings/drawing exists and references image_rel_id
+          drawing_parts = saved.parts.select{|name,part| name =~ %r|drawings/drawing|}
+          drawing_parts.size.should == 1
+          drawing_parts.first.tap do |(name, part)|
+            name.should == '/xl/drawings/drawing1.xml'
+            part.should be_a(Office::XmlPart)
+
+            # blip r:embed uses image rel_id
+            part.xml.nxpath('//*:blip/@r:embed').text.should == image_rel_id
+          end
+
+          # rel from sheet to drawing exists with DRAWING_RELATIONSHIP_TYPE
+          drawing_rel_parts = saved.parts.select{|name,part| name =~ %r|sheet.*rels|}
+          drawing_rel_parts.size.should == 1
+
+          drawing_rel_id =
+          drawing_rel_parts.first.then do |(name, part)|
+            name.should == '/xl/worksheets/_rels/sheet1.xml.rels'
+            part.should be_a(Office::RelationshipsPart)
+
+            rel_nodes = part.xml.nxpath('//*:Relationship')
+            rel_nodes.size.should == 1
+
+            rel_node = rel_nodes.first
+            rel_node[:Type].should == Office::DRAWING_RELATIONSHIP_TYPE
+            rel_node[:Target].should == '../drawings/drawing1.xml'
+            rel_node[:Id]
+          end
+
+          # drawing tag in sheet exists with drawing_rel_id
+          drawing_nodes = sheet.node.nxpath("/*:worksheet/*:drawing/@r:id")
+          drawing_nodes.size.should == 1
+          drawing_nodes.first.text.should == drawing_rel_id
+
+          # finally just eyeball it
+          # `localc --nologo #{saved.filename}`
+        end
+      end
+
+      it 'adds two images' do
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 0
+
+        loc1 = Office::Location.new('A1')
+        sheet.add_image(image, loc1, extent: {width: 133, height: 100})
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 1
+
+        loc2 = Office::Location.new('F2')
+        sheet.add_image(image, loc2)
+        sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+
+        reload book do |saved; book, sheet|
+          sheet = saved.sheets.first
+
+          # has two images
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor').count.should == 2
+
+          # first image in the right place
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:col').text.should == loc1.coli.to_s
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 1]/*:from/*:row').text.should == loc1.rowi.to_s
+
+          # second image in the right place
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:col').text.should == loc2.coli.to_s
+          sheet.drawing_wsdr_node.nxpath('*:oneCellAnchor[position() = 2]/*:from/*:row').text.should == loc2.rowi.to_s
+          # `localc --nologo #{saved.filename}`
+        end
+      end
     end
   end
 end

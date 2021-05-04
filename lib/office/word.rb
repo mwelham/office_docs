@@ -109,21 +109,19 @@ module Office
       end
     end
 
-    def create_image_run_fragment(image, options = {})
-      document_section = options[:document_section].presence || @main_doc
-      document_section.make_sure_section_has_relationships!
-      prefix = ["", document_section.part.path_components, "media", "image"].flatten.join('/')
-      identifier = unused_part_identifier(prefix)
-      extension = "#{image.format}".downcase
+    # ** is to handle pass-through options from create_body_fragments
+    # document_section can be the main word document, or a header or footer part
+    def create_image_run_fragment(image, document_section: main_doc, hyperlink: nil, **)
+      # main_doc here is quite janky because really every part should be able to get the package.
+      # But sometimes document_section is a Header or Footer, which can't.
+      # main_doc.package.ensure_relationships document_section.part
 
-      part = add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(image.to_blob), image.mime_type)
-      relationship_id = document_section.part.add_relationship(part, IMAGE_RELATIONSHIP_TYPE)
-
+      relationship_id, _image_part = add_image_part_rel image, document_section.part
       image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
 
-      hyperlink = options[:hyperlink]
-      if hyperlink.present?
+      if hyperlink
         hyperlink_relationship_id = document_section.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})
+        # NOTE this fails if the wp:docPr tag has no content and renders as <wp:docPr/>
         image_fragment.gsub!("</wp:docPr>", %|<a:hlinkClick xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" r:id="#{hyperlink_relationship_id}"/></wp:docPr>|)
       end
       image_fragment
@@ -334,20 +332,6 @@ module Office
       Logger.debug_dump "<<<"
       Logger.debug_dump ""
     end
-
-    def make_sure_section_has_relationships!
-      if !part.has_relationships?
-        prefix = ["", main_doc.part.path_components, "_rels", ""].flatten.join('/')
-        identifier = part.name.split('/').last
-        extension = "rels"
-        relationships_xml = %|
-          <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-          </Relationships>
-        %|
-        rels_part = main_doc.parent.add_part("#{prefix}#{identifier}.#{extension}", StringIO.new(relationships_xml), "application/vnd.openxmlformats-package.relationships+xml")
-        rels_part.map_relationships(main_doc.parent)
-      end
-    end
   end
 
   class MainDocument < ParagraphContainer
@@ -355,7 +339,6 @@ module Office
     attr_accessor :body_node
     attr_accessor :headers
     attr_accessor :footers
-    attr_accessor :parent
 
     def initialize(word_doc, part)
       @parent = word_doc
@@ -364,6 +347,9 @@ module Office
       parse_headers
       parse_footers
     end
+
+    # make it clear what parent refers to in this context
+    def package; @parent end
 
     def xml_node
       body_node

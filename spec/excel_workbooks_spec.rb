@@ -10,7 +10,7 @@ describe Office::ExcelWorkbook do
   using VersionCompatibility
 
   it :test_parse_simple_workbook do
-    Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+    Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
   end
 
   it :test_blank_workbook do
@@ -18,13 +18,13 @@ describe Office::ExcelWorkbook do
   end
 
   it :test_simple_csv_export do
-    book = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+    book = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
     assert_equal book.sheets.first.to_excel_csv, "Heading A,Heading B,Heading C\nAlpha,,\nBravo,123,\n,,a;b;c;d\n"
     assert_equal book.sheets.first.to_excel_csv(';'), "Heading A;Heading B;Heading C\nAlpha;;\nBravo;123;\n;;'a;b;c;d'\n"
   end
 
   it :test_parse_large_workbook do
-    book = Office::ExcelWorkbook.new(BookFiles::LARGE_TEST)
+    book = Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST)
     assert_equal book.sheets.length, 2
     assert book.sheets.first.to_csv.length > 1000
     assert book.sheets.last.to_csv.length > 1000
@@ -85,7 +85,7 @@ describe Office::ExcelWorkbook do
     end
 
     describe 'in worksheet with styles' do
-      let :book do Office::ExcelWorkbook.new(BookFiles::SIMPLE_DATA_TYPES) end
+      let :book do Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_DATA_TYPES) end
 
       # TODO this fails because style entries for dates do not exist, and need to be created
       it 'has correct types' do
@@ -163,11 +163,11 @@ describe Office::ExcelWorkbook do
   end
 
   describe '#from_data' do
-    let :data do File.read(BookFiles::SIMPLE_TEST) end
+    let :data do File.read(FixtureFiles::Book::SIMPLE_TEST) end
 
     it 'identical contents' do
       book_1 = Office::ExcelWorkbook.from_data data
-      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      book_2 = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
       assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
     end
 
@@ -177,35 +177,35 @@ describe Office::ExcelWorkbook do
       data.encoding.should == Encoding::ASCII_8BIT
 
       book_1 = Office::ExcelWorkbook.from_data(data)
-      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      book_2 = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
       assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
     end
 
     it 'utf8' do
       data.encoding.should == Encoding::UTF_8
       book_1 = Office::ExcelWorkbook.from_data(data)
-      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      book_2 = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
       assert_equal book_1.sheets.first.to_csv, book_2.sheets.first.to_csv
     end
   end
 
   describe '#to_data' do
     it 'identical contents' do
-      data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
+      data = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST).to_data
       assert data.length > 0
 
       book_1 = Office::ExcelWorkbook.from_data(data)
-      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      book_2 = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
       assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
     end
 
     it 'ascii-8bit' do
-      data = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST).to_data
+      data = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST).to_data
       assert data.length > 0
       data.encoding.should == Encoding::ASCII_8BIT
 
       book_1 = Office::ExcelWorkbook.from_data(data)
-      book_2 = Office::ExcelWorkbook.new(BookFiles::SIMPLE_TEST)
+      book_2 = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_TEST)
       assert_equal book_1.sheets.first.each_cell.map(&:value), book_2.sheets.first.each_cell.map(&:value)
     end
   end
@@ -264,7 +264,7 @@ describe Office::ExcelWorkbook do
   end
 
   it :test_parsing_openxml_generated do
-    book = Office::ExcelWorkbook.new(BookFiles::OPENXML_GENERATED)
+    book = Office::ExcelWorkbook.new(FixtureFiles::Book::OPENXML_GENERATED)
     assert_equal book.sheets.count, 1
     assert_equal book.sheets.first.name, "Sheet 1"
     assert_equal book.sheets.first.sheet_data.rows.count, 3
@@ -280,7 +280,7 @@ describe Office::ExcelWorkbook do
   end
 
   describe '#clone' do
-    let :src do Office::ExcelWorkbook.new(BookFiles::LARGE_TEST) end
+    let :src do Office::ExcelWorkbook.new(FixtureFiles::Book::LARGE_TEST) end
     let :dst do src.clone end
 
     it 'objects contain identical xml' do

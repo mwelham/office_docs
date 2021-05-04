@@ -68,135 +68,122 @@ class TemplateTest < Test::Unit::TestCase
   end
 
   def test_render
-    file = File.new('test_save_simple_doc.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_save_simple_doc.docx'
 
-    doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
-    template = Word::Template.new(doc)
-    template.render({})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(SIMPLE_TEST_DOC_PATH)
+      template = Word::Template.new(doc)
+      template.render({})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
-
-    File.delete(filename)
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
+    end
   end
 
   def test_render_big_template
-    file = File.new('test_save_simple_doc.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_save_simple_doc.docx'
 
-    doc = Office::WordDocument.new(BIG_TEST_DOC_PATH)
-    template = Word::Template.new(doc)
-    template.render({})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(BIG_TEST_DOC_PATH)
+      template = Word::Template.new(doc)
+      template.render({})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
-
-    File.delete(filename)
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
+    end
   end
 
   def test_render_menicon_template
-    file = File.new('test_menicon_template.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_menicon_template.docx'
 
-    doc = Office::WordDocument.new(MENICON_DOC_PATH)
-    template = Word::Template.new(doc)
-    template.render({})
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(MENICON_DOC_PATH)
+      template = Word::Template.new(doc)
+      template.render({})
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
-
-    File.delete(filename)
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
+    end
   end
 
   def test_template_all_options
-    file = File.new('test_template_all_options.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_template_all_options.docx'
 
-    doc = Office::WordDocument.new(TEMPLATE_ALL_OPTIONS)
-    template = Word::Template.new(doc)
-    template.render(test_template_all_options_test_data)
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(TEMPLATE_ALL_OPTIONS)
+      template = Word::Template.new(doc)
+      template.render(test_template_all_options_test_data)
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_template_all_options.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_template_all_options.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_quote_markes_in_options
-    file = File.new('test_quote_marks_template.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_quote_marks_template.docx'
 
-    doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
-    template = Word::Template.new(doc)
-    template.render(test_template_all_options_test_data)
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
+      template = Word::Template.new(doc)
+      template.render(test_template_all_options_test_data)
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_quote_markes_in_options
-    file = File.new('test_quote_marks_template.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_quote_marks_template.docx'
 
-    doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
-    template = Word::Template.new(doc)
-    template.render(test_template_all_options_test_data)
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(TEST_QUOTE_MARKS_DOC_PATH)
+      template = Word::Template.new(doc)
+      template.render(test_template_all_options_test_data)
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_quote_marks_template.docx'))
+      our_render = Office::WordDocument.new(filename)
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   def test_parse_arabic_datetime
-    file = File.new('test_arabic_date_time.docx', 'w')
-    file.close
-    filename = file.path
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_arabic_date_time.docx'
 
-    doc = Office::WordDocument.new(TEST_ARABIC_DATE_TIME)
-    template = Word::Template.new(doc)
-    template.render({
-        'fields' => {
-          'a' => '١٦:٥٩:٠٠+٠٢٠٠'
-        }
-      })
-    template.word_document.save(filename)
+      doc = Office::WordDocument.new(TEST_ARABIC_DATE_TIME)
+      template = Word::Template.new(doc)
+      template.render({
+          'fields' => {
+            'a' => '١٦:٥٩:٠٠+٠٢٠٠'
+          }
+        })
+      template.word_document.save(filename)
 
-    assert File.file?(filename)
-    assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-    correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
-    our_render = Office::WordDocument.new(filename)
-    assert docs_are_equivalent?(correct, our_render)
-  ensure
-    File.delete(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
+      our_render = Office::WordDocument.new(filename)
+
+      assert docs_are_equivalent?(correct, our_render)
+    end
   end
 
   private
