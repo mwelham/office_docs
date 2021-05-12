@@ -120,6 +120,10 @@ module Excel
           # or respond_to? :to_blob
           when Magick::ImageList, Magick::Image
             action = lambda do
+              # By the time this closure is called, the cell may have been
+              # overwritten by tabular data. So skip the rest of this block if
+              # the cell no longer a placeholder.
+              next unless cell.placeholder!
               # add image anchored at this cell
               image_part = sheet.add_image val, cell.location, extent: placeholder.image_extent
               # clear cell value
@@ -129,10 +133,10 @@ module Excel
             [:image, action]
 
           when String, Numeric, Date, DateTime, Time, TrueClass, FalseClass, NilClass
-            [:value, ->{cell.placeholder[] = val.to_s}]
+            [:value, ->{next unless cell.placeholder!; cell.placeholder[] = val.to_s}]
 
           when Array, Hash
-            [:tabular, ->{render_tabular sheet, cell, placeholder, val}]
+            [:tabular, ->{next unless cell.placeholder!; render_tabular sheet, cell, placeholder, val}]
 
           else
             raise "How to write #{val.inspect} : #{val.class} into sheet?"
@@ -143,6 +147,8 @@ module Excel
           .sort_by{|(action, _fn)| ACTION_ORDER[action] or raise "No order for #{action}"}
           .each{|(_action, fn)| fn.call}
       end
+
+      workbook.sheets.each(&:invalidate_row_cache)
 
       workbook
     end

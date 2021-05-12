@@ -31,6 +31,20 @@ module Office
     attr_reader :sheet, :location
     private :sheet
 
+    # If this cell now has a @c_node, create a new Cell instance. Otherwise
+    # return
+    def recreate
+      if @c_node
+        if @c_node.parent
+          Cell.new @c_node, sheet.workbook.string_table, sheet.workbook.styles
+        else
+          raise "#{location} has been unlinked"
+        end
+      else
+        self
+      end
+    end
+
     def empty?; true end
 
     # always nil
@@ -52,13 +66,13 @@ module Office
       end
 
       # create c node and set its value
-      c_node = CellNodes.build_c_node \
+      @c_node = CellNodes.build_c_node \
         sheet.node.document.create_element(?c, r: location.to_s),
         obj,
         styles: styles
 
       # TODO can we always just add to the end of the c children, or must they be in r order?
-      row_node << c_node
+      row_node << @c_node
 
       # TODO forward future calls to real cell?
       # or maybe have a module. It's the usual "change the class of an instance from the inside" problem

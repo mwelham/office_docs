@@ -280,6 +280,21 @@ describe Excel::Template do
         sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
       end
 
+      it 'does not insert values that have been overwritten by tabular' do
+        cell = sheet['A18']
+
+        # there should be some image placeholders
+        placeholder_cells = sheet.each_placeholder.to_a
+        image_placeholder_cells = placeholder_cells.select{|c| c.placeholder.to_s =~ /logo/}
+        image_placeholder_cells.size.should == 2
+
+        cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,overwrite}}'
+        Excel::Template.render! book, data.merge(pet_data)
+
+        # no images have been added, because the image placeholders were overwritten
+        book.parts['/xl/drawings/drawing1.xml'].should be_nil
+      end
+
       describe 'view' do
         include ReloadWorkbook
 
@@ -287,7 +302,7 @@ describe Excel::Template do
           cell = sheet['A18']
           cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
           Excel::Template.render! book, data.merge(pet_data)
-          # sheet.invalidate_row_cache
+          sheet.invalidate_row_cache
           reload_workbook book do |book| `localc #{book.filename}` end
         end
       end
