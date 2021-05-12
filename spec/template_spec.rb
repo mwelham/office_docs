@@ -13,6 +13,8 @@ describe Excel::Template do
   let :book do Office::ExcelWorkbook.new FixtureFiles::Book::PLACEHOLDERS end
   let :book2 do Office::ExcelWorkbook.new FixtureFiles::Book::PLACEHOLDERS_TWO end
   let :image do Magick::ImageList.new FixtureFiles::Image::TEST_IMAGE end
+  let :sheet do book.sheets.first end
+
   let :data do
     data = YAML.load_file FixtureFiles::Yaml::PLACEHOLDER_DATA
     # convert tabular data to hashy data
@@ -58,7 +60,6 @@ describe Excel::Template do
 
     it 'image insertion replacement' do
       # H20 and L20
-      sheet = book.sheets.first
       cell = sheet['H20']
       cell.value.should == "{{logo|133x100}}"
 
@@ -77,23 +78,207 @@ describe Excel::Template do
       sheet['H20'].value.should be_nil
       book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
     end
+  end
 
-    it 'table no insertion' do
-      sheet = book.sheets.first
-      cell = sheet['A18']
-      cell.value.should == "{{streams|tabular}}"
-      placeholder = Office::Placeholder.parse cell.placeholder.to_s
+  describe '.distribute' do
+    describe 'plain array' do
+      let :placeholder_source do
+        YAML.load File.read(FixtureFiles::Yaml::PLACEHOLDER_DATA), symbolize_names: true
+      end
 
-      values = data.dig *placeholder.field_path
-      tabular_data = Excel::Template.table_of_hash(values)
+      it 'refuses to handle array of array values' do
+        ->{Excel::Template.distribute fields: placeholder_source[:streams]}.should raise_error(/cannot handle non-hash/)
+      end
+    end
 
-      # write data to sheet
-      sheet.accept!(cell.location, tabular_data)
+    describe 'deeply nested' do
+      let :data do YAML.load File.read(FixtureFiles::Yaml::MARINE), symbolize_names: true end
 
-      # fetch the data
-      sheet.invalidate_row_cache
-      range = cell.location * [tabular_data.first.count, tabular_data.count]
-      sheet.cells_of(range, &:to_ruby).should == tabular_data
+      it 'succeeds' do
+        rows = []
+        Excel::Template.distribute(data) {|row| rows << row }
+        rows.size.should == 27
+        rows.map(&:size).should == [46, 46, 61, 61, 61, 76, 76, 76, 76, 87, 98, 109, 120, 143, 150, 157, 164, 171, 178, 185, 141, 150, 157, 164, 171, 178, 185]
+      end
+    end
+  end
+
+  describe '.render_tabular' do
+    let :placeholder_source do
+      YAML.load File.read(FixtureFiles::Yaml::PLACEHOLDER_DATA)
+    end
+
+    let :streams_data do
+      # convert headers to strings for easier comparisons with data retrieved
+      # from sheet.
+      headers, *data = placeholder_source[:streams]
+      [headers.map(&:to_s), *data]
+    end
+
+    let :streams_data_only do placeholder_source[:streams][1..-1] end
+
+    describe 'simple table' do
+      it 'overwrite' do
+        cell = sheet['A18']
+        placeholder = Office::Placeholder.parse cell.placeholder.to_s
+        cell.value.should == '{{streams|tabular}}'
+        values = data.dig *placeholder.field_path
+
+        old_range = cell.location * [values.first.size, values.size]
+        old_cell_data = sheet.cells_of(old_range, &:to_ruby)
+
+        sheet.dimension.to_s.should == 'A5:K26'
+        range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+        sheet.invalidate_row_cache
+        # same dimension as previous, so no insertion done
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # fetch the data
+        sheet.cells_of(range, &:to_ruby).should == streams_data_only
+        sheet.cells_of(range, &:to_ruby).should_not == old_cell_data
+      end
+
+      it 'overwrite with headers' do
+        placeholder = Office::Placeholder.parse '{{streams|tabular,headers}}'
+        values = data.dig *placeholder.field_path
+
+        cell = sheet['A18']
+        old_range = cell.location * [values.first.size, values.size]
+        old_cell_data = sheet.cells_of(old_range, &:to_ruby)
+
+        sheet.dimension.to_s.should == 'A5:K26'
+        range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+        sheet.invalidate_row_cache
+        # same dimension as previous, so no insertion done
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # fetch the data
+        sheet.cells_of(range, &:to_ruby).should == streams_data
+        sheet.cells_of(range, &:to_ruby).should_not == old_cell_data
+      end
+
+      it 'insert' do
+        cell = sheet['A18']
+        placeholder = Office::Placeholder.parse '{{streams|tabular,insert}}'
+        values = data.dig *placeholder.field_path
+
+        # simple data so we can hack ou the size of the insert range fairly easily
+        old_range = cell.location * [values.first.size, values.size]
+        old_cell_data = sheet.cells_of(old_range, &:to_ruby)
+
+        # this should end up being enlarged
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+        new_range.should == old_range
+
+        # validate the data
+        sheet.invalidate_row_cache
+        sheet.cells_of(new_range, &:to_ruby).should_not == old_cell_data
+
+        # larger than the previous dimension
+        sheet.dimension.to_s.should == 'A5:K28'
+      end
+
+      it 'vertical overwrite' do
+        cell = sheet['A18']
+        placeholder = Office::Placeholder.parse '{{streams|tabular,vertical}}'
+        values = data.dig *placeholder.field_path
+
+        old_range = cell.location * [values.first.size, values.size]
+        old_cell_data = sheet.cells_of(old_range, &:to_ruby)
+
+        sheet.dimension.to_s.should == 'A5:K26'
+        new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+        new_range.should == old_range
+
+        sheet.invalidate_row_cache
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # fetch the data
+        sheet.cells_of(new_range, &:to_ruby).should == streams_data_only
+      end
+
+      it 'default to tabular for non-singular value' do
+        placeholder = Office::Placeholder.parse '{{streams}}'
+        values = data.dig *placeholder.field_path
+
+        cell = sheet['A18']
+        sheet.dimension.to_s.should == 'A5:K26'
+        range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+        sheet.invalidate_row_cache
+        # same dimension as previous, so no insertion done
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # fetch the data
+        sheet.cells_of(range, &:to_ruby).should == streams_data_only
+      end
+    end
+
+    describe 'two-branch table' do
+      let :data do
+        # hack in some higher-level keys
+        {fields: {peer_group: {review: YAML.load(File.read(FixtureFiles::Yaml::PETS), symbolize_names: true)}}}
+      end
+
+      let :expected do
+        CSV.parse <<~ECSV
+        organisation,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs
+        address,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd
+        clients.first_name,John,John,Colleen,Colleen,,,,,,
+        clients.last_name,Anderson,Anderson,MacKenzie,MacKenzie,,,,,,
+        clients.pets.name,Charlie,Feather,Jock,Paddy,,,,,,
+        clients.pets.species,cat,cat,dog,dog,,,,,,
+        suppliers.name,,,,,Hill Scientific Method,Hill Scientific Method,Petrova,Green Industries,Green Industries,Second Life Foods
+        suppliers.products.name,,,,,kibbles,biscuits,collar,catnip,grass,bones
+        ECSV
+      end
+
+      it 'horizontal overwrite' do
+        cell = sheet['A18']
+        placeholder = Office::Placeholder.parse '{{fields.peer_group.review|tabular,horizontal,headers}}'
+        values = data.dig *placeholder.field_path
+
+        sheet.dimension.to_s.should == 'A5:K26'
+        range = Excel::Template.render_tabular sheet, cell, placeholder, values
+        range.to_s.should == "A18:K25"
+
+        sheet.invalidate_row_cache
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # fetch the data
+        sheet.cells_of(range, &:to_ruby).should == expected
+
+        # last row of overwritten data
+        range.bot_left.to_s.should == 'A25'
+        # final row should be unchanged
+        sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == %w[{{streams[2].rpm}}  {{streams[2].discharge}}  {{streams[2].suction}}  {{streams[2].net}}  {{streams[2].no}} {{streams[2].size}} {{streams[2].pitot}}  {{streams[2].gpm}}  {{streams[2].percent}}  {{streams[2].voltage}}  {{streams[2].amp}}]
+      end
+
+      it 'horizontal insert' do
+        cell = sheet['A18']
+        placeholder = Office::Placeholder.parse '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
+        values = data.dig *placeholder.field_path
+
+        sheet.dimension.to_s.should == 'A5:K26'
+        range = Excel::Template.render_tabular sheet, cell, placeholder, values
+        range.to_s.should == "A18:K25"
+
+        sheet.invalidate_row_cache
+        sheet.dimension.to_s.should == "A5:K32"
+
+        # fetch the data
+        sheet.cells_of(range, &:to_ruby).should == expected
+
+        # last row of overwritten data
+        range.bot_left.to_s.should == 'A25'
+        # final row should be previous row before insert
+        sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
+      end
     end
   end
 

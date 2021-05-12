@@ -7,8 +7,17 @@ require_relative '../excel/placeholder.rb'
 # Replace all {{placeholders}} in all cells of all sheets of the workbook
 # template with data, using placeholder syntax like
 #
+# For singular values
 #  {{driver.controller.streams[1].start}}
+#
+# For images
 #  {{driver.controller.streams[1].photo | 133x100}}
+#
+# For tabular data
+#  {{driver.controller.streams | tabular,horizontal,headers,insert }}
+#  {{driver.controller.streams | tabular,vertical,headers }}
+#  {{driver.controller.streams | tabular,headers }}
+#  {{driver.controller.streams}}
 #
 # data must be a HoHA (Hash of Hashes and Arrays), also known as 'a json' :-p
 #
@@ -107,21 +116,11 @@ module Excel
           when String, Numeric, Date, DateTime, Time, TrueClass, FalseClass, NilClass
             cell.placeholder[] = val.to_s
 
-          when Array
-            tabular = placeholder.options[:tabular]
-            tabular_data =
-            case val.first
-            when Array
-              # assume array of arrays
-              val
-            when Hash
-              table val
-            end
-
-            sheet.accept!(cell.location, tabular_data)
+          when Array, Hash
+            render_tabular sheet, cell, placeholder, val
 
           else
-            raise "How to insert #{val.inspect} into sheet?"
+            raise "How to insert #{val.inspect} : #{val.class} into sheet?"
           end
         end
       end
@@ -129,10 +128,28 @@ module Excel
       workbook
     end
 
+    # write values into the area specified by cell, placeholder and placeholder options
+    # source_data is either an Array of Hashes, or a Hash
+    # returns the Office::Range of the data written
+    module_function def render_tabular sheet, cell, placeholder, source_data
+      tabular_data, max_index = table source_data, **placeholder.options.slice(:tabular, :headers)
+
+      # transpose rows depending on options
+      tabular_data, width, height = maybe_transpose tabular_data, max_index, **placeholder.options.slice(:vertical, :horizontal)
+
+      if placeholder.options[:insert]
+        insert_range = cell.location * [width-1, height-1]
+        sheet.insert_rows insert_range
+      end
+
+      # write values to cells
+      sheet.accept!(cell.location, tabular_data)
+    end
+
     # Convert a tabular array (ie [field_names, *records]) to an
     # array of {field_name => value} hashes, one for each record.
     #
-    # 30-Apr-2021 Used in specs only.
+    # 30-Apr-2021 Used in specs only. But budget is tight so not fixing it.
     module_function def tabular_hashify(tabular_array)
       # split tabular data
       field_names, *records = tabular_array
@@ -144,9 +161,22 @@ module Excel
     # This is proof-of-concept rather than working code. Leaving it here
     # because it's easier to understand than distribute.
     #
-    # path is a set of keys, leaf is index for now (augment with row later?)
-    # paths is an accumulator - the map from each possible path to its index
-    # last index will be somewhere in paths, so track it separately
+    # node is a Hash of Hashes and Arrays collection aka 'a json'. ie it's a tree.
+    #
+    # path is a set of keys which constitutes a path in node. The leaf of that path
+    # will be an index in the output row.
+    #
+    # paths is the accumulator - the map from each possible path to its index in
+    # an output array.
+    #
+    # last_index will be buried somewhere in paths, so track it separately
+    #
+    # So this method will traverse node and produce a map of
+    #
+    #  path => index_in_output_row
+    #
+    # so that values from sub-trees can be grouped together without their
+    # indices overlapping with other subtrees.
     module_function def path_indices node, path = [], paths = {}, last_index = 0
       case node
       when Hash
@@ -168,6 +198,8 @@ module Excel
       end
     end
 
+    # node is a hash of names to values.
+    # do a group_by of the kind of value (ie one of Array, Hash, Object)
     module_function def group_hash node
       empty = Hash.new{|h,k| h[k] = {}}
       node.each_with_object empty do |(name,value), groups|
@@ -183,23 +215,34 @@ module Excel
       end
     end
 
+    # For each name/value in the hash:
+    #
+    # - calculate index of value in row using paths[path + [name]], if not exist
+    #   add it and increment last_index
+    #
+    # - yield a row (index is calculated above) whenever there is a collection
+    #   of singular values only, ie every key has a non-array and non-hash value.
+    #
+    # Uses a slightly unusual combination of return value (to collect the
+    # singular values) and yielding a full row (to avoid nested arrays
+    # containing rows). As a kinda pleasant bonus, top-level return value will
+    # contain the nested rows.
+    #
+    # See comments for path_indices for a description of parameters.
     module_function def distribute node, row_so_far = [], path = [], paths = {}, last_index = nil, &blk
-      # for each name/value in the hash:
-      # see if paths[path + [name]] has an index
-      # if not add it and increment last_index
       case node
       when Hash
         value_types = group_hash node
 
-        # collect Object/singular values to construct prefix
+        # prefix is constructed from row_so_far with collected Object/singular values
+        # It's recursive to keep the index calculation going
         paths, last_index, prefix = value_types[Object].reduce([paths, last_index, row_so_far]) do |(paths, last_index, row), (name, value)|
           # no blk passed here because augmented prefix will come back as return value
           distribute value, row, (path + [name]), paths, last_index do |*| end
         end
 
-        # process hash values, which may or may not contain array children
-
-        # process array values.
+        # Process hash values, which may or may not contain array children.
+        # Then process array values.
         # TODO ? Effectively an array of size 1 is the same as a hash value
         hashes, arrays = value_types[Hash], value_types[Array]
         case [hashes.size, arrays.size]
@@ -211,8 +254,9 @@ module Excel
         else
           # put hashes (ie things containing prefixes) before arrays
           kids = hashes.merge arrays
-          # accumulate separate rows rather than accumulating in one
+          # traverse child nodes
           kids.reduce([paths, last_index, []]) do |(paths, last_index, rows), (name, value)|
+            # NOTE path extended with current key
             npaths, index, row = distribute value, prefix, (path + [name]), paths, last_index, &blk
             [npaths, index, (rows + [row])]
           end
@@ -220,9 +264,13 @@ module Excel
 
       when Array
         # necessarily returns an array of rows
+        # expects child_node to be a hash
         node.reduce([paths, last_index, []]) do |(paths, last_index, rows), child_node|
-          paths, index, row = distribute child_node, row_so_far, path, paths, last_index, &blk
-          [paths, index, (rows + [row])]
+          raise "cannot handle non-hash in #{__method__}" unless child_node.is_a? Hash
+
+          # NOTE uses parent's non-extended path
+          npaths, index, row = distribute child_node, row_so_far, path, paths, last_index, &blk
+          [npaths, index, (rows + [row])]
         end
 
       else
@@ -237,16 +285,57 @@ module Excel
       end
     end
 
-    module_function def table node
+    # rows is an array of arrays
+    # max_index is the longest array in rows
+    # returns rows, width, height
+    #
+    # vertical is the default
+    # vertical means field names across the top
+    # horizontal means field names on the left
+    module_function def maybe_transpose rows, max_index, horizontal: false, vertical: false
+      # optional orientation
+      # would be clearer with ruby-2.7 pattern matching
+      orientation =
+      case [vertical, horizontal]
+      when [true, true];   :vertical # tie-breaker case
+      when [true, false];  :vertical   # specified
+      when [false, true];  :horizontal # specified
+      when [false, false]; :vertical # default case
+      else
+        raise "unknown orientations: #{{vertical: vertical, horizontal: horizontal}.inspect}"
+      end
+
+      case orientation
+      when :vertical
+        [rows, max_index, rows.size]
+
+      when :horizontal
+        # pad each row to maximum length so we can transpose
+        [rows.each{|r| r[max_index] ||= nil}.transpose, rows.size, max_index]
+
+      else
+        raise "unknown orientation: #{orientation}"
+      end
+    end
+
+    # returns [rows, max_index] where max_index is the length of the longest
+    # array in rows
+    #
+    # tabular: is just to absorb the value coming in
+    module_function def table node, tabular: nil, headers: false
       rows = []
+
       # distribute the values from the tree into a rectangular format
-      paths, index, nested_rows = distribute node do |row| rows << row end
-      # pad each row to maximum length in case we want to transpose
-      rows.each{|r| r[index] ||= nil}
-      # make headers from dotted paths
-      headers = paths.sort_by{|_,index| index}.map{|name,_| name.join ?.}
-      # put headers with
-      rows.unshift headers
+      paths, max_index, nested_rows = distribute node do |row| rows << row end
+
+      # optional headers
+      if headers
+        # make headers from dotted paths
+        headers = paths.sort_by{|_,index| index}.map{|name,_| name.join ?.}
+        rows.unshift headers
+      end
+
+      [rows, max_index]
     end
   end
 end
