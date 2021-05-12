@@ -35,6 +35,7 @@ module Office
 
     # always nil
     def value; end
+    def to_ruby; end
     def formatted_value; end
 
     def value=(obj)

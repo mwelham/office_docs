@@ -78,20 +78,6 @@ describe Excel::Template do
       book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
     end
 
-    it 'lazy cell problem' do
-      pending "the LazyCell problem"
-      # Also, we can make it add the same cell twice. Oops. Possibly LazyCell fallout?
-      sheet = book.sheets.first
-      str = '{{fields.Groups.Subgroup|tabular}}'
-      cell = sheet['C12']
-      cell.value.should be_nil
-      cell.value = str
-
-      cell.value.should == str
-      sheet.invalidate_row_cache
-      sheet['C12'].value.should == str
-    end
-
     it 'table no insertion' do
       sheet = book.sheets.first
       cell = sheet['A18']
