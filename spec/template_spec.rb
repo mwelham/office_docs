@@ -220,7 +220,7 @@ describe Excel::Template do
     end
 
     describe 'two-branch table' do
-      let :data do
+      let :pet_data do
         # hack in some higher-level keys
         {fields: {peer_group: {review: YAML.load(File.read(FixtureFiles::Yaml::PETS), symbolize_names: true)}}}
       end
@@ -241,7 +241,7 @@ describe Excel::Template do
       it 'horizontal overwrite' do
         cell = sheet['A18']
         placeholder = Office::Placeholder.parse '{{fields.peer_group.review|tabular,horizontal,headers}}'
-        values = data.dig *placeholder.field_path
+        values = pet_data.dig *placeholder.field_path
 
         sheet.dimension.to_s.should == 'A5:K26'
         range = Excel::Template.render_tabular sheet, cell, placeholder, values
@@ -262,7 +262,7 @@ describe Excel::Template do
       it 'horizontal insert' do
         cell = sheet['A18']
         placeholder = Office::Placeholder.parse '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
-        values = data.dig *placeholder.field_path
+        values = pet_data.dig *placeholder.field_path
 
         sheet.dimension.to_s.should == 'A5:K26'
         range = Excel::Template.render_tabular sheet, cell, placeholder, values
@@ -278,6 +278,18 @@ describe Excel::Template do
         range.bot_left.to_s.should == 'A25'
         # final row should be previous row before insert
         sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
+      end
+
+      describe 'view' do
+        include ReloadWorkbook
+
+        it 'horizontal insert', display_ui: true do
+          cell = sheet['A18']
+          cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
+          Excel::Template.render! book, data.merge(pet_data)
+          # sheet.invalidate_row_cache
+          reload_workbook book do |book| `localc #{book.filename}` end
+        end
       end
     end
   end

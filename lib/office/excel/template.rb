@@ -77,8 +77,14 @@ module Excel
       end
     end
 
+    ACTION_ORDER = %i[tabular value image].each_with_index.map{|action,index| [action, index]}.to_h
+
     # Renders values from data into placeholders in workbook.
     # NOTE modifies workbook.
+    #
+    # Tabulars must come before Images and values because tabulars can insert
+    # rows and that would leave images attached to their pre-insertion cells,
+    # which might be wrong.
     #
     # Returns modified workbook as a convenience
     #
@@ -92,7 +98,13 @@ module Excel
 
       # evaluate placeholders on all sheets
       workbook.sheets.each do |sheet|
-        sheet.each_placeholder do |cell|
+        # Fetch all actions to be done on the sheet, order them correctly, and
+        # then perform actions. It's quite clunky, but we need both the values
+        # and the placeholders to compute the correct ordering. Really, the
+        # correct way to do this is have Sheet#insert_rows also correct image
+        # locations, but there's no budget for that right now.
+        actions =
+        sheet.each_placeholder.map do |cell|
           val =
           begin
             placeholder = Office::Placeholder.parse cell.placeholder.to_s
@@ -107,22 +119,29 @@ module Excel
           case val
           # or respond_to? :to_blob
           when Magick::ImageList, Magick::Image
-            # add image anchored at this cell
-            image_part = sheet.add_image val, cell.location, extent: placeholder.image_extent
-            # clear cell value
-            # TODO implement delete cell
-            cell.value = nil
+            action = lambda do
+              # add image anchored at this cell
+              image_part = sheet.add_image val, cell.location, extent: placeholder.image_extent
+              # clear cell value
+              # TODO implement delete cell
+              cell.value = nil
+            end
+            [:image, action]
 
           when String, Numeric, Date, DateTime, Time, TrueClass, FalseClass, NilClass
-            cell.placeholder[] = val.to_s
+            [:value, ->{cell.placeholder[] = val.to_s}]
 
           when Array, Hash
-            render_tabular sheet, cell, placeholder, val
+            [:tabular, ->{render_tabular sheet, cell, placeholder, val}]
 
           else
-            raise "How to insert #{val.inspect} : #{val.class} into sheet?"
+            raise "How to write #{val.inspect} : #{val.class} into sheet?"
           end
         end
+
+        actions
+          .sort_by{|(action, _fn)| ACTION_ORDER[action] or raise "No order for #{action}"}
+          .each{|(_action, fn)| fn.call}
       end
 
       workbook
