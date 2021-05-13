@@ -591,7 +591,17 @@ module Office
       data.each_with_index do |row,rowix|
         row.each_with_index do |value,colix|
           cell_location = location + [colix, rowix]
-          self[cell_location].value = value
+
+          # Apparently there really needs to be a unified way to set cell
+          # 'values' even when the value is an image. Although we don't have
+          # extent here, so what size to use?
+          self[cell_location].value = case value
+          when Magick::ImageList, Magick::Image
+            value.inspect
+          else
+            value
+          end
+
           furthest |= cell_location
         end
       end
