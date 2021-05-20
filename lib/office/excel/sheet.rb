@@ -101,9 +101,14 @@ module Office
     end
 
     private def dimension_node
-      # this is about 1.2 - 3 times faster, but optimising this is not worthwhile here.
-      # node.children.first.children.find{|n| n.name == 'dimension'}
-      node.xpath('xmlns:worksheet/xmlns:dimension').first
+      worksheet_node = node.nxpath('*:worksheet').first
+      if dim_node = worksheet_node.nxpath('*:dimension').first
+        dim_node
+      else
+        dim_node = worksheet_node.document.create_element 'dimension', ref: calculate_dimension.to_s
+        worksheet_node << dim_node
+        dim_node
+      end
     end
 
     # fetch dimension from the xlsx doc
