@@ -133,7 +133,7 @@ module Excel
             [:image, action]
 
           when String, Numeric, Date, DateTime, Time, TrueClass, FalseClass, NilClass
-            [:value, ->{next unless cell.placeholder!; cell.placeholder[] = val.to_s}]
+            [:value, ->{next unless cell.placeholder!; cell.placeholder[] = val}]
 
           when Array, Hash
             [:tabular, ->{next unless cell.placeholder!; render_tabular sheet, cell, placeholder, val}]

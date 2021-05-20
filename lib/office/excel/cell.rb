@@ -259,9 +259,19 @@ module Office
 
       def []=(rhs)
         cell_value = @cell.value
-        cell_value[start,length] = rhs
+
+        replacement_value =
+        if start == 0 && length == cell_value.length
+          # replace entire cell, so we can use an object
+          rhs
+        else
+          # partial replacement, so we have to assume a string
+          cell_value[start,length] = rhs.to_s
+          cell_value
+        end
+
         # NOTE this will cause @cell to drop its reference to this instance
-        @cell.value = cell_value
+        @cell.value = replacement_value
       end
     end
 

@@ -42,7 +42,7 @@ describe Excel::Template do
       target_book.object_id.should == book.object_id
     end
 
-    it 'displays replacements', display_ui: true do
+    it 'displays', display_ui: true do
       Excel::Template.render!(book, data)
       # reload_workbook book2 do |book| `localc #{book.filename}` end
       reload_workbook book do |book| `localc #{book.filename}` end
@@ -50,12 +50,30 @@ describe Excel::Template do
   end
 
   describe 'replacement' do
+    it 'chooses appropriate data type' do
+      cell = book.sheets.first['B11']
+      cell.value = "{{important_first_date}}"
+      ph = cell.placeholder
+      pending "insertion of correct numFmtId into stylesheet"
+      ph[] = Date.today
+      cell.value.should == Date.today.to_s
+    end
+
     it 'placeholder does partial replacement' do
       cell = book.sheets.first['B11']
       cell.value.should == "very {{important}} thing"
       ph = cell.placeholder
       ph[] = "we can carry"
       cell.value.should == "very we can carry thing"
+    end
+
+    it 'placeholder does partial replacement of non-String' do
+      cell = book.sheets.first['B11']
+      cell.value.should == "very {{important}} thing"
+      ph = cell.placeholder
+      date = Date.today
+      ph[] = date
+      cell.value.should == "very #{date.to_s} thing"
     end
 
     it 'image insertion replacement' do
@@ -226,13 +244,16 @@ describe Excel::Template do
       end
 
       let :expected do
-        CSV.parse <<~ECSV
+        CSV.parse <<~ECSV, converters: %i[numeric date]
         organisation,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs
         address,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd
+        recorded,44336,44336,44336,44336,44336,44336,44336,44336,44336,44336
+        precise,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596
         clients.first_name,John,John,Colleen,Colleen,,,,,,
         clients.last_name,Anderson,Anderson,MacKenzie,MacKenzie,,,,,,
         clients.pets.name,Charlie,Feather,Jock,Paddy,,,,,,
         clients.pets.species,cat,cat,dog,dog,,,,,,
+        clients.pets.born,39953,39953,43689,43014,,,,,,
         suppliers.name,,,,,Hill Scientific Method,Hill Scientific Method,Petrova,Green Industries,Green Industries,Second Life Foods
         suppliers.products.name,,,,,kibbles,biscuits,collar,catnip,grass,bones
         ECSV
@@ -240,12 +261,20 @@ describe Excel::Template do
 
       it 'horizontal overwrite' do
         cell = sheet['A18']
+
+        sheet.dimension.to_s.should == 'A5:K26'
+
+        # port-overwrite marker line
+        sheet['A29'].value = 'last'
+        sheet['B29'].value = 'line'
+        sheet['C29'].value = 'after'
+        sheet['K29'].value = 'render'
+
         placeholder = Office::Placeholder.parse '{{fields.peer_group.review|tabular,horizontal,headers}}'
         values = pet_data.dig *placeholder.field_path
 
-        sheet.dimension.to_s.should == 'A5:K26'
         range = Excel::Template.render_tabular sheet, cell, placeholder, values
-        range.to_s.should == "A18:K25"
+        range.to_s.should == "A18:K28"
 
         sheet.invalidate_row_cache
         sheet.dimension.to_s.should == 'A5:K26'
@@ -254,7 +283,7 @@ describe Excel::Template do
         sheet.cells_of(range, &:to_ruby).should == expected
 
         # last row of overwritten data
-        range.bot_left.to_s.should == 'A25'
+        range.bot_left.to_s.should == 'A28'
         # final row should be unchanged
         sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == %w[{{streams[2].rpm}}  {{streams[2].discharge}}  {{streams[2].suction}}  {{streams[2].net}}  {{streams[2].no}} {{streams[2].size}} {{streams[2].pitot}}  {{streams[2].gpm}}  {{streams[2].percent}}  {{streams[2].voltage}}  {{streams[2].amp}}]
       end
@@ -266,18 +295,18 @@ describe Excel::Template do
 
         sheet.dimension.to_s.should == 'A5:K26'
         range = Excel::Template.render_tabular sheet, cell, placeholder, values
-        range.to_s.should == "A18:K25"
+        range.to_s.should == "A18:K28"
 
         sheet.invalidate_row_cache
-        sheet.dimension.to_s.should == "A5:K32"
+        sheet.dimension.to_s.should == "A5:K35"
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == expected
 
         # last row of overwritten data
-        range.bot_left.to_s.should == 'A25'
+        range.bot_left.to_s.should == 'A28'
         # final row should be previous row before insert
-        sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
+        sheet.cells_of(Office::Range.new('A29:K29'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
       end
 
       it 'does not insert values that have been overwritten by tabular' do
