@@ -13,6 +13,13 @@ module Office
   end
 
   # depends on a method styles
+  # Section 18.8.30 defines well-known format numbers
+  #
+  # Following is a listing of number formats whose formatCode value is implied
+  # rather than explicitly saved in the file. In this case, a numFmtId value is
+  # written on the xf record, but no corresponding numFmt element is written.
+  # Some of these Ids can be interpreted differently, depending on the UI
+  # language of the implementing application.
   module CellNodes
     # xlsx stores all datetime and time numerical values relative to utc offset
     UTC_OFFSET_HOURS = DateTime.now.offset
@@ -22,8 +29,21 @@ module Office
 
     # return  sequential index of num_fmt_id. 0 if not found
     # TODO lazily create styles?
-    def self.style_index styles, num_fmt_id
+    def self.lookup_style_index styles, num_fmt_id
       styles.index_of_xf(num_fmt_id) || 0
+    end
+
+    # First, retrieve the num_fmt_id from the node's style_index.
+    #
+    # Then what has to happen is that if the num_fmt_id is 0 (ie General) we can
+    # set it to some more specific format, but if it's already some more
+    # specific format we should leave it as-is.
+    def self.set_style_index styles, target_node, new_num_fmt_id
+      cell_xf = styles.xf_by_index(target_node[:s].to_i)
+
+      if cell_xf.nil? || cell_xf.number_format_id == 0
+        target_node[:s] = lookup_style_index(styles, new_num_fmt_id).to_s
+      end
     end
 
     def self.build_c_node target_node, obj, styles:, string_table: nil
@@ -42,7 +62,7 @@ module Office
       when true, false
         target_node.children = target_node.document.create_element 'v', (obj ? ?1 : ?0)
         target_node[:t] = ?b
-        target_node[:s] ||= style_index(styles, 165) # boolean style used by localc, not sure if that applies to other spreadsheet apps.
+        set_style_index(styles, target_node, 165) # boolean style used by localc, not sure if that applies to other spreadsheet apps.
 
       # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
       when DateTime
@@ -54,7 +74,7 @@ module Office
         target_node.children = target_node.document.create_element 'v', days_since_epoch.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
+        set_style_index(styles, target_node, 22) # default/generic datetime
 
       when Time
         # TODO same as DateTime except style number is different
@@ -65,14 +85,14 @@ module Office
         target_node.children = target_node.document.create_element 'v', span.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 21) # default/generic time hh::mm::ss
+        set_style_index(styles, target_node, 21) # default/generic time hh::mm::ss
 
       when Date
         # Integer otherwise it's a Rational
         span = Integer obj - DATE_EPOCH
         target_node.children = target_node.document.create_element 'v', span.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 14) # default/generic date
+        set_style_index(styles, target_node, 14) # default/generic date
 
       when String
         if string_table
@@ -98,24 +118,24 @@ module Office
             end
           end
           target_node[:t] = 'inlineStr'
-          target_node[:s] ||= style_index(styles, 0) # general style
+          target_node[:s] = lookup_style_index(styles, 0) # general style
 
         end
 
       when Float
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 0) # general
+        set_style_index(styles, target_node, 0) # general
 
       when Integer
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 1) # general
+        set_style_index(styles, target_node, 1) # general
 
       when IsoTime
         target_node.children = target_node.document.create_element 'v', obj.iso8601
         target_node[:t] = ?d
-        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
+        set_style_index(styles, target_node, 22) # default/generic datetime
 
       else
         raise TypeError, "dunno how to convert #{obj.inspect}"
@@ -161,9 +181,9 @@ module Office
       @data_type ||= node[:t]&.to_sym
     end
 
-    def style_id
+    def style_index
       # this defines date/int/string format (presumably as well as colour and bold/italic/underline etc?)
-      @style_id ||= node[:s].to_i
+      @style_index ||= node[:s].to_i
     end
 
     def location
@@ -171,7 +191,7 @@ module Office
     end
 
     def style
-      @style ||= styles&.xf_by_id(style_id)
+      @style ||= styles&.xf_by_index(style_index)
     end
 
     def shared_string
@@ -240,7 +260,7 @@ module Office
       # reset memos
       @value_node = nil
       @data_type = nil
-      @style_id = nil
+      @style_index = nil
       remove_instance_variable :@placeholder if instance_variable_defined? :@placeholder
     rescue
       # restore partially built node
@@ -373,7 +393,7 @@ module Office
       return Time.iso8601(unformatted_value) if data_type == :d
 
       # for no style, determine type from the data_type attribute
-      if style&.apply_number_format != '1'
+      if style.nil? || style.apply_number_format? == false
         return case data_type
         when :n
           Integer unformatted_value rescue Float unformatted_value

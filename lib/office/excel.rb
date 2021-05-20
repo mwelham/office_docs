@@ -138,20 +138,39 @@ module Office
   end
 
   class StyleSheet
+    # From section 18.8.30 of the specs - these are the predefined format numFmt ids
+    KNOWN_FORMAT_IDS = [0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 37, 38, 39, 40, 45, 46, 47, 48, 49]
+
     attr_reader :node, :xfs
 
     def initialize(part)
-      ns_prefix = Package.xpath_ns_prefix(part.xml.root)
-      @node = part.xml.at_xpath("/#{ns_prefix}:styleSheet")
-      @xfs = node.xpath("#{ns_prefix}:cellXfs").children.map { |xf| CellXF.new(xf) }
+      @node = part.xml.nxpath('/*:styleSheet').first
+      @xfs = node.nxpath('*:cellXfs/*:xf').map do |xf_node|
+        CellXF.new(xf_node)
+      end
     end
 
-    def xf_by_id(id)
-      @xfs[id.to_i]
+    def xf_by_index(index)
+      @xfs[Integer index]
+    end
+
+    def create_xf num_fmt_id
     end
 
     def index_of_xf(num_fmt_id)
-      @xfs.index{|xf| xf&.number_format_id == num_fmt_id.to_s}
+      ix = @xfs.index{|cell_xf| cell_xf.number_format_id == num_fmt_id}
+      if ix.nil? && KNOWN_FORMAT_IDS.include?(num_fmt_id)
+        # This xml is from LibreOffice Calc, so hopefully it works for Google Docs, Excel etc.
+        cell_xfs_node = @node.nxpath('*:cellXfs').first
+        # TODO what should fontID here be?
+        cell_xfs_node << %|<xf numFmtId="#{num_fmt_id}" applyNumberFormat="1" fontId="0" fillId="0" borderId="0" xfId="0"/>|
+        # append new CellXF node
+        @xfs << CellXF.new(cell_xfs_node.element_children.last)
+        cell_xfs_node[:count] = @xfs.size
+        # index of the last one added
+        ix = @xfs.size - 1
+      end
+      ix
     end
   end
 
@@ -161,11 +180,15 @@ module Office
     attr_reader :number_format_id
     attr_reader :apply_number_format
 
+    def apply_number_format?
+      @apply_number_format == 1
+    end
+
     def initialize(xf_node)
       @node = xf_node
-      @xf_id = xf_node['xfId']
-      @number_format_id = xf_node['numFmtId']
-      @apply_number_format = xf_node['applyNumberFormat']
+      @xf_id = Integer xf_node['xfId']
+      @number_format_id = Integer xf_node['numFmtId']
+      @apply_number_format = xf_node['applyNumberFormat'].to_i
     end
   end
 end

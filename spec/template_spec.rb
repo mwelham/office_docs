@@ -54,9 +54,8 @@ describe Excel::Template do
       cell = book.sheets.first['B11']
       cell.value = "{{important_first_date}}"
       ph = cell.placeholder
-      pending "insertion of correct numFmtId into stylesheet"
       ph[] = Date.today
-      cell.value.should == Date.today.to_s
+      cell.to_ruby.should == Date.today
     end
 
     it 'placeholder does partial replacement' do
