@@ -62,7 +62,7 @@ module Office
       row_node = sheet.row_node_at location
       if row_node.nil?
         # create row_node, then add cell in appropriate place
-        row_node, = sheet.insert_rows location
+        row_node, = sheet.create_rows location
       end
 
       # create c node and set its value

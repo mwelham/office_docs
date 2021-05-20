@@ -215,6 +215,12 @@ module Office
         end
       end
 
+      create_rows insert_range
+    end
+
+    def create_rows insert_range
+      insert_range = to_range insert_range
+
       invalidate_row_cache
 
       # Create new row nodes and return them

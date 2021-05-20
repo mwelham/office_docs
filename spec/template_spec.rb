@@ -277,7 +277,7 @@ describe Excel::Template do
         range.to_s.should == "A18:K28"
 
         sheet.invalidate_row_cache
-        sheet.dimension.to_s.should == 'A5:K26'
+        sheet.dimension.to_s.should == 'A5:K29'
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == expected
@@ -285,7 +285,7 @@ describe Excel::Template do
         # last row of overwritten data
         range.bot_left.to_s.should == 'A28'
         # final row should be unchanged
-        sheet.cells_of(Office::Range.new('A26:K26'), &:to_ruby).first.should == %w[{{streams[2].rpm}}  {{streams[2].discharge}}  {{streams[2].suction}}  {{streams[2].net}}  {{streams[2].no}} {{streams[2].size}} {{streams[2].pitot}}  {{streams[2].gpm}}  {{streams[2].percent}}  {{streams[2].voltage}}  {{streams[2].amp}}]
+        sheet.cells_of(Office::Range.new('A29:K29'), &:to_ruby).first.should == ['last', 'line', 'after', nil, nil, nil, nil, nil, nil, nil, 'render']
       end
 
       it 'horizontal insert' do
