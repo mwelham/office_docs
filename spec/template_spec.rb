@@ -196,7 +196,7 @@ describe Excel::Template do
         sheet.cells_of(new_range, &:to_ruby).should_not == old_cell_data
 
         # larger than the previous dimension
-        sheet.dimension.to_s.should == 'A5:K28'
+        sheet.dimension.to_s.should == 'A5:K29'
       end
 
       it 'vertical overwrite' do
@@ -259,11 +259,11 @@ describe Excel::Template do
       end
 
       it 'horizontal overwrite' do
-        cell = sheet['A18']
+        cell = sheet['B18']
 
         sheet.dimension.to_s.should == 'A5:K26'
 
-        # port-overwrite marker line
+        # post-overwrite marker line
         sheet['A29'].value = 'last'
         sheet['B29'].value = 'line'
         sheet['C29'].value = 'after'
@@ -273,16 +273,16 @@ describe Excel::Template do
         values = pet_data.dig *placeholder.field_path
 
         range = Excel::Template.render_tabular sheet, cell, placeholder, values
-        range.to_s.should == "A18:K28"
+        range.to_s.should == "B18:L28"
 
         sheet.invalidate_row_cache
-        sheet.dimension.to_s.should == 'A5:K29'
+        sheet.dimension.to_s.should == 'A5:L29'
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == expected
 
         # last row of overwritten data
-        range.bot_left.to_s.should == 'A28'
+        range.bot_left.to_s.should == 'B28'
         # final row should be unchanged
         sheet.cells_of(Office::Range.new('A29:K29'), &:to_ruby).first.should == ['last', 'line', 'after', nil, nil, nil, nil, nil, nil, nil, 'render']
       end
@@ -297,18 +297,21 @@ describe Excel::Template do
         range.to_s.should == "A18:K28"
 
         sheet.invalidate_row_cache
-        sheet.dimension.to_s.should == "A5:K35"
+        sheet.dimension.to_s.should == "A5:K36"
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == expected
 
         # last row of overwritten data
         range.bot_left.to_s.should == 'A28'
-        # final row should be previous row before insert
-        sheet.cells_of(Office::Range.new('A29:K29'), &:to_ruby).first.should == [nil, nil, nil, nil, nil, nil, nil, "{{logo|133x100}}", nil, nil, "{{logo}}"]
+
+        # subsequent row after placeholder should now be first row after insert
+        # can't use to_ruby here because the cells have formats in them that we don't understand.
+        sheet.cells_of(Office::Range.new('A29:D29'), &:value).first.should == ["1", "44132", "7", "3.141528"]
+        sheet.cells_of(Office::Range.new('H30:K30'), &:value).first.should == ['{{logo|133x100}}', nil, nil, '{{logo}}']
       end
 
-      it 'does not insert values that have been overwritten by tabular' do
+      it 'does not insert values whose placeholders have been overwritten by tabular' do
         cell = sheet['A18']
 
         # there should be some image placeholders
@@ -327,11 +330,16 @@ describe Excel::Template do
         include ReloadWorkbook
 
         it 'horizontal insert', display_ui: true do
-          cell = sheet['A18']
-          cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
-          Excel::Template.render! book, data.merge(pet_data)
-          sheet.invalidate_row_cache
+          sheet['B18'].value = '{{fields.peer_group.review|tabular,horizontal,headers,insert}}'
+          sheet.accept!(Office::Location.new('A18'), [%w[Tabular-Data T1 T2 T3]].transpose)
+
           reload_workbook book do |book| `localc #{book.filename}` end
+
+          Excel::Template.render! book, data.merge(pet_data)
+          reload_workbook book do |book| `localc #{book.filename}` end
+
+          sheet['A18'].value.should == 'Tabular-Data'
+          sheet.cells_of(Office::Range.new('A29:D29')).flatten.map(&:value).should == %w[T1 44132 7 3.141528]
         end
       end
     end

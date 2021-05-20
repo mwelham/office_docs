@@ -163,7 +163,17 @@ module Excel
       tabular_data, width, height = maybe_transpose tabular_data, max_index, **placeholder.options.slice(:vertical, :horizontal)
 
       if placeholder.options[:insert]
-        insert_range = cell.location * [width-1, height-1]
+        # we have to keep cell.location's row where it is, and insert rows after
+        # that. cell.location's row will be partially overwritten anyway, and we
+        # want to preserve  cells to the left of cell.location because they are
+        # likely to contain headings.
+        first_insert_location = cell.location + [0,1]
+
+        # The value of width is moreorless irrelvant because the height of the
+        # range specifies the number of empty rows to insert.
+        #
+        # width would be relevant if the code inserted a block rather than rows.
+        insert_range = first_insert_location * [width, height]
         sheet.insert_rows insert_range
       end
 
