@@ -38,10 +38,17 @@ module Office
     # Then what has to happen is that if the num_fmt_id is 0 (ie General) we can
     # set it to some more specific format, but if it's already some more
     # specific format we should leave it as-is.
+    #
+    # REFACTOR this needs work along with class Stylesheet but no budget for that right now.
     def self.set_style_index styles, target_node, new_num_fmt_id
-      cell_xf = styles.xf_by_index(target_node[:s].to_i)
+      # REFACTOR this is horrible, and the second place where target_node[:s]&.to_i
+      if target_node.attributes.has_key?(:s)
+        cell_xf = styles.xf_by_index(target_node[:s]&.to_i)
 
-      if cell_xf.nil? || cell_xf.number_format_id == 0
+        if cell_xf.nil? || cell_xf.number_format_id == 0
+          target_node[:s] = lookup_style_index(styles, new_num_fmt_id).to_s
+        end
+      else
         target_node[:s] = lookup_style_index(styles, new_num_fmt_id).to_s
       end
     end
@@ -183,7 +190,8 @@ module Office
 
     def style_index
       # this defines date/int/string format (presumably as well as colour and bold/italic/underline etc?)
-      @style_index ||= node[:s].to_i
+      # CAUTION to_i will convert a nil to 0, which breaks formatting
+      @style_index ||= node[:s]&.to_i
     end
 
     def location
@@ -191,7 +199,7 @@ module Office
     end
 
     def style
-      @style ||= styles&.xf_by_index(style_index)
+      @style ||= style_index && styles&.xf_by_index(style_index)
     end
 
     def shared_string
@@ -381,6 +389,29 @@ module Office
       end
     end
 
+    def value_from_data_type unformatted_value
+      case data_type
+      when :n
+        Integer unformatted_value rescue Float unformatted_value
+
+      # NOTE this is specification-compliant, but really don't know if this will actually work
+      when :d
+        Time.iso8601 unformatted_value
+
+      when :b
+        case unformatted_value
+        when ?1; true
+        when ?0; false
+        else
+          raise TypeError, "Unknown boolean value #{unformatted_value}"
+        end
+
+      else
+        # TODO not sure this is the best way to convert to Numeric then fall back to String
+        Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
+      end
+    end
+
     # Again running into conflation of the type/object and the format
     def formatted_value
       return shared_string.text if shared?
@@ -389,31 +420,13 @@ module Office
       unformatted_value = value
       return nil unless unformatted_value
 
-      # hack workaround
+      # hack workarounds
       return Time.iso8601(unformatted_value) if data_type == :d
+      return value_from_data_type unformatted_value if data_type == :b
 
-      # for no style, determine type from the data_type attribute
-      if style.nil? || style.apply_number_format? == false
-        return case data_type
-        when :n
-          Integer unformatted_value rescue Float unformatted_value
-
-        # NOTE this is specification-compliant, but really don't know if this will actually work
-        when :d
-          Time.iso8601 unformatted_value
-
-        when :b
-          case unformatted_value
-          when ?1; true
-          when ?0; false
-          else
-            raise TypeError, "Unknown boolean value #{unformatted_value}"
-          end
-
-        else
-          # TODO not sure this is the best way to convert to Numeric then fall back to String
-          Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
-        end
+      # when applyNumberFormat is definitely off, use the underlying value.
+      if style&.ignore_number_format?
+        return value_from_data_type unformatted_value
       end
 
       # multi-value whens are faster. And we might need the type metadata somewhere else.
@@ -474,7 +487,7 @@ module Office
         as_decimal(unformatted_value)
       #when 49 #    @
       else
-        unformatted_value
+        value_from_data_type unformatted_value
       end
     end
 

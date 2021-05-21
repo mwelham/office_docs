@@ -139,6 +139,7 @@ module Office
 
   class StyleSheet
     # From section 18.8.30 of the specs - these are the predefined format numFmt ids
+    # REFACTOR there are now 3 disparate areas which use these codes.
     KNOWN_FORMAT_IDS = [0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 37, 38, 39, 40, 45, 46, 47, 48, 49]
 
     attr_reader :node, :xfs
@@ -157,13 +158,18 @@ module Office
     def create_xf num_fmt_id
     end
 
+    # REFACTOR this is a mess, along with the other piece in module
+    # CellNodes.set_style_index But no budget for that right now.
     def index_of_xf(num_fmt_id)
       ix = @xfs.index{|cell_xf| cell_xf.number_format_id == num_fmt_id}
       if ix.nil? && KNOWN_FORMAT_IDS.include?(num_fmt_id)
         # This xml is from LibreOffice Calc, so hopefully it works for Google Docs, Excel etc.
         cell_xfs_node = @node.nxpath('*:cellXfs').first
         # TODO what should fontID here be?
-        cell_xfs_node << %|<xf numFmtId="#{num_fmt_id}" applyNumberFormat="1" fontId="0" fillId="0" borderId="0" xfId="0"/>|
+        # don't automatically apply format for General num_fmt_id - ie let the
+        # cell.value decide which ruby class to use for representing the value.
+        apply_format = num_fmt_id == 0 ? 0 : 1
+        cell_xfs_node << %|<xf numFmtId="#{num_fmt_id}" applyNumberFormat="#{apply_format}" fontId="0" fillId="0" borderId="0" xfId="0"/>|
         # append new CellXF node
         @xfs << CellXF.new(cell_xfs_node.element_children.last)
         cell_xfs_node[:count] = @xfs.size
@@ -180,15 +186,19 @@ module Office
     attr_reader :number_format_id
     attr_reader :apply_number_format
 
-    def apply_number_format?
-      @apply_number_format == 1
+    # Invert the sense of apply_number_format because we have to default nil to
+    # true, and 0 means false. The only usage is is a lot easier to understand
+    # when it's this way around.
+    def ignore_number_format?
+      (@apply_number_format || 1).to_i == 0
     end
 
     def initialize(xf_node)
       @node = xf_node
       @xf_id = Integer xf_node['xfId']
       @number_format_id = Integer xf_node['numFmtId']
-      @apply_number_format = xf_node['applyNumberFormat'].to_i
+      # default to 1 if not present
+      @apply_number_format = xf_node['applyNumberFormat']
     end
   end
 end

@@ -27,8 +27,6 @@ describe Excel::Template do
   end
 
   describe '.render!' do
-    include ReloadWorkbook
-
     it 'replaces placeholders' do
       placeholders = ->{ book.sheets.flat_map {|sheet| sheet.each_placeholder.to_a } }
 
@@ -243,19 +241,19 @@ describe Excel::Template do
       end
 
       let :expected do
-        CSV.parse <<~ECSV, converters: %i[numeric date]
-        organisation,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs
-        address,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd
-        recorded,44336,44336,44336,44336,44336,44336,44336,44336,44336,44336
-        precise,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596,44336.316655092596
-        clients.first_name,John,John,Colleen,Colleen,,,,,,
-        clients.last_name,Anderson,Anderson,MacKenzie,MacKenzie,,,,,,
-        clients.pets.name,Charlie,Feather,Jock,Paddy,,,,,,
-        clients.pets.species,cat,cat,dog,dog,,,,,,
-        clients.pets.born,39953,39953,43689,43014,,,,,,
-        suppliers.name,,,,,Hill Scientific Method,Hill Scientific Method,Petrova,Green Industries,Green Industries,Second Life Foods
-        suppliers.products.name,,,,,kibbles,biscuits,collar,catnip,grass,bones
-        ECSV
+        YAML.load <<~YAML
+        - [organisation,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs]
+        - [address,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd]
+        - [recorded,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20]
+        - [precise,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00]
+        - [clients.first_name,John,John,Colleen,Colleen,null,null,null,null,null,null]
+        - [clients.last_name,Anderson,Anderson,MacKenzie,MacKenzie,null,null,null,null,null,null]
+        - [clients.pets.name,Charlie,Feather,Jock,Paddy,null,null,null,null,null,null]
+        - [clients.pets.species,cat,cat,dog,dog,null,null,null,null,null,null]
+        - [clients.pets.born,2009-05-20,2009-05-20,2019-08-12,2017-10-06,null,null,null,null,null,null]
+        - [suppliers.name,null,null,null,null,Hill Scientific Method,Hill Scientific Method,Petrova,Green Industries,Green Industries,Second Life Foods]
+        - [suppliers.products.name,null,null,null,null,kibbles, biscuits, collar, catnip, grass, bones]
+        YAML
       end
 
       it 'horizontal overwrite' do

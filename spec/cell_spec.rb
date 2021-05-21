@@ -16,7 +16,7 @@ describe Office::Cell do
   class MockXfStyle
     attr_accessor :number_format_id
     attr_accessor :apply_number_format
-    def apply_number_format?; apply_number_format.to_i == 1 end
+    def ignore_number_format?; apply_number_format.to_i != 1 end
   end
 
   class MockStyleSheet
