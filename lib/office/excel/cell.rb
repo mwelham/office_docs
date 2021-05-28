@@ -13,6 +13,13 @@ module Office
   end
 
   # depends on a method styles
+  # Section 18.8.30 defines well-known format numbers
+  #
+  # Following is a listing of number formats whose formatCode value is implied
+  # rather than explicitly saved in the file. In this case, a numFmtId value is
+  # written on the xf record, but no corresponding numFmt element is written.
+  # Some of these Ids can be interpreted differently, depending on the UI
+  # language of the implementing application.
   module CellNodes
     # xlsx stores all datetime and time numerical values relative to utc offset
     UTC_OFFSET_HOURS = DateTime.now.offset
@@ -22,8 +29,28 @@ module Office
 
     # return  sequential index of num_fmt_id. 0 if not found
     # TODO lazily create styles?
-    def self.style_index styles, num_fmt_id
+    def self.lookup_style_index styles, num_fmt_id
       styles.index_of_xf(num_fmt_id) || 0
+    end
+
+    # First, retrieve the num_fmt_id from the node's style_index.
+    #
+    # Then what has to happen is that if the num_fmt_id is 0 (ie General) we can
+    # set it to some more specific format, but if it's already some more
+    # specific format we should leave it as-is.
+    #
+    # REFACTOR this needs work along with class Stylesheet but no budget for that right now.
+    def self.set_style_index styles, target_node, new_num_fmt_id
+      # REFACTOR this is horrible, and the second place where target_node[:s]&.to_i
+      if target_node.attributes.has_key?(:s)
+        cell_xf = styles.xf_by_index(target_node[:s]&.to_i)
+
+        if cell_xf.nil? || cell_xf.number_format_id == 0
+          target_node[:s] = lookup_style_index(styles, new_num_fmt_id).to_s
+        end
+      else
+        target_node[:s] = lookup_style_index(styles, new_num_fmt_id).to_s
+      end
     end
 
     def self.build_c_node target_node, obj, styles:, string_table: nil
@@ -42,7 +69,7 @@ module Office
       when true, false
         target_node.children = target_node.document.create_element 'v', (obj ? ?1 : ?0)
         target_node[:t] = ?b
-        target_node[:s] ||= style_index(styles, 165) # boolean style used by localc, not sure if that applies to other spreadsheet apps.
+        set_style_index(styles, target_node, 165) # boolean style used by localc, not sure if that applies to other spreadsheet apps.
 
       # TODO xlsx specifies type=d, but Excel and LibreOffice seem to rely on t=n with a date style format
       when DateTime
@@ -54,7 +81,7 @@ module Office
         target_node.children = target_node.document.create_element 'v', days_since_epoch.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
+        set_style_index(styles, target_node, 22) # default/generic datetime
 
       when Time
         # TODO same as DateTime except style number is different
@@ -65,14 +92,14 @@ module Office
         target_node.children = target_node.document.create_element 'v', span.to_s
         # It's a bit weird that there is a ?d in the spec for dates, but it's not used.
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 21) # default/generic time hh::mm::ss
+        set_style_index(styles, target_node, 21) # default/generic time hh::mm::ss
 
       when Date
         # Integer otherwise it's a Rational
         span = Integer obj - DATE_EPOCH
         target_node.children = target_node.document.create_element 'v', span.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 14) # default/generic date
+        set_style_index(styles, target_node, 14) # default/generic date
 
       when String
         if string_table
@@ -98,24 +125,24 @@ module Office
             end
           end
           target_node[:t] = 'inlineStr'
-          target_node[:s] ||= style_index(styles, 0) # general style
+          target_node[:s] = lookup_style_index(styles, 0) # general style
 
         end
 
       when Float
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 0) # general
+        set_style_index(styles, target_node, 0) # general
 
       when Integer
         target_node.children = target_node.document.create_element 'v', obj.to_s
         target_node[:t] = ?n
-        target_node[:s] ||= style_index(styles, 1) # general
+        set_style_index(styles, target_node, 1) # general
 
       when IsoTime
         target_node.children = target_node.document.create_element 'v', obj.iso8601
         target_node[:t] = ?d
-        target_node[:s] ||= style_index(styles, 22) # default/generic datetime
+        set_style_index(styles, target_node, 22) # default/generic datetime
 
       else
         raise TypeError, "dunno how to convert #{obj.inspect}"
@@ -144,14 +171,27 @@ module Office
       @styles = styles
     end
 
+    # return a new cell based on the constructor values for self.
+    #
+    # Sometimes values for the cell change, but the actual node remains.
+    # So just reload from the node, unless it's been unlinked from the document.
+    def recreate
+      if @node.parent
+        self.class.new @node, @string_table, @styles
+      else
+        raise "#{location} has been unlinked"
+      end
+    end
+
     def data_type
       # convert to symbol now because it's 10x faster for comparisons later
       @data_type ||= node[:t]&.to_sym
     end
 
-    def style_id
+    def style_index
       # this defines date/int/string format (presumably as well as colour and bold/italic/underline etc?)
-      @style_id ||= node[:s].to_i
+      # CAUTION to_i will convert a nil to 0, which breaks formatting
+      @style_index ||= node[:s]&.to_i
     end
 
     def location
@@ -159,7 +199,7 @@ module Office
     end
 
     def style
-      @style ||= styles&.xf_by_id(style_id)
+      @style ||= style_index && styles&.xf_by_index(style_index)
     end
 
     def shared_string
@@ -228,7 +268,7 @@ module Office
       # reset memos
       @value_node = nil
       @data_type = nil
-      @style_id = nil
+      @style_index = nil
       remove_instance_variable :@placeholder if instance_variable_defined? :@placeholder
     rescue
       # restore partially built node
@@ -247,9 +287,19 @@ module Office
 
       def []=(rhs)
         cell_value = @cell.value
-        cell_value[start,length] = rhs
+
+        replacement_value =
+        if start == 0 && length == cell_value.length
+          # replace entire cell, so we can use an object
+          rhs
+        else
+          # partial replacement, so we have to assume a string
+          cell_value[start,length] = rhs.to_s
+          cell_value
+        end
+
         # NOTE this will cause @cell to drop its reference to this instance
-        @cell.value = cell_value
+        @cell.value = replacement_value
       end
     end
 
@@ -281,6 +331,16 @@ module Office
           end
         end
       end
+    end
+
+    # force placeholder to re-read from underlying nokogiri node
+    def placeholder!
+      # remove all instance variables except the ones in constructors
+      (instance_variables - %i[@node @string_table @styles]).each do |ivar|
+        remove_instance_variable ivar
+      end
+
+      placeholder
     end
 
     def empty?; !value end
@@ -329,6 +389,29 @@ module Office
       end
     end
 
+    def value_from_data_type unformatted_value
+      case data_type
+      when :n
+        Integer unformatted_value rescue Float unformatted_value
+
+      # NOTE this is specification-compliant, but really don't know if this will actually work
+      when :d
+        Time.iso8601 unformatted_value
+
+      when :b
+        case unformatted_value
+        when ?1; true
+        when ?0; false
+        else
+          raise TypeError, "Unknown boolean value #{unformatted_value}"
+        end
+
+      else
+        # TODO not sure this is the best way to convert to Numeric then fall back to String
+        Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
+      end
+    end
+
     # Again running into conflation of the type/object and the format
     def formatted_value
       return shared_string.text if shared?
@@ -337,31 +420,13 @@ module Office
       unformatted_value = value
       return nil unless unformatted_value
 
-      # hack workaround
+      # hack workarounds
       return Time.iso8601(unformatted_value) if data_type == :d
+      return value_from_data_type unformatted_value if data_type == :b
 
-      # for no style, determine type from the data_type attribute
-      if style&.apply_number_format != '1'
-        return case data_type
-        when :n
-          Integer unformatted_value rescue Float unformatted_value
-
-        # NOTE this is specification-compliant, but really don't know if this will actually work
-        when :d
-          Time.iso8601 unformatted_value
-
-        when :b
-          case unformatted_value
-          when ?1; true
-          when ?0; false
-          else
-            raise TypeError, "Unknown boolean value #{unformatted_value}"
-          end
-
-        else
-          # TODO not sure this is the best way to convert to Numeric then fall back to String
-          Integer unformatted_value rescue Float unformatted_value rescue unformatted_value
-        end
+      # when applyNumberFormat is definitely off, use the underlying value.
+      if style&.ignore_number_format?
+        return value_from_data_type unformatted_value
       end
 
       # multi-value whens are faster. And we might need the type metadata somewhere else.
@@ -422,7 +487,7 @@ module Office
         as_decimal(unformatted_value)
       #when 49 #    @
       else
-        unformatted_value
+        value_from_data_type unformatted_value
       end
     end
 

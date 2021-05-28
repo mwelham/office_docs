@@ -32,7 +32,7 @@ module Office
       case
         when s.scan(/true/); yield [:true, 'true']
         when s.scan(/false/); yield [:false, 'false']
-        when s.scan(/(\d+)x(\d+)/i)
+        when s.scan(/(\d+)\s*x\s*(\d+)/i)
           yield :NUMBER, s.captures[0]
           yield ?x, ?x
           yield :NUMBER, s.captures[1]

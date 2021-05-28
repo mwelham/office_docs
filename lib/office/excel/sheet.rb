@@ -101,9 +101,14 @@ module Office
     end
 
     private def dimension_node
-      # this is about 1.2 - 3 times faster, but optimising this is not worthwhile here.
-      # node.children.first.children.find{|n| n.name == 'dimension'}
-      node.xpath('xmlns:worksheet/xmlns:dimension').first
+      worksheet_node = node.nxpath('*:worksheet').first
+      if dim_node = worksheet_node.nxpath('*:dimension').first
+        dim_node
+      else
+        dim_node = worksheet_node.document.create_element 'dimension', ref: calculate_dimension.to_s
+        worksheet_node << dim_node
+        dim_node
+      end
     end
 
     # fetch dimension from the xlsx doc
@@ -214,6 +219,12 @@ module Office
           cell[:r] = Location.of_r colst, row_number
         end
       end
+
+      create_rows insert_range
+    end
+
+    def create_rows insert_range
+      insert_range = to_range insert_range
 
       invalidate_row_cache
 
@@ -591,7 +602,17 @@ module Office
       data.each_with_index do |row,rowix|
         row.each_with_index do |value,colix|
           cell_location = location + [colix, rowix]
-          self[cell_location].value = value
+
+          # Apparently there really needs to be a unified way to set cell
+          # 'values' even when the value is an image. Although we don't have
+          # extent here, so what size to use?
+          self[cell_location].value = case value
+          when Magick::ImageList, Magick::Image
+            value.inspect
+          else
+            value
+          end
+
           furthest |= cell_location
         end
       end

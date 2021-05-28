@@ -16,6 +16,7 @@ describe Office::Cell do
   class MockXfStyle
     attr_accessor :number_format_id
     attr_accessor :apply_number_format
+    def ignore_number_format?; apply_number_format.to_i != 1 end
   end
 
   class MockStyleSheet
@@ -25,8 +26,8 @@ describe Office::Cell do
 
     attr_reader :ary
 
-    def xf_by_id id
-      @ary[id.to_i]
+    def xf_by_index index
+      @ary[index.to_i]
     end
 
     def index_of_xf num_fmt_id

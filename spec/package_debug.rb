@@ -57,8 +57,9 @@ module PackageDebug
 
     # Create a giant xml for entire part list.
     # Basically a mirror to what self#save does but to an xml instead of a zip
+    # parts in zip order for comparison to ztree
     def xtree parent = Nokogiri::XML.parse('<xtree/>').root
-      zorted_parts.each do |name, part|
+      parts.sort_by{|k,v| k}.each do |(name, part)|
         node = parent.document.create_element 'file'
         node[:name] = name.gsub(%r|^/|, '').downcase
         if incl_tree_name(name) && part.respond_to?(:xml)

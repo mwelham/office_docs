@@ -78,6 +78,28 @@ describe Office::Sheet do
         # .text will not work here if the created node is a shared string
         cell_node.text.should == "Cat on a Warm Dry Chair"
       end
+
+      it 'value round trip after invalidate' do
+        # Also, we can make it add the same cell twice. Oops. Possibly LazyCell fallout?
+        str = '{{fields.Groups.Subgroup|tabular}}'
+        cell = sheet['C12']
+        cell.value.should be_nil
+        cell.value = str
+
+        sheet.invalidate_row_cache
+        sheet['C12'].value.should == str
+      end
+
+      it 'immediate round trip' do
+        pending "the LazyCell problem"
+        # Also, we can make it add the same cell twice. Oops. Possibly LazyCell fallout?
+        str = '{{fields.Groups.Subgroup|tabular}}'
+        cell = sheet['C12']
+        cell.value.should be_nil
+        cell.value = str
+
+        cell.value.should == str
+      end
     end
 
     describe '#each_cell' do
@@ -203,6 +225,39 @@ describe Office::Sheet do
   end
 
   describe 'dimensions' do
+    describe 'google sheets missing worksheet/dimension node' do
+      let :book do Office::ExcelWorkbook.new FixtureFiles::Book::GOOGLE_SHEETS_DIMENSION end
+
+      it '#dimension' do
+        worksheet_node = sheet.node.nxpath('*:worksheet').first
+        # belt and suspenders
+        worksheet_node.element_children.map(&:name).should == %w[sheetPr sheetViews sheetFormatPr cols sheetData printOptions pageMargins pageSetup drawing]
+        worksheet_node.element_children.map(&:name).should_not include('dimension')
+
+        # this lazily creates the missing dimension node
+        sheet.dimension.should == Office::Range.new('A1:B1001')
+        worksheet_node.element_children.map(&:name).should include('dimension')
+      end
+
+      it '#update_dimension_node' do
+        sheet.update_dimension_node
+        sheet.dimension.should == Office::Range.new('A1:B1001')
+        reload_workbook book do |book|
+          book.sheets.first.dimension.should == Office::Range.new('A1:B1001')
+        end
+      end
+    end
+
+    describe 'present worksheet/dimension node' do
+      let :book do Office::ExcelWorkbook.new FixtureFiles::Book::TODO_TEMPLATE_YES end
+
+      it '#dimension' do
+        worksheet_node = sheet.node.nxpath('*:worksheet').first
+        worksheet_node.element_children.map(&:name).should == %w[dimension sheetViews sheetFormatPr cols sheetData pageMargins pageSetup]
+        sheet.dimension.should == Office::Range.new('A1:B1000')
+      end
+    end
+
     describe 'A1 for blank sheet' do
       let :book do Office::ExcelWorkbook.blank_workbook end
 

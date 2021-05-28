@@ -110,7 +110,6 @@ describe Office::ExcelWorkbook do
 
       # TODO this fails because style entries for dates do not exist, and need to be created
       it 'has correct types' do
-        pending 'fails until our code can add absent num_fmt_id entries to styles'
         row_range.each_by_row.with_index do |loc,index|
           sheet[loc].value = values[index]
         end
@@ -145,7 +144,6 @@ describe Office::ExcelWorkbook do
     end
 
     it 'saved file still correct' do
-      pending 'fails until our code can add absent num_fmt_id entries to styles'
       row_range.each_by_row.with_index do |loc,index|
         sheet[loc].value = values[index]
       end

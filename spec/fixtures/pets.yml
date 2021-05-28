@@ -1,0 +1,77 @@
+organisation: Acme Pet Repairs
+address: 1 Seuss Rd
+recorded: 2021-05-20
+precise: !ruby/object:DateTime 2021-05-20 07:35:59.787201866 -04:00
+clients:
+- first_name: John
+  last_name: Anderson
+  pets:
+  - name: Charlie
+    species: cat
+    born: 2009-05-20
+  - name: Feather
+    species: cat
+    born: 2009-05-20
+
+- first_name: Colleen
+  last_name: MacKenzie
+  pets:
+  - name: Jock
+    species: dog
+    born: 2019-08-12
+  - name: Paddy
+    species: dog
+    born: 2017-10-06
+
+suppliers:
+- name: Hill Scientific Method
+  products:
+  - name: kibbles
+  - name: biscuits
+- name: Petrova
+  products: [name: collar]
+- name: Green Industries
+  products: [name: catnip, name: grass]
+- name: Second Life Foods
+  products: [name: bones]
+
+# {
+#   "organisation": "Acme Pet Repairs",
+#   "address": "1 Seuss Rd",
+#   "clients": [
+#     {
+#       "first_name": "John",
+#       "last_name": "Anderson",
+#       "pets": [
+#         {
+#           "name": "Charlie",
+#           "species": "cat"
+#         },
+#         {
+#           "name": "Feather",
+#           "species": "cat"
+#         }
+#       ]
+#     },
+#     {
+#       "first_name": "Colleen",
+#       "last_name": "MacKenzie",
+#       "pets": [
+#         {
+#           "name": "Jock",
+#           "species": "dog"
+#         },
+#         {
+#           "name": "Paddy",
+#           "species": "dog"
+#         }
+#       ]
+#     }
+#   ]
+# }
+
+# organisation,address,first_name,last_name,name,species
+# Acme Pet Repairs,1 Seuss Rd,John,Anderson,Charlie,cat
+# Acme Pet Repairs,1 Seuss Rd,John,Anderson,Feather,cat
+# Acme Pet Repairs,1 Seuss Rd,Colleen,MacKenzie,Jock,dog
+# Acme Pet Repairs,1 Seuss Rd,Colleen,MacKenzie,Paddy,dog
