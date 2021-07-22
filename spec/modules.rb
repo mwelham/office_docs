@@ -1,10 +1,10 @@
 module FixtureFiles
-  def self.content_path
-    Pathname(__dir__) + "../test/content"
-  end
-
-  def self.fixtures_path
-    Pathname(__dir__) + "fixtures"
+  def self.fixture_paths
+    [
+      Pathname(__dir__) + "../test/content",
+      Pathname(__dir__) + "fixtures",
+      Pathname(__dir__) + "fixtures/xlsx",
+    ]
   end
 
   module Book; end
@@ -15,7 +15,7 @@ module FixtureFiles
   module Json; end
   module Txt; end
 
-  (content_path.glob('*.*') + fixtures_path.glob('*.*')).each do |path|
+  (fixture_paths.flat_map{|fp| fp.glob('*.*')}).each do |path|
     the_mod =
     case path.extname
     when '.xlsx'; Book

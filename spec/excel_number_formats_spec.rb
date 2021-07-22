@@ -1,10 +1,12 @@
 require 'spec_helper'
 require 'office_docs'
 
+require_relative 'modules.rb'
+
 describe :ExcelNumberFormatsTest do
   SIMPLE_DATA_TYPES_WORKBOOK_PATH = File.join(__dir__, '..', 'test', 'content', 'simple_data_types.xlsx')
 
-  let :book do Office::ExcelWorkbook.new SIMPLE_DATA_TYPES_WORKBOOK_PATH end
+  let :book do Office::ExcelWorkbook.new FixtureFiles::Book::SIMPLE_DATA_TYPES end
   let :sheet do book.sheets.first end
   let :rows do sheet.sheet_data.rows end
 
@@ -43,7 +45,7 @@ describe :ExcelNumberFormatsTest do
   end
 
   it '2d access' do
-    book = Office::ExcelWorkbook.new(SIMPLE_DATA_TYPES_WORKBOOK_PATH)
+    book = Office::ExcelWorkbook.new(FixtureFiles::Book::SIMPLE_DATA_TYPES)
     sheet = book.sheets.first
 
     sheet[0,1].formatted_value.should == Date.new(2001, 1, 1)
