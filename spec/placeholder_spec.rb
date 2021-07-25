@@ -249,7 +249,7 @@ module Office
 
           it 'second half placeholder' do
             tokens = PlaceholderLexer.tokenize "}}"
-            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, 'Error at 0:0. Unexpected } at }')
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Unexpected } at 0:0 in '}'")
           end
 
           it 'field path trailing .' do
@@ -269,23 +269,23 @@ module Office
 
           it 'unmatched quote' do
             tokens = PlaceholderLexer.tokenize "some_group.level|translate: 'this thing"
-            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Error at 0:29. Unexpected this at some_group.level|translate: 'this")
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Unexpected this at 0:29 in 'some_group.level|translate: 'this'")
           end
 
           it 'bad range in layout' do
             tokens = PlaceholderLexer.tokenize "some_group.level|translate: 12,layout(a15)"
-            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Error at 0:41. Unexpected ) at some_group.level|translate: 12,layout(a15)")
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Unexpected ) at 0:41 in 'some_group.level|translate: 12,layout(a15)'")
           end
 
           it 'numerics with trailing puntuation' do
             tokens = PlaceholderLexer.tokenize "some_group.level|translate: 12,style(1):"
-            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Error at 0:39. Unexpected : at some_group.level|translate: 12,style(1):")
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Unexpected : at 0:39 in 'some_group.level|translate: 12,style(1):'")
           end
 
           it 'naked value functor' do
             line = '{{doh|date_format(%d-%b-%y)}}'
             tokens = PlaceholderLexer.tokenize line
-            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, 'Error at 0:18. Unexpected % at {{doh|date_format(%')
+            ->{subject.read_tokens tokens}.should raise_error(Office::PlaceholderGrammar::ParseError, "Unexpected % at 0:18 in '{{doh|date_format(%'")
           end
         end
       end

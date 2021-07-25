@@ -259,6 +259,55 @@ describe Office::Cell do
     it 'text runs'
   end
 
+  describe Office::Cell::Placeholder do
+    MockCell = Struct.new :value
+
+    describe 'of_cuddled' do
+      it '{{placeholder}}' do
+        placeholder_str = '{{placeholder}}'
+        plch = described_class.of_cuddled MockCell.new(placeholder_str), placeholder_str
+
+        plch.to_s.should == placeholder_str
+        plch.start.should == 0
+        plch.length.should == 15
+      end
+
+      it '\n\n{{placeholder}}\n\n' do
+        placeholder_str = '\n\n{{placeholder}}\n\n'
+        plch = described_class.of_cuddled MockCell.new(placeholder_str), placeholder_str
+
+        plch.to_s.should == '{{placeholder}}'
+        plch.start.should == 4
+        plch.length.should == 15
+      end
+
+      it '\n\n  {{placeholder}} and some more words\n\n' do
+        placeholder_str = '\n\n  {{placeholder}} and some more words\n\n'
+        plch = described_class.of_cuddled MockCell.new(placeholder_str), placeholder_str
+
+        plch.to_s.should == '{{placeholder}}'
+        plch.start.should == 6
+        plch.length.should == 15
+      end
+
+      it 'plain text' do
+        described_class.of_cuddled(MockCell.new('plain_text'), 'plain_text').should be_nil
+      end
+
+      it '{{broken placeholder}' do
+        described_class.of_cuddled(MockCell.new('{{broken placeholder}'), '{{broken placeholder}').should be_nil
+      end
+
+      it '{{broken placeholder' do
+        described_class.of_cuddled(MockCell.new('{{broken placeholder'), '{{broken placeholder').should be_nil
+      end
+
+      it 'nil for no placeholder' do
+        described_class.of_cuddled(MockCell.new(nil),nil).should be_nil
+      end
+    end
+  end
+
   describe '#value=' do
     xit 'shared String'
 

@@ -113,7 +113,7 @@ module Excel
             # TODO maybe use actual xlsx error cells here?
             # TODO maybe have an error callback?
             # TODO test that this doesn't swallow relevant exceptions
-            "ERROR: #{$!.message}"
+            "Placeholder parse error: #{$!.message}"
           end
 
           case val
