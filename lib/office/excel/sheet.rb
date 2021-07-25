@@ -589,6 +589,23 @@ module Office
       range
     end
 
+    # 120 because the images to be smallish otherwise the sheet will look weird.
+    private def clamp_image_extent width, height, max_width: 120.0, max_height: 120.0
+      if width <= max_width && height <= max_height
+        # no need for scaling cos they're both smaller
+        {width: width, height: height}
+      else
+        ratio_height = Float(max_width) / height
+        ratio_width = Float(max_height) / width
+
+        # smallest ratio does the largest reduction, so we need that one so that
+        # both will fit.
+        ratio = [ratio_height, ratio_width].min
+
+        {width: (width * ratio).round, height: (height * ratio).round}
+      end
+    end
+
     # Accept data into its rectangle with location as top-left.
     #
     # data must provide each_with_index, so it should probably be an Enumerable
@@ -603,12 +620,13 @@ module Office
         row.each_with_index do |value,colix|
           cell_location = location + [colix, rowix]
 
-          # Apparently there really needs to be a unified way to set cell
-          # 'values' even when the value is an image. Although we don't have
-          # extent here, so what size to use?
+          # add_image is somewhat different to setting the cell value, so it
+          # kinda makes sense to have a separate case for it.
           self[cell_location].value = case value
           when Magick::ImageList, Magick::Image
-            value.inspect
+            add_image value, cell_location, extent: clamp_image_extent(value.columns, value.rows)
+            # and add actual size to cell text
+            "#{value.columns}x#{value.rows}"
           else
             value
           end

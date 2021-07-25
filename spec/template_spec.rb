@@ -27,6 +27,8 @@ describe Excel::Template do
   end
 
   describe '.render!' do
+    include ReloadWorkbook
+
     it 'replaces placeholders' do
       placeholders = ->{ book.sheets.flat_map {|sheet| sheet.each_placeholder.to_a } }
 
@@ -231,6 +233,30 @@ describe Excel::Template do
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == streams_data_only
+      end
+
+      describe 'images' do
+        include ReloadWorkbook
+
+        let :blobs do YAML.load_file FixtureFiles::Yaml::IMAGE_BLOBS end
+        let :imgs do blobs.map{|blob| Magick::Image.from_blob(blob).first} end
+
+        it 'renders images' do
+          # extend data.streams with images
+          data[:streams].each_with_object imgs.each do |stream_hash, en|
+            stream_hash[:image] = en.next
+          end
+
+          # how many images before render (actually this is the whole book, but doesn't matter)
+          count_images_pre = sheet.drawing_part.xml.nxpath('//*:oneCellAnchor').count
+
+          # render data as usual
+          range = Excel::Template.render_tabular sheet, sheet['A18'], (Office::Placeholder.parse '{{streams}}'), data
+          sheet.invalidate_row_cache
+
+          # validate image presence
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor').count.should == count_images_pre + 11
+        end
       end
     end
 
