@@ -502,8 +502,7 @@ module Office
     # This does not guarantee that they will be in row/col or col/row order.
     # Does not guarantee that cells or rows will be contiguous, even if they are in order.
     def each_cell_by_node &blk
-      # TODO change __method__ to :each_cell once testing settles down
-      return enum_for __method__ unless block_given?
+      return enum_for :each_cell_by_node unless block_given?
       # data_node.children.each do |row_node|
       #   row_node.children.each do |c_node|
       #       yield Cell.new c_node, workbook.shared_strings, workbook.styles
@@ -512,7 +511,7 @@ module Office
 
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
-      data_node.nspath('~row/~c').each do |c_node|
+      data_node.nxpath('*:row/*:c').each do |c_node|
         yield cell_of c_node
       end
     end
@@ -524,6 +523,9 @@ module Office
     end
 
     # iterates by sheet_data.rows : Array<Row>
+    #
+    # sheet_data pre-builds and caches rows, so faster for random access, but
+    # slower for one-off.
     def each_row_cell by = :row, &blk
       return enum_for __method__, by unless block_given?
 
@@ -535,8 +537,9 @@ module Office
       end
     end
 
-    alias each_cell each_row_cell
-    # alias each_cell each_cell_by_node
+    # these two have slightly different performance characteristics.
+    # alias each_cell each_row_cell
+    alias each_cell each_cell_by_node
 
     # Create a separate method for this, because there may be a more optimal way
     # of finding placeholders.

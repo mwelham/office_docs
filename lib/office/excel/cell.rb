@@ -355,7 +355,7 @@ module Office
 
     private def inline_value
       # TODO I think this doesn't handle runs
-      node.xpath('xmlns:is/xmlns:t').text
+      node.nxpath('*:is/*:t').text
     end
 
     # TODO I think there need to be (at least) two value accessors:
