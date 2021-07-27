@@ -551,6 +551,17 @@ module Office
       end
     end
 
+    # <v> tag contains the cached result of the last calculation, so just
+    # remove all cached results and the spreadsheet app will have to
+    # recalculate.
+    #
+    # NOTE does not invalidate cached cell values. call invalidate_row_cache for that.
+    #
+    # OPTIMISATION could maybe invalidate only formulas in a specific range.
+    def invalidate_formulas
+      data_node.nxpath('*:row/*:c[*:f]/*:v').map(&:unlink)
+    end
+
     # this is actually a document node
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end

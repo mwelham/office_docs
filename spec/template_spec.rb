@@ -71,6 +71,13 @@ describe Excel::Template do
         saved_values.should == data.values
       end
     end
+
+    it 'invalidates formula caches' do
+      range = Office::Range.new('A21:I21')
+      sheet.cells_of(range){|c| c.node.nxpath('*:v')}.flatten.count.should == range.width
+      Excel::Template.render!(book, data)
+      sheet.cells_of(range){|c| c.node.nxpath('*:v')}.flatten.should == []
+    end
   end
 
   describe 'replacement' do

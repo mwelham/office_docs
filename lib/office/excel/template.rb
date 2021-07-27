@@ -151,6 +151,7 @@ module Excel
       workbook.sheets.each do |sheet|
         sheet.invalidate_row_cache
         sheet.sort_rows_and_cells
+        sheet.invalidate_formulas
       end
 
       workbook
