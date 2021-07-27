@@ -91,7 +91,7 @@ module_eval(<<'...end placeholder_grammar.racc/module_eval...', 'placeholder_gra
     else
       # get the string being parsed up to the point where it failed
       msg_str = error_value.lexer_string[0...(error_value.lexer_pos+error_value.length)] || error_value || ''
-      raise ParseError, "Error at 0:#{error_value.lexer_pos}. Unexpected #{error_value} at #{msg_str}"
+      raise ParseError, "Unexpected #{error_value} at 0:#{error_value.lexer_pos} in '#{msg_str}'"
     end
   end
 ...end placeholder_grammar.racc/module_eval...

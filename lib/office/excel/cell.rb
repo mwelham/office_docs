@@ -281,6 +281,15 @@ module Office
         @cell, @start, @length = cell, start, length
       end
 
+      # return an instance if possible, otherwise nil
+      def self.of_cuddled cell, cuddled_placeholder
+        if cuddled_placeholder
+          if start = cuddled_placeholder =~ /\{\{(.*?)\}\}/
+            new cell, start, $&.length
+          end
+        end
+      end
+
       attr_reader :start, :length
 
       def to_s; @cell.value[start,length] end
@@ -309,27 +318,17 @@ module Office
       if instance_variable_defined? :@placeholder
         @placeholder
       else
-        cuddled_placeholder = case
-        when shared?
-          to_ruby
-
-        when inline?
-          # TODO should dig down to the actual <t> cell; and handle text runs
-          node.text
-
-        # Formulas do this, so maybe the formula has a string value
-        when data_type = 'str'
-          self.value
-
+        cuddled_placeholder = case data_type
+        when :s;         shared_string.text  # shared string
+        when :inlineStr; inline_value        # inline string
+        # when NilClass;   nil                 # happens when the <c> node has no children
+        # when :n;         nil                 # can happen for formula
+        # when :b;         nil                 # happens in testing
+        else nil # nothing else can contain a placeholder
         end
 
         # This can cache nil
-        @placeholder =
-        if cuddled_placeholder
-          if start = cuddled_placeholder =~ /\{\{(.*?)\}\}/
-            Placeholder.new self, start, $&.length
-          end
-        end
+        @placeholder = Placeholder.of_cuddled self, cuddled_placeholder
       end
     end
 
@@ -352,6 +351,11 @@ module Office
       # TODO pass string_table. Right now we're just using inline
       CellNodes.build_c_node cell_node, value, styles: styles
       cell_node
+    end
+
+    private def inline_value
+      # TODO I think this doesn't handle runs
+      node.nxpath('*:is/*:t').text
     end
 
     # TODO I think there need to be (at least) two value accessors:
@@ -378,8 +382,7 @@ module Office
           shared_string.text
 
         when inline?
-          # TODO I think this doesn't handle runs
-          node.xpath('xmlns:is/xmlns:t').text
+          inline_value
 
         else
           raise 'This is a non-shared, non-inline string...?'

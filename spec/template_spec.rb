@@ -47,6 +47,30 @@ describe Excel::Template do
       # reload_workbook book2 do |book| `localc #{book.filename}` end
       reload_workbook book do |book| `localc #{book.filename}` end
     end
+
+    it 'placeholder error' do
+      sheet['A1'].value = '{{ form_name} }}'
+      target_book = Excel::Template.render!(book, data)
+      sheet['A1'].value.should == "Placeholder parse error: Unexpected } at 0:15 in '{{ form_name} }}'"
+    end
+
+    it 'generated placeholders' do
+      # this validates forms-specific default that tickles an obscure bug in
+      # inline <is><t> which includes newlines
+      book = Office::ExcelWorkbook.blank_workbook
+      sheet = book.sheets.first
+      data = { one: "One", two:  "Two", third_thing: "Third Thing" }
+
+      data.each{|(k,v)| sheet.add_row [v, "{{#{k}}}"] }
+
+      reload_workbook book, 'default_template.xlsx' do |tbook|
+        Excel::Template.render!(tbook, data)
+        tbook.save tbook.filename
+        range = Office::Range.new 'B1:B3'
+        saved_values = tbook.sheets.first.cells_of(range, &:formatted_value).flatten
+        saved_values.should == data.values
+      end
+    end
   end
 
   describe 'replacement' do
