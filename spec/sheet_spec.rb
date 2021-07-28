@@ -592,5 +592,35 @@ describe Office::Sheet do
         end
       end
     end
+
+    describe '#sort_rows_and_cells' do
+      # shuffle one row and one cell in that row out of order.
+      # NOTE not the last one because that doesn't shuffle anything.
+      def shuffle_one node
+        random_child = node.element_children[0..-1].to_a.sample
+        random_child.unlink
+        node << random_child
+        random_child
+      end
+
+      it 'sorts rows and cells' do
+        # shuffle one row out of order
+        random_row = shuffle_one sheet.data_node
+        # shuffle one cell in that row
+        shuffle_one random_row
+
+        # ordering should be incorrect
+        cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+        sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+        sorted_cell_refs.should_not == cell_refs
+
+        sheet.sort_rows_and_cells
+
+        # ordering should now be correct
+        cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+        sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+        sorted_cell_refs.should == cell_refs
+      end
+    end
   end
 end

@@ -100,8 +100,7 @@ describe Excel::Template do
     end
 
     it 'image insertion replacement' do
-      # H20 and L20
-      cell = sheet['H20']
+      cell = sheet['H14']
       cell.value.should == "{{logo|133x100}}"
 
       # get image data
@@ -116,7 +115,7 @@ describe Excel::Template do
       # post replacement
       cell.value.should be_nil
 
-      sheet['H20'].value.should be_nil
+      sheet['H14'].value.should be_nil
       book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
     end
   end
@@ -221,6 +220,34 @@ describe Excel::Template do
 
         # larger than the previous dimension
         sheet.dimension.to_s.should == 'A5:K29'
+      end
+
+      describe 'insert and sorting' do
+        # this is really a pre-condition to the sorting one
+        it 'insert dis-orders rows' do
+          cell = sheet['A18']
+          placeholder = Office::Placeholder.parse '{{streams|tabular,insert}}'
+          values = data.dig *placeholder.field_path
+          new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+          cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+          sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+          sorted_cell_refs.should_not == cell_refs
+        end
+
+        # this is really testing sorting
+        it 'sort_rows_and_cells works after insert' do
+          cell = sheet['A18']
+          placeholder = Office::Placeholder.parse '{{streams|tabular,insert}}'
+          values = data.dig *placeholder.field_path
+          new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+          sheet.sort_rows_and_cells
+
+          cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+          sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+          sorted_cell_refs.should == cell_refs
+        end
       end
 
       it 'vertical overwrite' do
@@ -356,18 +383,20 @@ describe Excel::Template do
         # subsequent row after placeholder should now be first row after insert
         # can't use to_ruby here because the cells have formats in them that we don't understand.
         sheet.cells_of(Office::Range.new('A29:D29'), &:value).first.should == ["1", "44132", "7", "3.141528"]
-        sheet.cells_of(Office::Range.new('H30:K30'), &:value).first.should == ['{{logo|133x100}}', nil, nil, '{{logo}}']
-      end
+        sheet.cells_of(Office::Range.new('A32:H33'),&:to_ruby).should ==
+         [["Manual Table", nil, nil, nil, nil, nil, nil, nil],
+          ["rpm", "discharge", "suction", "net", "no", "size", "pitot", "gpm"]]
+       end
 
       it 'does not insert values whose placeholders have been overwritten by tabular' do
-        cell = sheet['A18']
-
         # there should be some image placeholders
         placeholder_cells = sheet.each_placeholder.to_a
         image_placeholder_cells = placeholder_cells.select{|c| c.placeholder.to_s =~ /logo/}
         image_placeholder_cells.size.should == 2
 
-        cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,overwrite}}'
+        # create a tabular placeholder in a position that will overwrite the
+        # image placeholders
+        sheet[Office::Location.new('B14')] = '{{fields.peer_group.review|tabular,horizontal,headers,overwrite}}'
         Excel::Template.render! book, data.merge(pet_data)
 
         # no images have been added, because the image placeholders were overwritten
