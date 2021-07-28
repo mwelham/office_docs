@@ -564,16 +564,31 @@ module Office
       end
     end
 
-    # Not currently used, but could obviate creation of a LazyCell instance
+    # set cell contents
     # Difference that .cell = could be lazy, whereas this could be immediate.
     # Not sure if that makes any sense.
-    def []=(coli,rowi,value)
-      case sheet_data.rows
-      when NilClass
-        LazyCell.new(self, coli, rowi).value = value
-      else
-        rowi.cells[coli].value = value
+    def []=(location,value)
+      # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
+      #   using the sheet dimension to calculate offset.
+      #
+      # TODO could optimise by storing the row node in the lazy cell on
+      # creation, since anyway that part of the node has to check whether the
+      # row exists.
+      row_node = row_node_at location
+      if row_node.nil?
+        # create row_node
+        row_node, = create_rows location
       end
+
+      # create c node and set its value
+      @c_node = CellNodes.build_c_node \
+        node.document.create_element(?c, r: location.to_s),
+        value,
+        styles: workbook.styles
+
+      # TODO can we always just add to the end of the c children, or must they be in r order?
+      # 27-Jul-2021 Excel gets indigestion if they're not in r order :-(
+      row_node << @c_node
     end
 
     # Fill range with corresponding values from data. Assumes that
