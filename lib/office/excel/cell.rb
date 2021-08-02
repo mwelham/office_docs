@@ -171,18 +171,6 @@ module Office
       @styles = styles
     end
 
-    # return a new cell based on the constructor values for self.
-    #
-    # Sometimes values for the cell change, but the actual node remains.
-    # So just reload from the node, unless it's been unlinked from the document.
-    def recreate
-      if @node.parent
-        self.class.new @node, @string_table, @styles
-      else
-        raise "#{location} has been unlinked"
-      end
-    end
-
     def data_type
       # convert to symbol now because it's 10x faster for comparisons later
       @data_type ||= node[:t]&.to_sym

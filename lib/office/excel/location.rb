@@ -112,6 +112,10 @@ module Office
       self.class[ [self.coli,rhs.coli].min, [self.rowi,rhs.rowi].min ]
     end
 
+    def <=> rhs
+      [rowi,coli] <=> [rhs.rowi,rhs.coli]
+    end
+
     def coli; @coli ||= col_row_fns.first.call end
     def rowi; @rowi ||= col_row_fns.last.call end
 

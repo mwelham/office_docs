@@ -551,6 +551,17 @@ module Office
       end
     end
 
+    # <v> tag contains the cached result of the last calculation, so just
+    # remove all cached results and the spreadsheet app will have to
+    # recalculate.
+    #
+    # NOTE does not invalidate cached cell values. call invalidate_row_cache for that.
+    #
+    # OPTIMISATION could maybe invalidate only formulas in a specific range.
+    def invalidate_formulas
+      data_node.nxpath('*:row/*:c[*:f]/*:v').map(&:unlink)
+    end
+
     # this is actually a document node
     def node; worksheet_part.xml end
     def to_xml; node.to_xml end
@@ -564,16 +575,31 @@ module Office
       end
     end
 
-    # Not currently used, but could obviate creation of a LazyCell instance
+    # set cell contents
     # Difference that .cell = could be lazy, whereas this could be immediate.
     # Not sure if that makes any sense.
-    def []=(coli,rowi,value)
-      case sheet_data.rows
-      when NilClass
-        LazyCell.new(self, coli, rowi).value = value
-      else
-        rowi.cells[coli].value = value
+    def []=(location,value)
+      # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
+      #   using the sheet dimension to calculate offset.
+      #
+      # TODO could optimise by storing the row node in the lazy cell on
+      # creation, since anyway that part of the node has to check whether the
+      # row exists.
+      row_node = row_node_at location
+      if row_node.nil?
+        # create row_node
+        row_node, = create_rows location
       end
+
+      # create c node and set its value
+      @c_node = CellNodes.build_c_node \
+        node.document.create_element(?c, r: location.to_s),
+        value,
+        styles: workbook.styles
+
+      # TODO can we always just add to the end of the c children, or must they be in r order?
+      # 27-Jul-2021 Excel gets indigestion if they're not in r order :-(
+      row_node << @c_node
     end
 
     # Fill range with corresponding values from data. Assumes that
@@ -667,8 +693,8 @@ module Office
       end
     end
 
+    # Hash of tag name to integer order - for use in sorting.
     # From OfficeOpenXML-XMLSchema-Strict.zip/sml.xsd/xsd:complexType[@name="CT_Worksheet"]
-    # Hash of tag name to integer order
     SHEET_CHILD_NODE_ORDER = (<<~EOTS).split(/\s+/).each_with_index.each_with_object({}){|(name,index),ha| ha[name] = index }
       sheetPr
       dimension
@@ -712,22 +738,44 @@ module Office
     # Sort child nodes in the order specified by sml.xsd, otherwise Excel throws
     # its toys.
     private def fixup_drawing_tag_order
-      # Sort non-text nodes in the right order. Unknown node names at the end.
-      sorted_child_node_ary = node.root.element_children.sort_by{|n| SHEET_CHILD_NODE_ORDER[n.name] || Float::INFINITY}
+      sort_child_nodes(node.root) {|node| SHEET_CHILD_NODE_ORDER[node.name] || Float::INFINITY}
+    end
+
+    private def sort_child_nodes parent, &sort_by_block
+      # source of non-text child nodes in specified order
+      # actually [node,index] because sort block might need index as a default
+      sorted_child_node_en = parent.element_children.each_with_index.sort_by do |(n,ix)|
+        sort_by_block[n,ix]
+      end.each
 
       # Unlink all child nodes ...
-      child_ary = node.root.children.unlink
+      all_child_nodes = parent.children.unlink
 
       # ... then reattach iteratively in the correct order while respecting
       # text nodes (ie whitespace).
-      child_ary.reduce 0 do |node_index, child_node|
+      all_child_nodes.each do |child_node|
         if child_node.text?
-          node.root << child_node
-          node_index
+          parent << child_node
         else
-          node.root << sorted_child_node_ary[node_index]
-          node_index + 1
+          node, _index = sorted_child_node_en.next
+          parent << node
         end
+      end
+    end
+
+    def sort_rows_and_cells
+      sort_child_nodes data_node do |node,ix|
+        # sort cells in r= order
+        # This is a wee bit dodgy because it leverages a side-effect, but the
+        # alternative is another iteration through the rows, so I think the
+        # tradeoff works out.
+        #
+        # NOTE cell_node[:r] is sufficient because Ax Bx Cx etc all have the same x in one row.
+        sort_child_nodes(node){|cell_node, cix| cell_node[:r] || cix}
+
+        # ... and let's not forget the primary purpose of this block is to
+        # calculate the sort order from the row r= attribute
+        node[:r]&.to_i || ix
       end
     end
 

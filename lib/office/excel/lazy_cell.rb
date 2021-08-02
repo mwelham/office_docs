@@ -24,26 +24,11 @@ module Office
       end
     end
 
-    def styles
-      sheet.workbook.styles
-    end
-
     attr_reader :sheet, :location
     private :sheet
 
-    # If this cell now has a @c_node, create a new Cell instance. Otherwise
-    # return
-    def recreate
-      if @c_node
-        if @c_node.parent
-          Cell.new @c_node, sheet.workbook.string_table, sheet.workbook.styles
-        else
-          raise "#{location} has been unlinked"
-        end
-      else
-        self
-      end
-    end
+    # never a placeholder
+    def placeholder; end
 
     def empty?; true end
 
@@ -53,27 +38,7 @@ module Office
     def formatted_value; end
 
     def value=(obj)
-      # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
-      #   using the sheet dimension to calculate offset
-      #
-      # TODO could optimise by storing the row node in the lazy cell on
-      # creation, since anyway that part of the node has to check whether the
-      # row exists.
-      row_node = sheet.row_node_at location
-      if row_node.nil?
-        # create row_node, then add cell in appropriate place
-        row_node, = sheet.create_rows location
-      end
-
-      # create c node and set its value
-      @c_node = CellNodes.build_c_node \
-        sheet.node.document.create_element(?c, r: location.to_s),
-        obj,
-        styles: styles
-
-      # TODO can we always just add to the end of the c children, or must they be in r order?
-      row_node << @c_node
-
+      sheet[location] = obj
       # TODO forward future calls to real cell?
       # or maybe have a module. It's the usual "change the class of an instance from the inside" problem
     end
