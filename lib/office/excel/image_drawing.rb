@@ -15,7 +15,7 @@ module Office
     # img is something that understands (or really columns:Pixel, rows:Pixel and base_filename:String), eg ImageMagick
     # loc is something that understands rowi and coli as 0-based indices, eg Office::Location
     # rel_id is a string containing the relationship id to the image resource displayed by this drawing.
-    # extent is optional width x height in pixels
+    # extent is optional {width: 57, height: 91} in pixels
     def initialize img:, loc:, rel_id:, extent: nil
       @img, @loc, @rel_id  = img, loc, rel_id
       @extent = self.class.dotify extent

@@ -502,8 +502,7 @@ module Office
     # This does not guarantee that they will be in row/col or col/row order.
     # Does not guarantee that cells or rows will be contiguous, even if they are in order.
     def each_cell_by_node &blk
-      # TODO change __method__ to :each_cell once testing settles down
-      return enum_for __method__ unless block_given?
+      return enum_for :each_cell_by_node unless block_given?
       # data_node.children.each do |row_node|
       #   row_node.children.each do |c_node|
       #       yield Cell.new c_node, workbook.shared_strings, workbook.styles
@@ -512,7 +511,7 @@ module Office
 
       # comparable to nested each, but slightly cleaner
       # TODO what happens with really huge spreadsheets here?
-      data_node.nspath('~row/~c').each do |c_node|
+      data_node.nxpath('*:row/*:c').each do |c_node|
         yield cell_of c_node
       end
     end
@@ -524,6 +523,9 @@ module Office
     end
 
     # iterates by sheet_data.rows : Array<Row>
+    #
+    # sheet_data pre-builds and caches rows, so faster for random access, but
+    # slower for one-off.
     def each_row_cell by = :row, &blk
       return enum_for __method__, by unless block_given?
 
@@ -535,8 +537,9 @@ module Office
       end
     end
 
-    alias each_cell each_row_cell
-    # alias each_cell each_cell_by_node
+    # these two have slightly different performance characteristics.
+    # alias each_cell each_row_cell
+    alias each_cell each_cell_by_node
 
     # Create a separate method for this, because there may be a more optimal way
     # of finding placeholders.
@@ -546,6 +549,17 @@ module Office
       each_cell do |cell|
         yield cell if cell.placeholder
       end
+    end
+
+    # <v> tag contains the cached result of the last calculation, so just
+    # remove all cached results and the spreadsheet app will have to
+    # recalculate.
+    #
+    # NOTE does not invalidate cached cell values. call invalidate_row_cache for that.
+    #
+    # OPTIMISATION could maybe invalidate only formulas in a specific range.
+    def invalidate_formulas
+      data_node.nxpath('*:row/*:c[*:f]/*:v').map(&:unlink)
     end
 
     # this is actually a document node
@@ -561,16 +575,31 @@ module Office
       end
     end
 
-    # Not currently used, but could obviate creation of a LazyCell instance
+    # set cell contents
     # Difference that .cell = could be lazy, whereas this could be immediate.
     # Not sure if that makes any sense.
-    def []=(coli,rowi,value)
-      case sheet_data.rows
-      when NilClass
-        LazyCell.new(self, coli, rowi).value = value
-      else
-        rowi.cells[coli].value = value
+    def []=(location,value)
+      # TODO could maybe possibly optimise this using the row/@r numbers and row[position() = offset]
+      #   using the sheet dimension to calculate offset.
+      #
+      # TODO could optimise by storing the row node in the lazy cell on
+      # creation, since anyway that part of the node has to check whether the
+      # row exists.
+      row_node = row_node_at location
+      if row_node.nil?
+        # create row_node
+        row_node, = create_rows location
       end
+
+      # create c node and set its value
+      @c_node = CellNodes.build_c_node \
+        node.document.create_element(?c, r: location.to_s),
+        value,
+        styles: workbook.styles
+
+      # TODO can we always just add to the end of the c children, or must they be in r order?
+      # 27-Jul-2021 Excel gets indigestion if they're not in r order :-(
+      row_node << @c_node
     end
 
     # Fill range with corresponding values from data. Assumes that
@@ -589,6 +618,23 @@ module Office
       range
     end
 
+    # 120 because the images to be smallish otherwise the sheet will look weird.
+    private def clamp_image_extent width, height, max_width: 120.0, max_height: 120.0
+      if width <= max_width && height <= max_height
+        # no need for scaling cos they're both smaller
+        {width: width, height: height}
+      else
+        ratio_height = Float(max_width) / height
+        ratio_width = Float(max_height) / width
+
+        # smallest ratio does the largest reduction, so we need that one so that
+        # both will fit.
+        ratio = [ratio_height, ratio_width].min
+
+        {width: (width * ratio).round, height: (height * ratio).round}
+      end
+    end
+
     # Accept data into its rectangle with location as top-left.
     #
     # data must provide each_with_index, so it should probably be an Enumerable
@@ -603,12 +649,13 @@ module Office
         row.each_with_index do |value,colix|
           cell_location = location + [colix, rowix]
 
-          # Apparently there really needs to be a unified way to set cell
-          # 'values' even when the value is an image. Although we don't have
-          # extent here, so what size to use?
+          # add_image is somewhat different to setting the cell value, so it
+          # kinda makes sense to have a separate case for it.
           self[cell_location].value = case value
           when Magick::ImageList, Magick::Image
-            value.inspect
+            add_image value, cell_location, extent: clamp_image_extent(value.columns, value.rows)
+            # and add actual size to cell text
+            "#{value.columns}x#{value.rows}"
           else
             value
           end
@@ -646,8 +693,8 @@ module Office
       end
     end
 
+    # Hash of tag name to integer order - for use in sorting.
     # From OfficeOpenXML-XMLSchema-Strict.zip/sml.xsd/xsd:complexType[@name="CT_Worksheet"]
-    # Hash of tag name to integer order
     SHEET_CHILD_NODE_ORDER = (<<~EOTS).split(/\s+/).each_with_index.each_with_object({}){|(name,index),ha| ha[name] = index }
       sheetPr
       dimension
@@ -691,22 +738,44 @@ module Office
     # Sort child nodes in the order specified by sml.xsd, otherwise Excel throws
     # its toys.
     private def fixup_drawing_tag_order
-      # Sort non-text nodes in the right order. Unknown node names at the end.
-      sorted_child_node_ary = node.root.element_children.sort_by{|n| SHEET_CHILD_NODE_ORDER[n.name] || Float::INFINITY}
+      sort_child_nodes(node.root) {|node| SHEET_CHILD_NODE_ORDER[node.name] || Float::INFINITY}
+    end
+
+    private def sort_child_nodes parent, &sort_by_block
+      # source of non-text child nodes in specified order
+      # actually [node,index] because sort block might need index as a default
+      sorted_child_node_en = parent.element_children.each_with_index.sort_by do |(n,ix)|
+        sort_by_block[n,ix]
+      end.each
 
       # Unlink all child nodes ...
-      child_ary = node.root.children.unlink
+      all_child_nodes = parent.children.unlink
 
       # ... then reattach iteratively in the correct order while respecting
       # text nodes (ie whitespace).
-      child_ary.reduce 0 do |node_index, child_node|
+      all_child_nodes.each do |child_node|
         if child_node.text?
-          node.root << child_node
-          node_index
+          parent << child_node
         else
-          node.root << sorted_child_node_ary[node_index]
-          node_index + 1
+          node, _index = sorted_child_node_en.next
+          parent << node
         end
+      end
+    end
+
+    def sort_rows_and_cells
+      sort_child_nodes data_node do |node,ix|
+        # sort cells in r= order
+        # This is a wee bit dodgy because it leverages a side-effect, but the
+        # alternative is another iteration through the rows, so I think the
+        # tradeoff works out.
+        #
+        # NOTE cell_node[:r] is sufficient because Ax Bx Cx etc all have the same x in one row.
+        sort_child_nodes(node){|cell_node, cix| cell_node[:r] || cix}
+
+        # ... and let's not forget the primary purpose of this block is to
+        # calculate the sort order from the row r= attribute
+        node[:r]&.to_i || ix
       end
     end
 

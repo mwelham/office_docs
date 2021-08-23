@@ -27,6 +27,8 @@ describe Excel::Template do
   end
 
   describe '.render!' do
+    include ReloadWorkbook
+
     it 'replaces placeholders' do
       placeholders = ->{ book.sheets.flat_map {|sheet| sheet.each_placeholder.to_a } }
 
@@ -44,6 +46,37 @@ describe Excel::Template do
       Excel::Template.render!(book, data)
       # reload_workbook book2 do |book| `localc #{book.filename}` end
       reload_workbook book do |book| `localc #{book.filename}` end
+    end
+
+    it 'placeholder error' do
+      sheet['A1'].value = '{{ form_name} }}'
+      target_book = Excel::Template.render!(book, data)
+      sheet['A1'].value.should == "Placeholder parse error: Unexpected } at 0:15 in '{{ form_name} }}'"
+    end
+
+    it 'generated placeholders' do
+      # this validates forms-specific default that tickles an obscure bug in
+      # inline <is><t> which includes newlines
+      book = Office::ExcelWorkbook.blank_workbook
+      sheet = book.sheets.first
+      data = { one: "One", two:  "Two", third_thing: "Third Thing" }
+
+      data.each{|(k,v)| sheet.add_row [v, "{{#{k}}}"] }
+
+      reload_workbook book, 'default_template.xlsx' do |tbook|
+        Excel::Template.render!(tbook, data)
+        tbook.save tbook.filename
+        range = Office::Range.new 'B1:B3'
+        saved_values = tbook.sheets.first.cells_of(range, &:formatted_value).flatten
+        saved_values.should == data.values
+      end
+    end
+
+    it 'invalidates formula caches' do
+      range = Office::Range.new('A21:I21')
+      sheet.cells_of(range){|c| c.node.nxpath('*:v')}.flatten.count.should == range.width
+      Excel::Template.render!(book, data)
+      sheet.cells_of(range){|c| c.node.nxpath('*:v')}.flatten.should == []
     end
   end
 
@@ -74,8 +107,7 @@ describe Excel::Template do
     end
 
     it 'image insertion replacement' do
-      # H20 and L20
-      cell = sheet['H20']
+      cell = sheet['H14']
       cell.value.should == "{{logo|133x100}}"
 
       # get image data
@@ -90,7 +122,7 @@ describe Excel::Template do
       # post replacement
       cell.value.should be_nil
 
-      sheet['H20'].value.should be_nil
+      sheet['H14'].value.should be_nil
       book.parts['/xl/drawings/drawing1.xml'].should be_a(Office::XmlPart)
     end
   end
@@ -197,6 +229,34 @@ describe Excel::Template do
         sheet.dimension.to_s.should == 'A5:K29'
       end
 
+      describe 'insert and sorting' do
+        # this is really a pre-condition to the sorting one
+        it 'insert dis-orders rows' do
+          cell = sheet['A18']
+          placeholder = Office::Placeholder.parse '{{streams|tabular,insert}}'
+          values = data.dig *placeholder.field_path
+          new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+          cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+          sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+          sorted_cell_refs.should_not == cell_refs
+        end
+
+        # this is really testing sorting
+        it 'sort_rows_and_cells works after insert' do
+          cell = sheet['A18']
+          placeholder = Office::Placeholder.parse '{{streams|tabular,insert}}'
+          values = data.dig *placeholder.field_path
+          new_range = Excel::Template.render_tabular sheet, cell, placeholder, values
+
+          sheet.sort_rows_and_cells
+
+          cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+          sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+          sorted_cell_refs.should == cell_refs
+        end
+      end
+
       it 'vertical overwrite' do
         cell = sheet['A18']
         placeholder = Office::Placeholder.parse '{{streams|tabular,vertical}}'
@@ -231,6 +291,30 @@ describe Excel::Template do
 
         # fetch the data
         sheet.cells_of(range, &:to_ruby).should == streams_data_only
+      end
+
+      describe 'images' do
+        include ReloadWorkbook
+
+        let :blobs do YAML.load_file FixtureFiles::Yaml::IMAGE_BLOBS end
+        let :imgs do blobs.map{|blob| Magick::Image.from_blob(blob).first} end
+
+        it 'renders images' do
+          # extend data.streams with images
+          data[:streams].each_with_object imgs.each do |stream_hash, en|
+            stream_hash[:image] = en.next
+          end
+
+          # how many images before render (actually this is the whole book, but doesn't matter)
+          count_images_pre = sheet.drawing_part.xml.nxpath('//*:oneCellAnchor').count
+
+          # render data as usual
+          range = Excel::Template.render_tabular sheet, sheet['A18'], (Office::Placeholder.parse '{{streams}}'), data
+          sheet.invalidate_row_cache
+
+          # validate image presence
+          sheet.drawing_part.xml.nxpath('//*:oneCellAnchor').count.should == count_images_pre + 11
+        end
       end
     end
 
@@ -306,18 +390,20 @@ describe Excel::Template do
         # subsequent row after placeholder should now be first row after insert
         # can't use to_ruby here because the cells have formats in them that we don't understand.
         sheet.cells_of(Office::Range.new('A29:D29'), &:value).first.should == ["1", "44132", "7", "3.141528"]
-        sheet.cells_of(Office::Range.new('H30:K30'), &:value).first.should == ['{{logo|133x100}}', nil, nil, '{{logo}}']
-      end
+        sheet.cells_of(Office::Range.new('A32:H33'),&:to_ruby).should ==
+         [["Manual Table", nil, nil, nil, nil, nil, nil, nil],
+          ["rpm", "discharge", "suction", "net", "no", "size", "pitot", "gpm"]]
+       end
 
       it 'does not insert values whose placeholders have been overwritten by tabular' do
-        cell = sheet['A18']
-
         # there should be some image placeholders
         placeholder_cells = sheet.each_placeholder.to_a
         image_placeholder_cells = placeholder_cells.select{|c| c.placeholder.to_s =~ /logo/}
         image_placeholder_cells.size.should == 2
 
-        cell.value = '{{fields.peer_group.review|tabular,horizontal,headers,overwrite}}'
+        # create a tabular placeholder in a position that will overwrite the
+        # image placeholders
+        sheet[Office::Location.new('B14')] = '{{fields.peer_group.review|tabular,horizontal,headers,overwrite}}'
         Excel::Template.render! book, data.merge(pet_data)
 
         # no images have been added, because the image placeholders were overwritten

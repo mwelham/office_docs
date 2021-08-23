@@ -113,7 +113,7 @@ module Excel
             # TODO maybe use actual xlsx error cells here?
             # TODO maybe have an error callback?
             # TODO test that this doesn't swallow relevant exceptions
-            "ERROR: #{$!.message}"
+            "Placeholder parse error: #{$!.message}"
           end
 
           case val
@@ -148,7 +148,11 @@ module Excel
           .each{|(_action, fn)| fn.call}
       end
 
-      workbook.sheets.each(&:invalidate_row_cache)
+      workbook.sheets.each do |sheet|
+        sheet.invalidate_row_cache
+        sheet.sort_rows_and_cells
+        sheet.invalidate_formulas
+      end
 
       workbook
     end
