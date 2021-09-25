@@ -21,7 +21,6 @@ describe Excel::Template do
     data[:streams] = Excel::Template.tabular_hashify data[:streams]
     # data.extend Excel::Template.
     # append an image
-    # TODO what kind of value will be here from the rails/forms side?
     data[:logo] = image
     data
   end
