@@ -594,7 +594,7 @@ describe Office::Sheet do
     end
 
     describe '#sort_rows_and_cells' do
-      # shuffle one row and one cell in that row out of order.
+      # shuffle one child of node out of order.
       # NOTE not the last one because that doesn't shuffle anything.
       def shuffle_one node
         random_child = node.element_children[0..-1].to_a.sample
@@ -618,6 +618,31 @@ describe Office::Sheet do
 
         # ordering should now be correct
         cell_refs = sheet.data_node.nxpath('*:row/*:c/@r').map(&:to_s)
+        sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+        sorted_cell_refs.should == cell_refs
+      end
+
+      it 'sorts AA1 refs correctly' do
+        # fetch an existing row
+        random_row = sheet.data_node.element_children.to_a.sample
+
+        # There must be more than Z columns, so that order of A1 .. Z1 .. AA1 AB1 is tested.
+        # But make it sparse because populating 26**4 cells is slow.
+        # shuffle randomises ordering.
+        %w[AA AD AX AZ BA BE BQ BZ DG ZA ZJ ZZ AAA ABA AZD BFG ZZZZ].shuffle.each do |colst|
+          loc = Office::Location.of_r colst, random_row[:r]
+          sheet[loc].value = loc.to_s
+        end
+
+        # cell ordering should be incorrect
+        cell_refs = random_row.nxpath('*:c/@r').map(&:to_s)
+        sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
+        sorted_cell_refs.should_not == cell_refs
+
+        sheet.sort_rows_and_cells
+
+        # cell ordering should now be correct
+        cell_refs = random_row.nxpath('*:c/@r').map(&:to_s)
         sorted_cell_refs = cell_refs.sort_by{|st| Office::Location.new st}
         sorted_cell_refs.should == cell_refs
       end
