@@ -771,11 +771,13 @@ module Office
         # tradeoff works out.
         #
         # NOTE cell_node[:r] is sufficient because Ax Bx Cx etc all have the same x in one row.
-        sort_child_nodes(node){|cell_node, cix| cell_node[:r] || cix}
+        # But, Ax AAx ABx Bx Cx is not correct, and Location is the easiest way to sort those.
+        # cix functions as secondary order if r= is not specified.
+        sort_child_nodes(node){|cell_node, cix| [Location.new(cell_node[:r]), cix]}
 
         # ... and let's not forget the primary purpose of this block is to
         # calculate the sort order from the row r= attribute
-        node[:r]&.to_i || ix
+        [node[:r]&.to_i, ix]
       end
     end
 
