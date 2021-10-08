@@ -6,3 +6,6 @@ scratch
 spec/examples.txt
 coverage
 pkg/
+tags
+.tool-versions
+.bundle

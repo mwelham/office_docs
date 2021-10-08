@@ -111,13 +111,13 @@ module Office
 
     # ** is to handle pass-through options from create_body_fragments
     # document_section can be the main word document, or a header or footer part
-    def create_image_run_fragment(image, document_section: main_doc, hyperlink: nil, **)
+    def create_image_run_fragment(image, document_section: main_doc, hyperlink: nil, width: image.columns, height: image.rows, **)
       # main_doc here is quite janky because really every part should be able to get the package.
       # But sometimes document_section is a Header or Footer, which can't.
       # main_doc.package.ensure_relationships document_section.part
 
       relationship_id, _image_part = add_image_part_rel image, document_section.part
-      image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, image.columns, image.rows, relationship_id)
+      image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, width, height, relationship_id)
 
       if hyperlink
         hyperlink_relationship_id = document_section.part.add_arbitrary_relationship("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", hyperlink, {"TargetMode" => "External"})

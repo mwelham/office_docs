@@ -186,6 +186,41 @@ class TemplateTest < Test::Unit::TestCase
     end
   end
 
+  def test_image_resizing
+    doc = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'image_resize_noresample_test.docx'))
+    doc.render_template({"IMAGE"=> test_image})
+
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_image_resize_doc'
+      doc.save(filename)
+
+      doc_copy = Office::WordDocument.new(filename)
+      assert_equal doc_copy.plain_text, "Header\n\nImage resize and noresample test\n\n\n\n\n\n\n\n"
+
+      # Normal image (640x480 px)
+      default_image = doc_copy.get_part("/word/media/image1.jpeg")
+      assert_not_nil default_image
+      assert_equal default_image.image.columns, 640
+      assert_equal default_image.image.rows, 480
+
+      # Resized and resampled (100x75 px)
+      resized_image = doc_copy.get_part("/word/media/image2.jpeg")
+      assert_not_nil resized_image
+      assert_equal resized_image.image.columns, 100
+      assert_equal resized_image.image.rows, 75
+
+      # Resized, not resampled (640x480 px)
+      noresample_image = doc_copy.get_part("/word/media/image3.jpeg")
+      assert_not_nil noresample_image
+      assert_equal noresample_image.image.columns, 640
+      assert_equal noresample_image.image.rows, 480
+
+      assert_nil doc_copy.get_part("/word/media/image4.jpeg")
+    end
+  end
+
+
+
   private
 
   def test_template_all_options_test_data
