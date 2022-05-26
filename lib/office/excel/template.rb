@@ -350,8 +350,12 @@ module Excel
 
       when :horizontal
         # pad each row to maximum length so we can transpose
-        [rows.each{|r| r[max_index] ||= nil}.transpose, rows.size, max_index]
+        array_max_index = rows.map(&:count).max.to_i
+        row_result = rows.each { |r| 
+          array_max_index.times{ |i| r[i] ||= nil }
+        }.transpose
 
+        [row_result, rows.size, array_max_index]
       else
         raise "unknown orientation: #{orientation}"
       end
