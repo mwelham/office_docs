@@ -355,7 +355,7 @@ module Excel
           array_max_index.times{ |i| r[i] ||= nil }
         }.transpose
 
-        [row_result, rows.size, array_max_index]
+        [row_result, rows.size, max_index]
       else
         raise "unknown orientation: #{orientation}"
       end

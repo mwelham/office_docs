@@ -324,19 +324,7 @@ describe Excel::Template do
       end
 
       let :expected do
-        YAML.load <<~YAML
-        - [organisation,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs,Acme Pet Repairs]
-        - [address,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd,1 Seuss Rd]
-        - [recorded,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20,2021-05-20]
-        - [precise,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00,!ruby/object:DateTime 2021-05-20 07:35:59.000000000 -04:00]
-        - [clients.first_name,John,John,Colleen,Colleen,null,null,null,null,null,null]
-        - [clients.last_name,Anderson,Anderson,MacKenzie,MacKenzie,null,null,null,null,null,null]
-        - [clients.pets.name,Charlie,Feather,Jock,Paddy,null,null,null,null,null,null]
-        - [clients.pets.species,cat,cat,dog,dog,null,null,null,null,null,null]
-        - [clients.pets.born,2009-05-20,2009-05-20,2019-08-12,2017-10-06,null,null,null,null,null,null]
-        - [suppliers.name,null,null,null,null,Hill Scientific Method,Hill Scientific Method,Petrova,Green Industries,Green Industries,Second Life Foods]
-        - [suppliers.products.name,null,null,null,null,kibbles, biscuits, collar, catnip, grass, bones]
-        YAML
+        YAML.load(File.read(FixtureFiles::Yaml::HORIZONTAL_ROWS))
       end
 
       it 'horizontal overwrite' do
