@@ -256,7 +256,7 @@ module Office
     end
 
     def add_paragraph
-      p_node = @container_node.add_child(@container_node.document.create_element("p"))
+      p_node = @container_node.add_child(@container_node.document.create_element("w:p"))
       @paragraphs << Paragraph.new(p_node, self)
       @paragraphs.last
     end
@@ -489,14 +489,14 @@ module Office
 
     # TODO Wrap styles up in a class
     def add_style(style)
-      pPr_node = @node.add_child(@node.document.create_element("pPr"))
-      pStyle_node = pPr_node.add_child(@node.document.create_element("pStyle"))
+      pPr_node = @node.add_child(@node.document.create_element("w:pPr"))
+      pStyle_node = pPr_node.add_child(@node.document.create_element("w:pStyle"))
       pStyle_node["w:val"] = style
       # TODO return style object
     end
 
     def add_text_run(text)
-      r_node = @node.add_child(@node.document.create_element("r"))
+      r_node = @node.add_child(@node.document.create_element("w:r"))
       populate_r_node(r_node, text)
 
       r = Run.new(r_node, self)
@@ -524,7 +524,7 @@ module Office
     # end new run adding stuff
 
     def populate_r_node(r_node, text)
-      t_node = r_node.add_child(@node.document.create_element("t"))
+      t_node = r_node.add_child(@node.document.create_element("w:t"))
       t_node["xml:space"] = "preserve"
       t_node.content = text
     end
