@@ -1,0 +1,220 @@
+# best ref at https://github.com/ruby/racc
+# and https://github.com/ruby/racc/blob/master/sample/hash.y
+# for peach lang grammar see https://github.com/pH-7/PeachLang/blob/master/src/grammar.y
+# pupper parser https://www.masterzen.fr/2011/12/27/puppet-internals-the-parser/
+# see https://gist.github.com/lnznt/2533003
+# GOLD for error recovery and rust lex/yacc https://tratt.net/laurie/blog/entries/automatic_syntax_error_recovery.html
+# GOLD Fischer et al error recovery https://minds.wisconsin.edu/bitstream/handle/1793/58168/TR363.pdf?sequence=1&isAllowed=y
+# see also rsec gem
+# noncanonical LALR http://www.lsv.fr/Publis/PAPERS/PDF/schmitz-dlt06.pdf
+# -E will include runtime in parser
+# otherwise must require racc/parser.rb
+# racc -E -oplaceholder_grammar.rb placeholder_grammar.racc
+# racc -E -olib/office/excel/placeholder_grammar.rb lib/office/excel/placeholder_grammar.racc
+# racc -olib/office/excel/placeholder_grammar.rb lib/office/excel/placeholder_grammar.racc
+
+# for detailed example including tokenizer
+# https://practicingruby.com/articles/parsing-json-the-hard-way
+
+# rake rule
+# rule '.rb' => '.y' do |t|
+#   sh "racc -l -o #{t.name} #{t.source}"
+# end
+
+# Can install racc without c compiler using
+# config --without-ext (bundler?)
+
+class Office::PlaceholderGrammar
+  token NUMBER IDENTIFIER LRQUOTE MAGIC_QUOTED STRING BOOLEAN RANGE CHAR false true
+
+  start cuddled
+
+  # Note 1-token lookahead permitted for LALR(1) grammars
+  rule
+    # NOTE in the action, self is the PlaceholderGrammar instance, local vars are result and val
+    # val contains the set of matched tokens in the rule
+    # parser DOES NOT return the final value of the top rule. You must set it on self somewhere.
+
+    # {{ }} are optional
+    cuddled
+      : '{' '{' placeholder '}' '}'
+      | placeholder
+      ;
+
+    # empty placeholders allowed
+    placeholder
+      :
+      | field_path '|' directives {self.field_path = val.first}
+      | field_path {self.field_path = val.first}
+      ;
+
+    # dotted and [n] field path eg fields.some_group[1].first_name
+    # recursively builds up the path in val[2], hence the Array calls.
+    field_path
+      : nstep '.' field_path {result = [*Array(val.first), *Array(val.last)]}
+      | nstep
+      ;
+
+    # for name or name[nnn], so must always return an array
+    nstep
+      : IDENTIFIER '[' NUMBER ']' {result = [val[0].to_sym, val[2].to_i] }
+      | IDENTIFIER { result = [val.first.to_sym] }
+      ;
+
+    # things after the |
+    # eg keyword: value, 150x330, layout(c6:g7)
+    directives: directive ',' directives | directive;
+    directive
+      : extent {self.image_extent = val.first}
+      | keyword {self.keywords.merge! val.first}
+      | functor {self.functors.merge! val.first}
+      | naked {self.keywords.merge! val.first}
+      ;
+
+    # keywords with trailing :
+    # eg date_format: "%d-%b-%y"
+    keyword: IDENTIFIER ':' composite_value { result = {val.first.to_sym => val.last} };
+
+    # sometimes keywords have single values that use [] as quoted rather than
+    # array delimiters. ¯\_(/")_/¯
+    composite_value
+      : '[' bracketed_value ']' {result = val[1]}
+      | value
+      ;
+
+    bracketed_value: extent | naked;
+
+    # excel-function style keywords
+    # eg layout(a3:g15) and even separator(';')
+    # MAGIC_QUOTED doesn't work for these.
+    functor: IDENTIFIER '(' values ')' { result = {val[0].to_sym => val[2]} };
+
+    # keywords like justify and capitalize that appear without a trailing :
+    # eg fields.title|justify,separator: ;,capitalize
+    naked: IDENTIFIER { result = {val.first.to_sym => true} }
+
+    # should this return single_value or [single_value] ? Probably the latter?
+    values
+      # tricksily concatenate multiple values into one
+      : value ',' values {result = [*Array(val.first), *Array(val.last)]}
+      | value;
+
+    value: string | boolean | extent
+      | NUMBER {result = Integer val.first}
+      | range
+      ;
+
+    # srsly? You want a comment for this?
+    boolean: false {result = false} | true {result = true};
+
+    # Various kinds of quoted strings. Fancy quotes “” are used interchangeably
+    # by careless users, so we accept that.
+    string
+      : '"' STRING '"' {result = val[1]}
+      | "'" STRING "'" {result = val[1]}
+      | LRQUOTE STRING LRQUOTE {result = val[1]}
+      | MAGIC_QUOTED
+      ;
+
+    # WWWxHHH image extent
+    # eg 640x480 640X480 1024 x 648 3840 X 2160
+    extent: NUMBER x NUMBER { result = {width: val.first.to_i, height: val.last.to_i} };
+
+    x: 'X' | 'x';
+
+    # excel-style A1:Z26 style ranges
+    range
+      # this branch is never used. But leave it here so that the fallout from
+      # MAGIC_QUOTED is obvious.
+      : IDENTIFIER ':' IDENTIFIER {result = "#{val.first}:#{val.last}"}
+      | IDENTIFIER ':' MAGIC_QUOTED {result = "#{val.first}:#{val.last}"}
+      | RANGE
+      ;
+end
+
+---- header
+require_relative 'lexer_error_info'
+
+---- inner
+  using LexerErrorInfo
+
+  class ParseError < RuntimeError; end
+
+  def initialize
+    super
+    @field_path = []
+    @keywords = {}
+    @functors = {}
+  end
+
+  attr_accessor :field_path
+  attr_accessor :image_extent
+
+  # really these have the same function but different syntaxes so keep them separate
+  attr_accessor :keywords
+  attr_accessor :functors
+
+  def to_h
+    {
+      field_path: field_path,
+      image_extent: image_extent,
+      keywords: keywords,
+      functors: functors,
+    }
+  end
+
+  def read_tokens(tokens)
+    en = case tokens
+    when Array; tokens.each
+    when Enumerable; tokens
+    else raise "how to handle tokens from #{tokens.inspect}"
+    end
+
+    # The slower alternative:
+    # define_singleton_method(:next_token) do
+    #   en.next
+    # rescue StopIteration
+    #   nil
+    # end
+    # return value from this is the first token on the stack
+    # do_parse
+
+    # yyparse needs the end token
+    yen = en + [nil].each
+    # each_entry for an enumerable that yields [symbol,value] pairs rather than symbol then value
+    # This seems to be able to take partial sequences?
+    yyparse yen, :each_entry
+
+    to_h
+  end
+
+  # docs from Racc:
+  # This method is called when a parse error is found.
+  #
+  # error_token_id is an internal ID of token which caused error. You can get
+  # string representation of this ID by calling #token_to_str.
+  # ID always seems to be 1 which returns 'error' from token_to_str
+  # error_value is a value of error token
+  # value_stack is a stack of symbol values. DO NOT MODIFY this object.
+  # If this method returns, parsers enter “error recovering mode”.
+  def on_error(error_token_id, error_value, value_stack )
+    # str = token_to_str error_token_id
+    super
+  rescue Racc::ParseError
+    # value_stack.flatten.map &:lexer_pos
+    case error_token_id
+    when 0
+      # get the string being parsed up to the point where it failed
+      # error_value is inserted by Racc, so it doesn't have lexer_pos etc info. So value_stack instead.
+      msg_str = if value_stack.last
+        value_stack.last.lexer_string[0..value_stack.last.lexer_pos] || error_value || ''
+      else
+        value_stack.first&.lexer_string || error_value || ''
+      end
+      raise ParseError, "Unexpected end after #{msg_str}"
+    else
+      # get the string being parsed up to the point where it failed
+      msg_str = error_value.lexer_string[0...(error_value.lexer_pos+error_value.length)] || error_value || ''
+      raise ParseError, "Unexpected #{error_value} at 0:#{error_value.lexer_pos} in '#{msg_str}'"
+    end
+  end

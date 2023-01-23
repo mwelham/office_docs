@@ -16,15 +16,12 @@ module Office
     end
 
     def to_data
-      original_filename = @filename
-      file = Tempfile.new('OfficePackage')
-      file.close
-      begin
-        save(file.path)
-        File.open(file.path) { |f| return f.read }
-      ensure
-        @filename = original_filename
-        file.delete
+      Dir.mktmpdir do |dir|
+        # generate a unique-enough filename
+        tmp_filename = @filename || (now = Time.now; "#{now.to_i}.#{now.tv_nsec}")
+        path = File.join dir, File.basename(tmp_filename)
+        save path
+        File.open(path, 'rb:ASCII-8BIT', &:read)
       end
     end
 
@@ -63,7 +60,7 @@ module Office
     end
 
     def save(filename)
-      if File.exists? filename
+      if File.exist? filename
         backup_file = filename + ".bak"
         File.rename(filename, backup_file)
       end
@@ -84,7 +81,7 @@ module Office
       @parts_by_name = {}
       @default_content_types = {}
       @overriden_content_types = {}
-      
+
       Zip::File.open(@filename) do |zip|
         entries = []
         zip.each do |e|
@@ -95,7 +92,9 @@ module Office
           end
         end
         raise PackageError.new("package '#{@filename}' is missing content types part") if @parts_by_name.empty?
-        entries.each { |e| parse_zip_entry(e) }
+        entries.each do |e|
+          parse_zip_entry(e) unless e.directory?
+        end
       end
     end
 
@@ -119,7 +118,8 @@ module Office
     end
 
     def remove_content_type_override(name)
-      nodes = @content_types_part.xml.root.xpath("/xmlns:Types/xmlns:Override[@PartName='#{name}']")
+      ns_prefix = Package.xpath_ns_prefix(@content_types_part.xml.root)
+      nodes = @content_types_part.xml.root.xpath("/#{ns_prefix}:Types/#{ns_prefix}:Override[@PartName='#{name}']")
       nodes.each { |n| n.remove } unless nodes.nil?
       @overriden_content_types.delete(name.downcase)
     end
@@ -128,7 +128,7 @@ module Office
       @content_types_part = parse_zip_entry(zip_entry)
       type_node = @content_types_part.xml.root
       raise PackageError.new("package '#{@filename}' has unexpected root node '#{type_node.name}") unless type_node.name == "Types"
-      
+
       @default_content_types = {}
       type_node.children.each do |child|
         case child.name
@@ -148,13 +148,51 @@ module Office
     end
 
     def set_relationships(relationships_part)
-      raise "multiple package-level relationship parts for package '#{@filename}'" unless @relationships.nil?
+      raise "multiple package-level relationship parts for package '#{@filename}'" if instance_variable_defined?(:@relationships)
       @relationships = relationships_part
     end
 
     def get_relationship_targets(type)
       raise "package '#{@filename}' is missing package-level relationships" if @relationships.nil?
       @relationships.get_relationship_targets(type)
+    end
+
+    # make sure that a maybe-new part has a related Relationships entry in the relevant rels file
+    def ensure_relationships part
+      unless part.has_relationships?
+        content = StringIO.new %|<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>|
+        rels_part = add_part(part.rels_name, content, RELATIONSHIP_CONTENT_TYPE)
+        rels_part.map_relationships(self)
+      end
+    end
+
+    # return rel_id for new relationship
+    # MAYBE can lookup rel_type from somewhere? Will always be related to dst_part anyway...?
+    def add_relationship(src_part, dst_part, rel_type)
+      ensure_relationships src_part
+      src_part.add_relationship(dst_part, rel_type)
+    end
+
+    # part is the Office::Part to which the image should be added
+    # image will be added as a part
+    # rel will be added from part to the new image_part
+    def add_image_part_rel(image, part)
+      image_part = add_image_part(image, part.path_components)
+      relationship_id = add_relationship(part, image_part, IMAGE_RELATIONSHIP_TYPE)
+
+      [relationship_id, image_part]
+    end
+
+    # image will be added as a part underneath /<path_components>/media/imageX.<imgext>
+    # returns an ImagePart instance
+    def add_image_part(image, path_components)
+      prefix = File.join ?/, path_components, 'media/image'
+
+      # unused_part_identifier is 1..n : Integer
+      # .extension comes from the image
+      part_name = "#{prefix}#{unused_part_identifier prefix}.#{image.format.downcase}"
+
+      add_part(part_name, StringIO.new(image.to_blob), image.mime_type)
     end
 
     def debug_dump
@@ -164,25 +202,34 @@ module Office
       @relationships.debug_dump unless @relationships.nil?
       @parts_by_name.values.each { |p| p.get_relationships.debug_dump if p.has_relationships? }
     end
+
+    # don't depend on activesupport
+    def self.blank?( obj )
+      obj.nil? || obj == ''
+    end
+
+    def self.xpath_ns_prefix(node)
+      node.nil? or node.namespace.nil? or blank?(node.namespace.prefix) ? 'xmlns' : node.namespace.prefix
+    end
   end
-  
+
   class PackageComparer
     def self.are_equal?(path_1, path_2)
       package_1 = Package.new(path_1)
       package_2 = Package.new(path_2)
-      
+
       part_names_1 = package_1.get_part_names
       part_names_2 = package_2.get_part_names
-      
+
       return false unless (part_names_1 - part_names_2).empty?
       return false unless (part_names_2 - part_names_1).empty?
-      
+
       part_names_1.each do |name|
         return false unless are_parts_equal?(package_1.get_part(name), package_2.get_part(name))
       end
       true
     end
-    
+
     def self.are_parts_equal?(part_1, part_2)
       return false unless part_1.class == part_2.class
       return false unless part_1.name == part_2.name

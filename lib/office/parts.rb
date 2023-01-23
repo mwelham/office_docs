@@ -1,17 +1,24 @@
 require 'nokogiri' # docs at http://nokogiri.org
-require 'RMagick'  # docs at http://studio.imagemagick.org/RMagick/doc
+require 'rmagick'  # docs at http://studio.imagemagick.org/RMagick/doc
 require 'office/constants'
 require 'office/errors'
 require 'office/logger'
 
 module Office
   class Part
-    attr_accessor :name
+    attr_reader :name
     attr_accessor :zip_entry_name # original case-sensitive non-rooted name (when available)
     attr_accessor :content_type
 
     def path_components
       name.split('/').values_at(1..-2)
+    end
+
+    # name of the _rels file for this part
+    # eg for part /xl/drawings/drawing1.xml
+    # the rels file is /xl/drawings/_rels/drawing1.xml.rels
+    def rels_name
+      File.join File.dirname(name), '_rels', "#{File.basename(name)}.rels"
     end
 
     def save(zip_output)
@@ -26,13 +33,13 @@ module Office
     def get_comparison_content
       get_zip_content
     end
-    
+
     def has_relationships?
       !@relationships.nil?
     end
 
     def set_relationships(relationships_part)
-      raise "multiple relationship parts for '#{@name}'" unless @relationships.nil?
+      raise "multiple relationship parts for '#{@name}'" if instance_variable_defined?(:@relationships)
       @relationships = relationships_part
     end
 
@@ -53,8 +60,12 @@ module Office
       @relationships.add(part, type)
     end
 
+    def add_arbitrary_relationship(type, target, extra_settings={})
+      @relationships.add_arbitrary_relationship(type, target, extra_settings)
+    end
+
     def remove_relationships(part)
-      return if self == part || @relationships.nil?
+      return if self == part || !instance_variable_defined?(:@relationships)
       @relationships.remove(part)
     end
 
@@ -86,10 +97,15 @@ module Office
   class XmlPart < Part
     attr_accessor :xml # Nokogiri::XML::Document
 
-    def initialize(part_name, xml_io, content_type)
+    def initialize(part_name, xml_thing, content_type)
       @name = part_name
-      @xml = Nokogiri::XML::Document.parse(xml_io)
       @content_type = content_type
+      @xml = case xml_thing
+      when Nokogiri::XML::Document
+        xml_thing
+      else
+        Nokogiri::XML(xml_thing)
+      end
     end
 
     def get_zip_content
@@ -120,6 +136,8 @@ module Office
 
     def resolve_target_part(package, owner_name)
       full_name = @target_name[0] == "/" ? @target_name : owner_name[0, owner_name.rindex("/") + 1] + @target_name
+      # sometimes full_name has .. in it, so use expand_path to resolve that
+      full_name = File.expand_path full_name
       @target_part = package.get_part(full_name)
       Logger.warn "Failed to resolve relationship target '#{@target_name}' for '#{owner_name}'" if @target_part.nil?
     end
@@ -182,7 +200,7 @@ module Office
     def get_relationship_by_id(id)
       @relationships_by_id[id]
     end
-    
+
     def get_relationship_targets(type)
       @relationships_by_id.values.keep_if { |r| r.type == type }.map { |r| r.target_part }
     end
@@ -195,11 +213,22 @@ module Office
       relationship_id
     end
 
+    def add_arbitrary_relationship(type, target, extra_settings={})
+      relationship_id = next_free_relationship_id
+      node = @xml.root.add_child(Relationship.create_node(@xml, relationship_id, type, target))
+      extra_settings.each do |k,v|
+        node[k] = v
+      end
+      @relationships_by_id[relationship_id] = Relationship.new(relationship_id, type, target)
+      relationship_id
+    end
+
     def remove(part)
       to_remove = []
       @relationships_by_id.values.each { |r| to_remove << r if r.target_part == part }
+      ns_prefix = Package.xpath_ns_prefix(@xml.root)
       to_remove.each do |r|
-        @xml.root.at_xpath("/xmlns:Relationships/xmlns:Relationship[@Id='#{r.id}']").remove
+        @xml.root.at_xpath("/#{ns_prefix}:Relationships/#{ns_prefix}:Relationship[@Id='#{r.id}']").remove
         @relationships_by_id.delete(r.id)
       end
     end
@@ -214,14 +243,7 @@ module Office
     end
 
     def relative_path_from_owner(part_name)
-      owner_components = @owner_name.downcase.split('/')
-      target_components = part_name.downcase.split('/')
-      return part_name unless owner_components.first == target_components.first
-      owner_components.each do |c|
-        break unless target_components.first == c
-        target_components.shift
-      end
-      target_components.join('/')
+      Pathname(part_name).relative_path_from(Pathname(@owner_name).parent).to_s
     end
 
     def debug_dump
@@ -259,7 +281,15 @@ module Office
     end
 
     def self.parse(part_name, io, default_content_type)
-      ImagePart.new(part_name, io.read)
+      begin
+        ImagePart.new(part_name, io.read)
+      rescue Magick::ImageMagickError => error
+        # Image may have a .data extension but XLSX file may also include
+        # a Data model with a .data extension. If we are unable to decode
+        # blob, we return an UnknownPart. Otherwise, just raise the error.
+        raise unless error.message =~ /no decode delegate for this image format/
+        UnknownPart.new(part_name, io, default_content_type)
+      end
     end
 
     def self.zip_extensions

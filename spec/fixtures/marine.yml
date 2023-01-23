@@ -1,0 +1,346 @@
+---
+:device_id: BlackBerry_553648138
+:user_id: 
+:username: Joe Soap
+:submitted_at: '2014-07-14 15:43:09 -07:00'
+:received_at: '2021-04-19 00:48:20 +00:00'
+:submission_id: '1'
+:device_submission_identifier: dca038c0-82d6-0139-a557-20510bc06b97
+:submission_counter: ''
+:form_name: Marine Lab
+:form_namespace: http://www.devicemagic.com/xforms/60fb14b0-7739-0131-17f7-1231390e91f2
+:form_version: '1.02'
+:fields:
+  :Site: QCS01
+  :Survey: QCSD2014
+  :Survey__other_: ''
+  :Field_Date___Time: !ruby/object:DateTime 2014-07-14 10:51:11.000000000 Z
+  :Lab_Date___Time: !ruby/object:DateTime 2014-07-14 10:51:09.000000000 Z
+  :Field_Technician_s_: Skye,Bryn,Lawren
+  :Field_Technician__other_: ''
+  :Lab_Technician_s_: Bryn
+  :Lab_Technician_s_:timestamp: 2014-07-14 06:51:21.000000000 -04:00
+  :Lab_Technician__other_: ''
+  :Surface_Salinity: 30.48
+  :Surface_Temperature: 11.4
+  :YSI_Time: ''
+  :POMS:
+  - :Depth: '0'
+    :Depth__Other_: 
+    :Sample_ID: QCS01_0
+    :Sample_ID__Other_: ''
+    :_1__Filter_No_: '3993'
+    :_1__Filter_No_:timestamp: 2014-07-14 06:51:32.000000000 -04:00
+    :_1__Volume: 2000
+    :_1__Acidified: 
+    :_2__Filter_No_: ''
+    :_2__Filter_No_:timestamp: 
+    :_2__Volume: 
+    :_2__Acidified: 
+    :_3__Filter_No_: ''
+    :_3__Filter_No_:timestamp: 
+    :_3__Volume: 
+    :_3__Acidified: 
+    :_4__Filter_No_: ''
+    :_4__Filter_No_:timestamp: 
+    :_4__Volume: 
+    :_4__Acidified: 
+    :POMS_Notes_: ''
+  - :Depth: '5'
+    :Depth__Other_: 
+    :Sample_ID: QCS01_5
+    :Sample_ID__Other_: ''
+    :_1__Filter_No_: '3994'
+    :_1__Filter_No_:timestamp: 2014-07-14 06:51:41.000000000 -04:00
+    :_1__Volume: 2000
+    :_1__Acidified: 
+    :_2__Filter_No_: ''
+    :_2__Filter_No_:timestamp: 
+    :_2__Volume: 
+    :_2__Acidified: 
+    :_3__Filter_No_: ''
+    :_3__Filter_No_:timestamp: 
+    :_3__Volume: 
+    :_3__Acidified: 
+    :_4__Filter_No_: ''
+    :_4__Filter_No_:timestamp: 
+    :_4__Volume: 
+    :_4__Acidified: 
+    :POMS_Notes_: ''
+  :Chlorophill:
+  - :Depth: '5'
+    :Depth__Other_: 
+    :_1__Sample_ID: ''
+    :_1__Sample_ID:timestamp: 
+    :_2__Sample_ID: ''
+    :_2__Sample_ID:timestamp: 
+    :_3__Sample_ID: ''
+    :_3__Sample_ID:timestamp: 
+    :_4__Sample_ID: ''
+    :_4__Sample_ID:timestamp: 
+    :Filter_:
+    - :Filter_Type_: 20um
+      :Filter_no_: '1251'
+      :Filter_no_:timestamp: 2014-07-14 06:51:58.000000000 -04:00
+      :Volume_: 250
+    - :Filter_Type_: 2um
+      :Filter_no_: '1252'
+      :Filter_no_:timestamp: 2014-07-14 06:52:09.000000000 -04:00
+      :Volume_: 250
+    - :Filter_Type_: GF/F
+      :Filter_no_: '1253'
+      :Filter_no_:timestamp: 2014-07-14 06:52:19.000000000 -04:00
+      :Volume_: 250
+    :Chlorophill_Notes_: ''
+  :Nutrients:
+  - :Depth: '0'
+    :Depth__Other_: 
+    :Sample_no_1: 2579
+    :Sample_no_1:timestamp: 2014-07-14 07:06:28.000000000 -04:00
+    :_1__Volume__ml_: 13
+    :Sample_no_2: 
+    :Sample_no_2:timestamp: 
+    :_2__Volume__ml_: 
+    :Sample_no_3: 
+    :Sample_no_3:timestamp: 
+    :_3__Volume__ml_: 
+    :Sample_no_4: 
+    :Sample_no_4:timestamp: 
+    :_4__Volume__ml_: 
+    :Nutrients_Notes_: ''
+  - :Depth: '5'
+    :Depth__Other_: 
+    :Sample_no_1: 2580
+    :Sample_no_1:timestamp: 2014-07-14 07:06:40.000000000 -04:00
+    :_1__Volume__ml_: 13
+    :Sample_no_2: 
+    :Sample_no_2:timestamp: 
+    :_2__Volume__ml_: 
+    :Sample_no_3: 
+    :Sample_no_3:timestamp: 
+    :_3__Volume__ml_: 
+    :Sample_no_4: 
+    :Sample_no_4:timestamp: 
+    :_4__Volume__ml_: 
+    :Nutrients_Notes_: ''
+  - :Depth: '30'
+    :Depth__Other_: 
+    :Sample_no_1: 2581
+    :Sample_no_1:timestamp: 2014-07-14 07:07:29.000000000 -04:00
+    :_1__Volume__ml_: 13
+    :Sample_no_2: 
+    :Sample_no_2:timestamp: 
+    :_2__Volume__ml_: 
+    :Sample_no_3: 
+    :Sample_no_3:timestamp: 
+    :_3__Volume__ml_: 
+    :Sample_no_4: 
+    :Sample_no_4:timestamp: 
+    :_4__Volume__ml_: 
+    :Nutrients_Notes_: ''
+  - :Depth: Other
+    :Depth__Other_: 125.0
+    :Sample_no_1: 2582
+    :Sample_no_1:timestamp: 2014-07-14 07:08:24.000000000 -04:00
+    :_1__Volume__ml_: 13
+    :Sample_no_2: 
+    :Sample_no_2:timestamp: 
+    :_2__Volume__ml_: 
+    :Sample_no_3: 
+    :Sample_no_3:timestamp: 
+    :_3__Volume__ml_: 
+    :Sample_no_4: 
+    :Sample_no_4:timestamp: 
+    :_4__Volume__ml_: 
+    :Nutrients_Notes_: ''
+  :DO13C:
+  - :Depth: ''
+    :Depth__Other_: 
+    :_1__Sample_ID: ''
+    :_1__Sample_ID:timestamp: 
+    :_2__Sample_ID: ''
+    :_2__Sample_ID:timestamp: 
+    :_3__Sample_ID: ''
+    :_3__Sample_ID:timestamp: 
+    :_4__Sample_ID: ''
+    :_4__Sample_ID:timestamp: 
+    :DO13C_Notes_: ''
+  :Grab_Sample_Kit:
+  - :Depth: ''
+    :Depth__Other_: 
+    :_1__Sample_ID: ''
+    :_1__Sample_ID:timestamp: 
+    :_2__Sample_ID: ''
+    :_2__Sample_ID:timestamp: 
+    :_3__Sample_ID: ''
+    :_3__Sample_ID:timestamp: 
+    :_4__Sample_ID: ''
+    :_4__Sample_ID:timestamp: 
+    :Grab_Sample_Kit_Notes_: ''
+  :DOC:
+  - :Depth: ''
+    :Depth__Other_: 
+    :_1__Sample_ID: ''
+    :_1__Sample_ID:timestamp: 
+    :_2__Sample_ID: ''
+    :_2__Sample_ID:timestamp: 
+    :_3__Sample_ID: ''
+    :_3__Sample_ID:timestamp: 
+    :_4__Sample_ID: ''
+    :_4__Sample_ID:timestamp: 
+    :DOC_Notes_: ''
+  :SUVA:
+  - :Depth: ''
+    :Depth__Other_: 
+    :_1__Sample_ID: ''
+    :_1__Sample_ID:timestamp: 
+    :_2__Sample_ID: ''
+    :_2__Sample_ID:timestamp: 
+    :_3__Sample_ID: ''
+    :_3__Sample_ID:timestamp: 
+    :_4__Sample_ID: ''
+    :_4__Sample_ID:timestamp: 
+    :SUVA_Notes_: ''
+  :Zooplankton:
+  - :Type: V
+    :Depth: 130
+    :Net:
+    - :Size: '250'
+      :Flow_in: 641693
+      :Flow_out: 646805
+      :Flow_out:timestamp: 2014-07-14 07:07:12.000000000 -04:00
+      :Sample_Split: 
+      :Formalin: true
+      :_4000:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :_1__Tube_no_: ''
+        :_2__Tube_no_: ''
+        :_3__Tube_no_: ''
+        :_4__Tube_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+        :Sample_Species:
+        - :Species: ''
+          :Length__mm_: 
+      :_2000:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_1000:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_500:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_250:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_125:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_64:
+      - :No_Data: 
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :Zooplankton_Notes_: ''
+    - :Size: '64'
+      :Flow_in: 698754
+      :Flow_out: 704985
+      :Flow_out:timestamp: 2014-07-14 07:07:02.000000000 -04:00
+      :Sample_Split: true
+      :Formalin: true
+      :Zooplankton_Notes_: ''
+      :_4000:
+      - :No_Data: false
+        :_1__Filter_no_: ''
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :_1__Tube_no_: T77
+        :_2__Tube_no_: ''
+        :_3__Tube_no_: ''
+        :_4__Tube_no_: ''
+        :Dominant_Composition: ''
+        :Dominant_Composition__other_: ''
+      :_2000:
+      - :No_Data: false
+        :_1__Filter_no_: '3976'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Crustacean
+        :Dominant_Composition__other_: ''
+      :_1000:
+      - :No_Data: false
+        :_1__Filter_no_: '3977'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Crustacean
+        :Dominant_Composition__other_: ''
+      :_500:
+      - :No_Data: false
+        :_1__Filter_no_: '3978'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Crustacean
+        :Dominant_Composition__other_: ''
+      :_250:
+      - :No_Data: false
+        :_1__Filter_no_: '3979'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Crustacean
+        :Dominant_Composition__other_: ''
+      :_125:
+      - :No_Data: false
+        :_1__Filter_no_: '3980'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Crustacean
+        :Dominant_Composition__other_: ''
+      :_64:
+      - :No_Data: false
+        :_1__Filter_no_: '3981'
+        :_2__Filter_no_: ''
+        :_3__Filter_no_: ''
+        :_4__Filter_no_: ''
+        :Dominant_Composition: Phytoplankton
+        :Dominant_Composition__other_: ''
+    :Issue__see_notes_: false
+  :Notes: Used 14A100200 ysi

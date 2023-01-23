@@ -3,215 +3,41 @@ require 'office/constants'
 require 'office/errors'
 require 'office/logger'
 
+require_relative 'excel/cell'
+require_relative 'excel/excel_workbook'
+require_relative 'excel/sheet'
+require_relative 'excel/template'
+
 module Office
-  class ExcelWorkbook < Package
-    attr_accessor :workbook_part
-    attr_accessor :shared_strings
-    attr_accessor :sheets
-    
-    def initialize(filename)
-      super(filename)
-
-      @workbook_part = get_relationship_targets(EXCEL_WORKBOOK_TYPE).first
-      raise PackageError.new("Excel workbook package '#{@filename}' has no workbook part") if @workbook_part.nil?
-
-      parse_shared_strings
-      parse_workbook_xml
-    end
-
-    def self.blank_workbook
-      book = ExcelWorkbook.new(File.join(File.dirname(__FILE__), 'content', 'blank.xlsx'))
-      book.filename = nil
-      book
-    end
-
-    def self.from_data(data)
-      file = Tempfile.new('OfficeExcelWorkbook')
-      file.binmode
-      file.write(data)
-      file.close
-      begin
-        book = ExcelWorkbook.new(file.path)
-        book.filename = nil
-        return book
-      ensure
-        file.delete
-      end
-    end
-
-    def parse_shared_strings
-      shared_strings_part = @workbook_part.get_relationship_targets(EXCEL_SHARED_STRINGS_TYPE).first
-      @shared_strings = SharedStringTable.new(shared_strings_part) unless shared_strings_part.nil?
-    end
-    
-    def parse_workbook_xml
-      @sheets_node = @workbook_part.xml.at_xpath("/xmlns:workbook/xmlns:sheets")
-      raise PackageError.new("Excel workbook '#{@filename}' is missing sheets container") if @sheets_node.nil?
-
-      @sheets = []
-      @sheets_node.xpath("xmlns:sheet").each { |s| @sheets << Sheet.new(s, self) }
-    end
-
-    def add_sheet(name)
-      raise PackageError.new("New sheet name cannot be empty") if name.nil? or name.empty?
-      sheet_id = 1
-      @sheets.each do |s|
-        raise PackageError.new("Spreadsheet already contains a sheet named '#{name}'") if name == s.name
-        matches = s.worksheet_part.name.scan(/.*\/sheet(\d+)\.xml\z/i)
-        sheet_id = [sheet_id, s.id + 1, (matches.nil? || matches.empty? ? 0 : matches[0][0].to_i + 1)].max
-      end
-
-      sheet_part = nil
-      File.open(File.join(File.dirname(__FILE__), 'content', 'empty_sheet.xml')) do |file|
-        sheet_part = add_part("/xl/worksheets/sheet#{sheet_id}.xml", file, XLSX_SHEET_CONTENT_TYPE)
-      end
-      relationship_id = @workbook_part.add_relationship(sheet_part, EXCEL_WORKSHEET_TYPE)
-
-      node = Sheet.add_node(@sheets_node, name, sheet_id, relationship_id)
-      @sheets << Sheet.new(node, self)
-      @sheets.last
-    end
-
-    def find_sheet_by_name(name)
-      @sheets.each { |s| return s if s.name == name }
-      nil
-    end
-
-    def remove_sheet(sheet)
-      return if sheet.nil?
-      raise PackageError.new("sheet not found in workbook") unless @sheets.include? sheet
-
-      @sheets_node.at_xpath("./xmlns:sheet[@name='#{sheet.name}']").remove
-      remove_part(sheet.worksheet_part)
-      @sheets.delete(sheet)
-    end
-
-    def debug_dump
-      super
-      @shared_strings.debug_dump unless @shared_strings.nil?
-
-      rows = @sheets.collect { |s| ["#{s.name}", "#{s.id}", "#{s.worksheet_part.name}"] }
-      Logger.debug_dump_table("Excel Workbook Sheets", ["Name", "Sheet ID", "Part"], rows)
-      
-      @sheets.each { |s| s.sheet_data.debug_dump }
-    end
-  end
-  
-  class Sheet
-    attr_accessor :workbook_node
-    attr_accessor :name
-    attr_accessor :id
-    attr_accessor :worksheet_part
-    attr_accessor :sheet_data
-
-    def initialize(sheet_node, workbook)
-      @workbook_node = sheet_node
-      @name = sheet_node["name"]
-      @id = sheet_node["sheetId"].to_i
-      @worksheet_part = workbook.workbook_part.get_relationship_by_id(sheet_node["r:id"]).target_part
-      
-      data_node = @worksheet_part.xml.at_xpath("/xmlns:worksheet/xmlns:sheetData")
-      raise PackageError.new("Excel worksheet '#{@name} in workbook '#{workbook.filename}' has no sheet data") if data_node.nil?
-      @sheet_data = SheetData.new(data_node, self, workbook)
-    end
-
-    def add_row(data)
-      @sheet_data.add_row(data)
-    end
-    
-    def to_csv(separator = ',')
-      @sheet_data.to_csv(separator)
-    end
-    
-    def self.add_node(parent_node, name, sheet_id, relationship_id)
-      sheet_node = parent_node.document.create_element("sheet")
-      parent_node.add_child(sheet_node)
-      sheet_node["name"] = name
-      sheet_node["sheetId"] = sheet_id.to_s
-      sheet_node["r:id"] = relationship_id
-      sheet_node
-    end
-  end
-  
-  class SheetData
-    attr_accessor :node
-    attr_accessor :sheet
-    attr_accessor :workbook
-    attr_accessor :rows
-
-    def initialize(node, sheet, workbook)
-      @node = node
-      @sheet = sheet
-      @workbook = workbook
-
-      @rows = []
-      node.xpath("xmlns:row").each { |r| @rows << Row.new(r, workbook.shared_strings) }
-    end
-
-    def add_row(data)
-      row_node = Row.create_node(@node.document, @rows.length + 1, data, workbook.shared_strings)
-      @node.add_child(row_node)
-      @rows << Row.new(row_node, workbook.shared_strings)
-    end
-
-    def to_csv(separator)
-      data = []
-      column_count = 0
-      @rows.each do |r|
-        data.push([]) until data.length > r.number
-        data[r.number] = r.to_ary
-        column_count = [column_count, data[r.number].length].max
-      end
-      data.each { |d| d.push("") until d.length == column_count }
-
-      csv = ""
-      data.each do |d|
-        items = d.map { |i| i.index(separator).nil? ? i : "'#{i}'" }
-        csv << items.join(separator) << "\n"
-      end
-      csv
-    end
-
-    def debug_dump
-      data = []
-      column_count = 1
-      @rows.each do |r|
-        data.push([]) until data.length > r.number
-        data[r.number] = r.to_ary.insert(0, (r.number + 1).to_s)
-        column_count = [column_count, data[r.number].length].max
-      end
-      
-      headers = [ "" ]
-      0.upto(column_count - 2) { |i| headers << Cell.column_name(i) }
-      
-      Logger.debug_dump_table("Excel Sheet #{@sheet.worksheet_part.name}", headers, data)
-    end
-  end
-
   class Row
-    attr_accessor :node
-    attr_accessor :number
-    attr_accessor :spans
-    attr_accessor :cells
-    
-    def initialize(row_node, string_table)
+    attr_reader :node
+    attr_reader :number
+    attr_reader :spans
+    attr_reader :string_table, :styles
+
+    def initialize(row_node, string_table, styles)
       @node = row_node
-      
-      @number = row_node["r"].to_i - 1
-      @spans = row_node["spans"]
-      
-      @cells = []
-      node.xpath("xmlns:c").each { |c| @cells << Cell.new(c, string_table) }
+
+      @number = Integer(row_node[:r]) - 1
+      @spans = row_node[:spans]
+      @string_table = string_table
+      @styles = styles
     end
 
-    def self.create_node(document, number, data, string_table)
+    def cells
+      @cells ||= node.
+        xpath("#{Package.xpath_ns_prefix(node)}:c").
+        map{ |c| Cell.new(c, string_table, styles) }
+    end
+
+    def self.create_node(document, number, data, string_table, styles:)
       row_node = document.create_element("row")
       row_node["r"] = number.to_s unless number.nil?
-      
+
       unless data.nil? or data.length == 0
         row_node["spans"] = "1:#{data.length}"
-        0.upto(data.length - 1) do |i| 
-          c_node = Cell.create_node(document, number, i, data[i], string_table)
+        0.upto(data.length - 1) do |i|
+          c_node = Cell.create_node(document, number, i, data[i], string_table, styles: styles)
           row_node.add_child(c_node)
         end
       end
@@ -219,106 +45,35 @@ module Office
       row_node
     end
 
-    def to_ary
+    def cells_padded_to_column_number
       ary = []
-      @cells.each do |c|
-        ary.push("") until ary.length > c.column_num
-        ary[c.column_num] = c.value
+      cells.each do |c|
+        ary.push(nil) until ary.length > c.location.coli
+        ary[c.location.coli] = c
       end
-      ary 
+      ary
+    end
+
+    def to_ary
+      # TODO why might c be nil here?, and surely you'd want to keep it nil rather than ''?
+      cells_padded_to_column_number.map { |c| c&.value || '' }
     end
   end
 
-  class Cell
-    attr_accessor :node
-    attr_accessor :location
-    attr_accessor :style
-    attr_accessor :data_type
-    attr_accessor :value_node
-    attr_accessor :shared_string
- 
-    def initialize(c_node, string_table)
-      @node = c_node
-      @location = c_node["r"]
-      @style = c_node["s"]
-      @data_type = c_node["t"]
-
-      # Originally did this, but was incredibly slow:
-      #@value_node = c_node.at_xpath("xmlns:v")
-      @value_node = nil
-      c_node.elements.each { |e| @value_node = e if e.name == 'v' }
-
-      if is_string? && !@value_node.nil?
-        string_id = @value_node.content.to_i
-        @shared_string = string_table.get_string_by_id(string_id)
-        raise PackageError.new("Excel cell #{@location} refers to invalid shared string #{string_id}") if @shared_string.nil?
-        @shared_string.add_cell(self)
-      end
-    end
-    
-    def self.create_node(document, row_number, index, value, string_table)
-      cell_node = document.create_element("c")
-      cell_node["r"] = "#{column_name(index)}#{row_number}"
-      
-      value_node = document.create_element("v")
-      cell_node.add_child(value_node)
-
-      unless value.nil? or value.to_s.empty?
-        if value.is_a? Numeric
-          value_node.content = value
-        else
-          cell_node["t"] = "s"
-          value_node.content = string_table.id_for_text(value.to_s)
-        end
-      end
-      
-      cell_node
-    end
-    
-    
-    def is_string?
-      data_type == "s"
-    end
-
-    def self.column_name(index)
-      name = ""
-      while index >= 0
-        name << ('A'.ord + (index % 26)).chr
-        index = index/26 - 1
-      end
-      name.reverse
-    end
-
-    def column_num
-      letters = /([a-z]+)\d+/i.match(@location)[1].downcase.reverse
-
-      num = letters[0].ord - 'a'.ord
-      1.upto(letters.length - 1) { |i| num += (letters[i].ord - 'a'.ord + 1) * (26 ** i) }
-      num
-    end
-    
-    def row_num
-      /[a-z]+(\d+)/i.match(@location)[1].to_i - 1
-    end
-    
-    def value
-      return nil if @value_node.nil?
-      is_string? ? @shared_string.text : @value_node.content
-    end
-  end
-  
   class SharedStringTable
-    attr_accessor :node
-    
+    attr_reader :node
+
     def initialize(part)
-      @node = part.xml.at_xpath("/xmlns:sst")
+      ns_prefix = Package.xpath_ns_prefix(part.xml.root)
+      @node = part.xml.at_xpath("/#{ns_prefix}:sst")
+
       # TODO Keep these up-to-date
       @count_attr = @node.attribute("count")
       @unique_count_attr = @node.attribute("uniqueCount")
 
       @strings_by_id = {}
       @strings_by_text = {}
-      node.xpath("xmlns:si").each { |si| parse_si_node(si) }
+      node.xpath("#{ns_prefix}:si").each { |si| parse_si_node(si) }
     end
 
     def parse_si_node(si)
@@ -327,55 +82,123 @@ module Office
       @strings_by_text[string.text] = string
       string.id
     end
-    
+
     def get_string_by_id(id)
       @strings_by_id[id]
     end
 
     def id_for_text(text)
       return @strings_by_text[text].id if @strings_by_text.has_key? text
-      
+
       si = node.document.create_element("si")
       t = node.document.create_element("t")
       t.content = text
       si.add_child(t)
       @node.add_child(si)
-      
+
       parse_si_node(si)
     end
-    
+
     def debug_dump
       rows = @strings_by_id.values.collect do |s|
         cells = s.cells.collect { |c| c.location }
         ["#{s.id}", "#{s.text}", "#{cells.join(', ')}"]
       end
-      
+
       footer = ","
       footer << "  count = #{@count_attr.value}" unless @count_attr.nil?
       footer << "  unique count = #{@unique_count_attr.value}" unless @unique_count_attr.nil?
       Logger.debug_dump_table("Excel Workbook Shared Strings", ["ID", "Text", "Cells"], rows, footer)
     end
   end
-  
+
   class SharedString
-    attr_accessor :node
-    attr_accessor :text_node
-    attr_accessor :id
-    attr_accessor :cells
+    attr_reader :node
+    attr_reader :text_node
+    attr_reader :id
+
+    # Nothing in the gem uses this. Which indicates the whole class may be kinda pointless.
+    # attr_reader :cells
 
     def initialize(si_node, id)
       @node = si_node
       @id = id
-      @text_node = si_node.at_xpath("xmlns:t")
+      # // is slower but we need to handle text runs
+      @text_node = si_node.xpath(".//#{Package.xpath_ns_prefix(si_node)}:t")
       @cells = []
     end
-    
+
     def text
-      text_node.content
+      text_node&.text
     end
-    
+
     def add_cell(cell)
       @cells << cell
+    end
+  end
+
+  class StyleSheet
+    # From section 18.8.30 of the specs - these are the predefined format numFmt ids
+    # REFACTOR there are now 3 disparate areas which use these codes.
+    KNOWN_FORMAT_IDS = [0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 37, 38, 39, 40, 45, 46, 47, 48, 49]
+
+    attr_reader :node, :xfs
+
+    def initialize(part)
+      @node = part.xml.nxpath('/*:styleSheet').first
+      @xfs = node.nxpath('*:cellXfs/*:xf').map do |xf_node|
+        CellXF.new(xf_node)
+      end
+    end
+
+    def xf_by_index(index)
+      @xfs[Integer index]
+    end
+
+    def create_xf num_fmt_id
+    end
+
+    # REFACTOR this is a mess, along with the other piece in module
+    # CellNodes.set_style_index But no budget for that right now.
+    def index_of_xf(num_fmt_id)
+      ix = @xfs.index{|cell_xf| cell_xf.number_format_id == num_fmt_id}
+      if ix.nil? && KNOWN_FORMAT_IDS.include?(num_fmt_id)
+        # This xml is from LibreOffice Calc, so hopefully it works for Google Docs, Excel etc.
+        cell_xfs_node = @node.nxpath('*:cellXfs').first
+        # TODO what should fontID here be?
+        # don't automatically apply format for General num_fmt_id - ie let the
+        # cell.value decide which ruby class to use for representing the value.
+        apply_format = num_fmt_id == 0 ? 0 : 1
+        cell_xfs_node << %|<xf numFmtId="#{num_fmt_id}" applyNumberFormat="#{apply_format}" fontId="0" fillId="0" borderId="0" xfId="0"/>|
+        # append new CellXF node
+        @xfs << CellXF.new(cell_xfs_node.element_children.last)
+        cell_xfs_node[:count] = @xfs.size
+        # index of the last one added
+        ix = @xfs.size - 1
+      end
+      ix
+    end
+  end
+
+  # Cell style
+  class CellXF
+    attr_reader :node
+    attr_reader :number_format_id
+    attr_reader :apply_number_format
+
+    # Invert the sense of apply_number_format because we have to default nil to
+    # true, and 0 means false. The only usage is is a lot easier to understand
+    # when it's this way around.
+    def ignore_number_format?
+      (@apply_number_format || 1).to_i == 0
+    end
+
+    def initialize(xf_node)
+      @node = xf_node
+      @xf_id = Integer xf_node['xfId']
+      @number_format_id = Integer xf_node['numFmtId']
+      # default to 1 if not present
+      @apply_number_format = xf_node['applyNumberFormat']
     end
   end
 end
