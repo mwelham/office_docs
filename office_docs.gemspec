@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("rubyzip", ">= 1.0.0")
   spec.add_dependency("activesupport")
   spec.add_dependency("actionview")
-  spec.add_dependency("liquid")
+  spec.add_dependency("liquid", '3.0.6')
   spec.add_dependency("racc")
   spec.add_development_dependency("equivalent-xml", ">= 0.2.9")
   spec.add_development_dependency("test-unit", ">= 3.2.9")
