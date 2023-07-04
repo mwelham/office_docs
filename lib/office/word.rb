@@ -60,7 +60,7 @@ module Office
 
     def add_image(image) # image must be an Magick::Image or ImageList
       p = @main_doc.add_paragraph
-      p.add_run_with_fragment(create_image_run_fragment(image))
+      p.add_run_with_fragment(create_image_run_fragment(image: image))
       p
     end
 
@@ -84,7 +84,7 @@ module Office
         @main_doc.replace_all_with_text(source_text, replacement)
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = @main_doc.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(replacement)) }
+        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(image: replacement)) }
       else
         runs = @main_doc.replace_all_with_empty_runs(source_text)
         runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement, options)) }
@@ -99,7 +99,7 @@ module Office
     def create_body_fragments(item, options = {})
       case
       when (item.is_a?(Magick::Image) or item.is_a?(Magick::ImageList))
-        [ "<w:p>#{create_image_run_fragment(item, options)}</w:p>" ]
+        [ "<w:p>#{create_image_run_fragment(**({ image: item }).merge(options))}</w:p>" ]
       when item.is_a?(Hash)
         [ create_table_fragment(item, options) ]
       when item.is_a?(Array)
@@ -111,10 +111,15 @@ module Office
 
     # ** is to handle pass-through options from create_body_fragments
     # document_section can be the main word document, or a header or footer part
-    def create_image_run_fragment(image, document_section: main_doc, hyperlink: nil, width: image.columns, height: image.rows, **)
+    def create_image_run_fragment(**options)
       # main_doc here is quite janky because really every part should be able to get the package.
       # But sometimes document_section is a Header or Footer, which can't.
       # main_doc.package.ensure_relationships document_section.part
+      image = options[:image]
+      document_section = options[:document_section] || main_doc
+      hyperlink = options[:hyperlink]
+      width = options[:width] || image.columns
+      height = options[:height] || image.rows
 
       relationship_id, _image_part = add_image_part_rel image, document_section.part
       image_fragment = Run.create_image_fragment(document_section.find_unused_drawing_object_id, width, height, relationship_id)

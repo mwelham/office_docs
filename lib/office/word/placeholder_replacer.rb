@@ -28,7 +28,7 @@ module Word
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = paragraph.replace_all_with_empty_runs(source_text)
         local_options[:document_section] = paragraph.document
-        runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(replacement, local_options)) }
+        runs.each { |r| r.replace_with_run_fragment(word_document.create_image_run_fragment(**({ image: replacement }).merge(local_options))) }
       else
         runs = paragraph.replace_all_with_empty_runs(source_text)
         runs.each { |r| r.replace_with_body_fragments(word_document.create_body_fragments(replacement, local_options)) }
@@ -64,7 +64,7 @@ Custom stuff - Might use if the existing replace becomes too slow... but unlikel
         next_step = replace_text_in_paragraph(paragraph, placeholder, replacement)
       when (replacement.is_a?(Magick::Image) or replacement.is_a?(Magick::ImageList))
         runs = paragraph.replace_all_with_empty_runs(source_text)
-        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(replacement)) }
+        runs.each { |r| r.replace_with_run_fragment(create_image_run_fragment(image: replacement) }
       else
         runs = paragraph.replace_all_with_empty_runs(source_text)
         runs.each { |r| r.replace_with_body_fragments(create_body_fragments(replacement, options)) }
