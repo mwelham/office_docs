@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name        = "office_docs"
-  spec.version     = "0.8.4"
+  spec.version     = "0.8.5"
   spec.summary     = "Manipulate Microsoft Office Open XML files"
   spec.description = "Generate and modify Word .docx and Excel .xlsx files"
   spec.authors     = ["Mike Welham", "Matthew Hirst"]
@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
     raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
   end
 
-  spec.add_dependency("nokogiri", ">= 1.10.10")
+  spec.add_dependency("nokogiri", ">= 1.12.4")
   spec.add_dependency("rmagick")
   spec.add_dependency("rubyzip", ">= 1.0.0")
   spec.add_dependency("activesupport")
