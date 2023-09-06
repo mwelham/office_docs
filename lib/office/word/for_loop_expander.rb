@@ -22,7 +22,7 @@ module Word
     def expand_for_loops(container)
       # Get placeholders in paragraphs
       paragraphs = container.paragraphs
-      self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
+      self.placeholders = Word::PlaceholderFinderV2.get_placeholders(paragraphs)
       expanded_loops = false
 
       while there_are_for_loop_placeholders(placeholders)
@@ -40,7 +40,7 @@ module Word
           end
         end
         paragraphs = resync_container(container)
-        self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
+        self.placeholders = Word::PlaceholderFinderV2.get_placeholders(paragraphs)
       end
 
       # i = 0

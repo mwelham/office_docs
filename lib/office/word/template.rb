@@ -14,6 +14,7 @@
   We can then use the placeholder thingies to render loops and replace the text with the real data.
 =end
 require 'office/word/placeholder_finder'
+require 'office/word/placeholder_finder_v2'
 require 'office/word/placeholder_replacer'
 require 'office/word/for_loop_expander'
 require 'office/word/if_else_replacer'
@@ -42,7 +43,7 @@ module Word
     end
 
     def get_placeholders
-      Word::PlaceholderFinder.get_placeholders(main_doc.paragraphs)
+      Word::PlaceholderFinderV2.get_placeholders(main_doc.paragraphs)
     end
 
     #

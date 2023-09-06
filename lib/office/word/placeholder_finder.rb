@@ -15,6 +15,7 @@ module Word
           placeholders += get_placeholders_from_paragraph(p, i)
         end
         placeholders
+        byebug
       end
 
       def get_placeholders_from_paragraph(paragraph, paragraph_index)
@@ -35,10 +36,12 @@ module Word
       #
 
 
+      ## Javar Todo can we just use regex? 
       def loop_through_placeholders_in_paragraph(paragraph, paragraph_index)
         runs = paragraph.runs
+        
+        # create shallow clone of the object. Why tho?? 
         run_texts = runs.map(&:text).dup
-
         next_run_index = 0
         run_texts.each_with_index do |run_text, i|
           next if i < next_run_index
@@ -54,8 +57,10 @@ module Word
               end_of_placeholder = get_end_of_placeholder(run_texts, i, j)
               placeholder_text = get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
 
-              placeholder = {placeholder_text: placeholder_text, paragraph_object: paragraph, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
-
+             
+              #placeholder = {placeholder_text: placeholder_text, paragraph_object: paragraph, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+              placeholder = {placeholder_text: placeholder_text, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+  
               next_step = block_given? ? yield(placeholder) : {}
               if next_step.is_a? Hash
                 # This is a bit dodge - even if we increment the run index it will loop through
@@ -69,6 +74,7 @@ module Word
         end
       end
 
+      ## Javar TODO regex 
       def get_end_of_placeholder(run_texts, current_run_index, start_of_placeholder)
         placeholder_text = ""
         start_char = start_of_placeholder
