@@ -14,6 +14,7 @@ module Office
       super(filename)
 
       main_doc_part = get_relationship_targets(WORD_MAIN_DOCUMENT_TYPE).first
+      main_doc_part.xml.namespace_inheritance = true
       raise PackageError.new("Word document package '#{@filename}' has no main document part") if main_doc_part.nil?
       @main_doc = MainDocument.new(self, main_doc_part)
     end
