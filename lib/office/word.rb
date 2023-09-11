@@ -485,6 +485,7 @@ module Office
     def initialize(p_node, parent)
       @node = p_node
       @document = parent
+      @node.document.namespace_inheritance = true
       @runs = []
       p_node.xpath("w:r").each { |r| @runs << Run.new(r, self) }
     end
