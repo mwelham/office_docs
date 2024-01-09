@@ -14,6 +14,7 @@ module Word
         paragraphs.each_with_index do |p, i|
           placeholders += get_placeholders_from_paragraph(p, i)
         end
+        byebug
         placeholders
       end
 
@@ -54,7 +55,7 @@ module Word
               end_of_placeholder = get_end_of_placeholder(run_texts, i, j)
               placeholder_text = get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
 
-              placeholder = {placeholder_text: placeholder_text, paragraph_object: paragraph, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+              placeholder = {placeholder_text: placeholder_text, paragraph_object: {}, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
 
               next_step = block_given? ? yield(placeholder) : {}
               if next_step.is_a? Hash
