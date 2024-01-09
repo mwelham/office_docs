@@ -275,6 +275,14 @@ module Office
       @paragraphs.delete_at(p_index)
     end
 
+    def get_paragraph(index)
+      begin
+        @paragraphs[index]
+      rescue e
+        raise ArgumentError.new("Cannot get paragraph at index #{index} from container with only #{paragraphs.length} paragraphs")
+      end
+    end
+
     def insert_new_paragraph_object_after_paragraph(target_paragraph_object, new_paragraph_object)
 
       target_paragraph_object.node.add_next_sibling(new_paragraph_object.node)
