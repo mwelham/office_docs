@@ -5,6 +5,7 @@ require 'office/constants'
 require 'office/errors'
 require 'office/logger'
 require 'office/word/template'
+require 'ruby-prof'
 
 module Office
   class WordDocument < Package

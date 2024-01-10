@@ -4,17 +4,13 @@ module Word
 
         def get_placeholders(paragraphs)
             placeholders = []
-            start_time = Time.now
             begin 
-              paragraphs.each_with_index do |p, i|
-              placeholders += get_placeholders_from_paragraph(p, i)
+                paragraphs.each_with_index do |p, i|
+                placeholders += get_placeholders_from_paragraph(p, i)
             end
-            end_time = Time.now
-            total_time = end_time - start_time
-            puts "Total time to get placeholders: #{total_time}"
             placeholders
             rescue => e
-                byebug
+                  byebug
             end
           end
 
@@ -24,11 +20,8 @@ module Word
           runs = paragraph.runs
           run_texts = runs.map(&:text).dup
 
-          #TODO: Should this be nil, or do we need to return an object of some sort?
           return [] if run_texts.empty? || run_texts.nil?
               text = run_texts.join('')
-
-              matches = text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{\s*%[^%]*%\}|\{%[^}]*\}\}|{%\s*if[^%]*%\}|\{%\s*endif\s*%\}|\{%\s*for[^%]*%\}|\{%\s*endfor\s*%\})/) || []
             
               text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{\s*%[^%]*%\}|\{%[^}]*\}\}|{%\s*if[^%]*%\}|\{%\s*endif\s*%\}|\{%\s*for[^%]*%\}|\{%\s*endfor\s*%\})/) do |match|
                   placeholder_text = match[0]
