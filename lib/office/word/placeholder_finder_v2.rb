@@ -4,38 +4,85 @@ module Word
 
         def get_placeholders(paragraphs)
             placeholders = []
-            begin 
+        
                 paragraphs.each_with_index do |p, i|
                 placeholders += get_placeholders_from_paragraph(p, i)
             end
             placeholders
-            rescue => e
-                  byebug
-            end
+          
           end
 
         def get_placeholders_from_paragraph(paragraph, paragraph_index)
           placeholders = []
+          previous_run_hash = {}
 
           runs = paragraph.runs
           run_texts = runs.map(&:text).dup
 
           return [] if run_texts.empty? || run_texts.nil?
               text = run_texts.join('')
+             
             
               text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{\s*%[^%]*%\}|\{%[^}]*\}\}|{%\s*if[^%]*%\}|\{%\s*endif\s*%\}|\{%\s*for[^%]*%\}|\{%\s*endfor\s*%\})/) do |match|
                   placeholder_text = match[0]
                   
                   start_position = Regexp.last_match.begin(0)
                   end_position = Regexp.last_match.end(0) - 1
+
                   end_char = text[end_position]
+                  substring_before_end_position = text[0..end_position]
                   start_char = text[start_position]
       
                   start_position_run_index = calculate_run_index(run_texts, start_position)
                   start_position_char_index = run_texts[start_position_run_index].index(start_char)
-                  end_position_run_index = calculate_run_index(run_texts, end_position)
-                  end_position_char_index = run_texts[end_position_run_index].index(end_char)
 
+                  start_identifier_to_check = "#{start_char}#{start_position_char_index}"
+                  # If the end position has already been used, then we need to find the next one
+                  # cases where within a run we have nested placeholders
+                  if (previous_run_hash.key?(start_identifier_to_check))
+                    ignore_indexes = previous_run_hash[start_identifier_to_check]
+                    run_texts[start_position_char_index]&.each_char&.with_index do |char, index|
+
+                      if (ignore_indexes.include?(index))
+                        next
+                      end
+
+                      if (char == start_char)
+                        start_position_char_index = index
+                        previous_run_hash[start_identifier_to_check] << index
+                        break
+                      end
+                    end
+                  else
+                    previous_run_hash[start_identifier_to_check] = [start_position_char_index]
+                  end
+
+                  end_position_run_index = calculate_run_index(run_texts, end_position)
+                  end_position_char_index = run_texts[end_position_run_index].index(end_char) 
+  
+                  identifier_to_check = "#{end_char}#{end_position_char_index}"
+                
+                  # If the end position has already been used, then we need to find the next one
+                  # cases where within a run we have nested placeholders
+                  if (previous_run_hash.key?(identifier_to_check))
+                    ignore_indexes = previous_run_hash[identifier_to_check]
+                    run_texts[end_position_run_index].each_char.with_index do |char, index|
+
+                      if (ignore_indexes.include?(index))
+                        next
+                      end
+
+                      if (char == end_char)
+                        end_position_char_index = index
+                        previous_run_hash[identifier_to_check] << index
+                        break
+                      end
+                    end
+                  else
+                    previous_run_hash[identifier_to_check] = [end_position_char_index]
+                  end
+
+                 
                   placeholders << {
                     placeholder_text: placeholder_text,
                     paragraph_object: paragraph,
