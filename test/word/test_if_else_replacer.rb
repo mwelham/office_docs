@@ -60,6 +60,10 @@ class IfElseReplacerTest < Test::Unit::TestCase
       p.delete(:paragraph_object)
     end
 
+    pp correct_placeholder_info
+    puts "--------"
+    pp placeholders
+
     assert correct_placeholder_info == placeholders
   end
 

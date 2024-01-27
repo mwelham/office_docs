@@ -59,6 +59,7 @@ module Word
 
                   end_position_run_index = calculate_run_index(run_texts, end_position)
                   end_position_char_index = run_texts[end_position_run_index].index(end_char)
+        
                   end_identifier = "E-#{end_position_run_index}"
                 
                   if (previous_run_hash.key?(end_identifier))
@@ -71,7 +72,7 @@ module Word
 
                           next_char = run_texts[end_position_run_index][index + 1]&.chr
 
-                          if (char == next_char)
+                          if (char == next_char && (char == "}" || char == "%"))
                             end_position_char_index = index + 1
                             previous_run_hash[end_identifier]["used_end_indexes"] << index + 1
                             break
@@ -92,9 +93,6 @@ module Word
                         previous_run_hash[end_identifier] = { "used_end_indexes" => [end_position_char_index]}
                       end
                     end
-
-               
-
                  
                   placeholders << {
                     placeholder_text: placeholder_text,
