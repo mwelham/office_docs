@@ -21,7 +21,7 @@ module Word
 
           return [] if run_texts.empty? || run_texts.nil?
               text = run_texts.join('')
-             
+              check_brace_balance(text)
             
               text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{\s*%[^%]*%\}|\{%[^}]*\}\}|{%\s*if[^%]*%\}|\{%\s*endif\s*%\}|\{%\s*for[^%]*%\}|\{%\s*endfor\s*%\})/) do |match|
                   placeholder_text = match[0]
@@ -112,6 +112,12 @@ module Word
           end
 
           private
+          def check_brace_balance(text)
+            unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
+            if unbalanced_occurrences.any?
+              raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{unbalanced_occurrences.first}\".")
+            end
+          end
 
           def calculate_run_index(run_texts, position)
             current_position = 0
