@@ -35,13 +35,13 @@ module Word
       
                   start_position_run_index = calculate_run_index(run_texts, start_position)
                   start_position_char_index = run_texts[start_position_run_index].index(start_char)
-
-                  start_identifier_to_check = "#{start_char}#{start_position_char_index}"
+                  start_identifier = "S-#{start_position_run_index}"
+                  
                   # If the end position has already been used, then we need to find the next one
                   # cases where within a run we have nested placeholders
-                  if (previous_run_hash.key?(start_identifier_to_check))
-                    ignore_indexes = previous_run_hash[start_identifier_to_check]
-                    run_texts[start_position_char_index]&.each_char&.with_index do |char, index|
+                  if (previous_run_hash.key?(start_identifier))
+                    ignore_indexes = previous_run_hash[start_identifier]["used_start_indexes"]
+                    run_texts[start_position_run_index]&.each_char&.with_index do |char, index|
 
                       if (ignore_indexes.include?(index))
                         next
@@ -49,38 +49,51 @@ module Word
 
                       if (char == start_char)
                         start_position_char_index = index
-                        previous_run_hash[start_identifier_to_check] << index
+                        previous_run_hash[start_identifier]["used_start_indexes"] << index
                         break
                       end
                     end
                   else
-                    previous_run_hash[start_identifier_to_check] = [start_position_char_index]
+                    previous_run_hash[start_identifier] = { "used_start_indexes" => [start_position_char_index]}
                   end
 
                   end_position_run_index = calculate_run_index(run_texts, end_position)
-                  end_position_char_index = run_texts[end_position_run_index].index(end_char) 
-  
-                  identifier_to_check = "#{end_char}#{end_position_char_index}"
+                  end_position_char_index = run_texts[end_position_run_index].index(end_char)
+                  end_identifier = "E-#{end_position_run_index}"
                 
-                  # If the end position has already been used, then we need to find the next one
-                  # cases where within a run we have nested placeholders
-                  if (previous_run_hash.key?(identifier_to_check))
-                    ignore_indexes = previous_run_hash[identifier_to_check]
-                    run_texts[end_position_run_index].each_char.with_index do |char, index|
+                  if (previous_run_hash.key?(end_identifier))
+                    ignore_indexes = previous_run_hash[end_identifier]["used_end_indexes"]
+                      run_texts[end_position_run_index]&.each_char.with_index do |char, index|
 
-                      if (ignore_indexes.include?(index))
-                        next
+                        if (ignore_indexes.include?(index))
+                            next
+                        end
+
+                          next_char = run_texts[end_position_run_index][index + 1]&.chr
+
+                          if (char == next_char)
+                            end_position_char_index = index + 1
+                            previous_run_hash[end_identifier]["used_end_indexes"] << index + 1
+                            break
+                          end
+
+                          if (char == end_char)
+                            end_position_char_index = index
+                            previous_run_hash[end_identifier]["used_end_indexes"] << index
+                            break
+                          end
                       end
-
-                      if (char == end_char)
-                        end_position_char_index = index
-                        previous_run_hash[identifier_to_check] << index
-                        break
+                    else
+                      next_char = run_texts[end_position_run_index][end_position_char_index + 1]&.chr
+                      if next_char == end_char
+                        end_position_char_index = end_position_char_index + 1
+                        previous_run_hash[end_identifier] = { "used_end_indexes" => [end_position_char_index]}
+                      else
+                        previous_run_hash[end_identifier] = { "used_end_indexes" => [end_position_char_index]}
                       end
                     end
-                  else
-                    previous_run_hash[identifier_to_check] = [end_position_char_index]
-                  end
+
+               
 
                  
                   placeholders << {
