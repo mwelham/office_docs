@@ -32,50 +32,8 @@ module Word
                   end_position = Regexp.last_match.end(0) - 1
                   end_char = text[end_position]
 
-                
-                 
-
                   beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, "start")
-                  previous_run_hash = beginning_of_placeholder[:previous_run_hash]
-
-             
-
-                  end_position_run_index = calculate_run_index(run_texts, end_position)
-                  end_position_char_index = run_texts[end_position_run_index].index(end_char)
-        
-                  end_identifier = "E-#{end_position_run_index}"
-                
-                  if (previous_run_hash.key?(end_identifier))
-                    ignore_indexes = previous_run_hash[end_identifier]["used_end_indexes"]
-                      run_texts[end_position_run_index]&.each_char.with_index do |char, index|
-
-                        if (ignore_indexes.include?(index))
-                            next
-                        end
-
-                          next_char = run_texts[end_position_run_index][index + 1]&.chr
-
-                          if (char == next_char && (char == "}" || char == "%"))
-                            end_position_char_index = index + 1
-                            previous_run_hash[end_identifier]["used_end_indexes"] << index + 1
-                            break
-                          end
-
-                          if (char == end_char)
-                            end_position_char_index = index
-                            previous_run_hash[end_identifier]["used_end_indexes"] << index
-                            break
-                          end
-                      end
-                    else
-                      next_char = run_texts[end_position_run_index][end_position_char_index + 1]&.chr
-                      if next_char == end_char
-                        end_position_char_index = end_position_char_index + 1
-                        previous_run_hash[end_identifier] = { "used_end_indexes" => [end_position_char_index]}
-                      else
-                        previous_run_hash[end_identifier] = { "used_end_indexes" => [end_position_char_index]}
-                      end
-                    end
+                  end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, "end")
                  
                   placeholders << {
                     placeholder_text: placeholder_text,
@@ -86,8 +44,8 @@ module Word
                       char_index: beginning_of_placeholder[:char_index],
                     },
                     end_of_placeholder: {
-                      run_index: end_position_run_index,
-                      char_index: end_position_char_index,
+                      run_index: end_of_placeholder[:run_index],
+                      char_index: end_of_placeholder[:char_index],
                     }
                   }
               end
@@ -95,33 +53,50 @@ module Word
           end
 
           private
+
+          def generate_identifier(start_or_end, position_run_index)
+            start_or_end == "start" ? "S-#{position_run_index}" : "E-#{position_run_index}"
+          end
         
           def get_placeholder_positions(run_texts, position, passed_char, previous_run_hash, start_or_end)
-            
             position_run_index = calculate_run_index(run_texts, position)
             position_char_index = run_texts[position_run_index].index(passed_char)
-            identifier = "S-#{position_run_index}"
+            identifier = generate_identifier(start_or_end, position_run_index)
             hash_key = start_or_end == "start" ? "used_start_indexes" : "used_end_indexes"
-
-              if (previous_run_hash.key?(identifier))
-                ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
-                run_texts[position_run_index]&.each_char&.with_index do |char, index|
-
-                  if (ignore_indexes.include?(index))
-                    next
-                  end
-
-                  if (char == passed_char)
-                    position_char_index = index
-                    previous_run_hash[identifier][hash_key.to_sym] << index
-                    break
-                  end
+          
+            if previous_run_hash.key?(identifier)
+              ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
+              run_text = run_texts[position_run_index]
+              run_text.length.times do |index|
+                char = run_text[index]
+                next if ignore_indexes.include?(index)
+          
+                next_char = run_texts[position_run_index][position_char_index + 1]&.chr
+          
+                if passed_char == next_char && (char == "}" || char == "%")
+                  position_char_index = index + 1
+                  break
                 end
-              else
-                previous_run_hash[identifier] = { hash_key.to_sym => [position_char_index]}
+          
+                if char == passed_char
+                  position_char_index = index
+                  break
+                end
               end
-              { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
+          
+              previous_run_hash[identifier][hash_key.to_sym] << position_char_index
+            else
+              if start_or_end == "end"
+                next_char = run_texts[position_run_index][position_char_index + 1]&.chr
+                position_char_index += 1 if next_char == passed_char
+              end
+              
+              previous_run_hash[identifier] = { hash_key.to_sym => [position_char_index] }
+            end
+          
+            { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
           end
+          
 
           def check_brace_balance(text)
             unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
@@ -137,7 +112,7 @@ module Word
               return run_index if current_position + text.length > position
               current_position += text.length
             end
-            run_texts.size - 1
+              run_texts.size - 1
           end
       end
     end
