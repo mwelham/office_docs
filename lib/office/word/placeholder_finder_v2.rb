@@ -11,7 +11,7 @@ module Word
             placeholders
           
           end
-
+        
         def get_placeholders_from_paragraph(paragraph, paragraph_index)
           placeholders = []
           previous_run_hash = {}
@@ -27,35 +27,18 @@ module Word
                   placeholder_text = match[0]
                   
                   start_position = Regexp.last_match.begin(0)
-                  end_position = Regexp.last_match.end(0) - 1
-
-                  end_char = text[end_position]
-                  substring_before_end_position = text[0..end_position]
                   start_char = text[start_position]
-      
-                  start_position_run_index = calculate_run_index(run_texts, start_position)
-                  start_position_char_index = run_texts[start_position_run_index].index(start_char)
-                  start_identifier = "S-#{start_position_run_index}"
-                  
-                  # If the end position has already been used, then we need to find the next one
-                  # cases where within a run we have nested placeholders
-                  if (previous_run_hash.key?(start_identifier))
-                    ignore_indexes = previous_run_hash[start_identifier]["used_start_indexes"]
-                    run_texts[start_position_run_index]&.each_char&.with_index do |char, index|
 
-                      if (ignore_indexes.include?(index))
-                        next
-                      end
+                  end_position = Regexp.last_match.end(0) - 1
+                  end_char = text[end_position]
 
-                      if (char == start_char)
-                        start_position_char_index = index
-                        previous_run_hash[start_identifier]["used_start_indexes"] << index
-                        break
-                      end
-                    end
-                  else
-                    previous_run_hash[start_identifier] = { "used_start_indexes" => [start_position_char_index]}
-                  end
+                
+                 
+
+                  beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, "start")
+                  previous_run_hash = beginning_of_placeholder[:previous_run_hash]
+
+             
 
                   end_position_run_index = calculate_run_index(run_texts, end_position)
                   end_position_char_index = run_texts[end_position_run_index].index(end_char)
@@ -99,8 +82,8 @@ module Word
                     paragraph_object: paragraph,
                     paragraph_index: paragraph_index,
                     beginning_of_placeholder: {
-                      run_index: start_position_run_index,
-                      char_index: start_position_char_index,
+                      run_index: beginning_of_placeholder[:run_index],
+                      char_index: beginning_of_placeholder[:char_index],
                     },
                     end_of_placeholder: {
                       run_index: end_position_run_index,
@@ -112,6 +95,34 @@ module Word
           end
 
           private
+        
+          def get_placeholder_positions(run_texts, position, passed_char, previous_run_hash, start_or_end)
+            
+            position_run_index = calculate_run_index(run_texts, position)
+            position_char_index = run_texts[position_run_index].index(passed_char)
+            identifier = "S-#{position_run_index}"
+            hash_key = start_or_end == "start" ? "used_start_indexes" : "used_end_indexes"
+
+              if (previous_run_hash.key?(identifier))
+                ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
+                run_texts[position_run_index]&.each_char&.with_index do |char, index|
+
+                  if (ignore_indexes.include?(index))
+                    next
+                  end
+
+                  if (char == passed_char)
+                    position_char_index = index
+                    previous_run_hash[identifier][hash_key.to_sym] << index
+                    break
+                  end
+                end
+              else
+                previous_run_hash[identifier] = { hash_key.to_sym => [position_char_index]}
+              end
+              { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
+          end
+
           def check_brace_balance(text)
             unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
             if unbalanced_occurrences.any?
