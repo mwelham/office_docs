@@ -23,31 +23,31 @@ module Word
               text = run_texts.join('')
               check_brace_balance(text)
             
-              text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{\s*%[^%]*%\}|\{%[^}]*\}\}|{%\s*if[^%]*%\}|\{%\s*endif\s*%\}|\{%\s*for[^%]*%\}|\{%\s*endfor\s*%\})/) do |match|
-                  placeholder_text = match[0]
-                  
-                  start_position = Regexp.last_match.begin(0)
-                  start_char = text[start_position]
+              text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
+                placeholder_text = match[0]
+                
+                start_position = Regexp.last_match.begin(0)
+                start_char = text[start_position]
 
-                  end_position = Regexp.last_match.end(0) - 1
-                  end_char = text[end_position]
+                end_position = Regexp.last_match.end(0) - 1
+                end_char = text[end_position]
 
-                  beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, "start")
-                  end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, "end")
-                 
-                  placeholders << {
-                    placeholder_text: placeholder_text,
-                    paragraph_object: paragraph,
-                    paragraph_index: paragraph_index,
-                    beginning_of_placeholder: {
-                      run_index: beginning_of_placeholder[:run_index],
-                      char_index: beginning_of_placeholder[:char_index],
-                    },
-                    end_of_placeholder: {
-                      run_index: end_of_placeholder[:run_index],
-                      char_index: end_of_placeholder[:char_index],
-                    }
+                beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, "start")
+                end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, "end")
+                
+                placeholders << {
+                  placeholder_text: placeholder_text,
+                  paragraph_object: paragraph,
+                  paragraph_index: paragraph_index,
+                  beginning_of_placeholder: {
+                    run_index: beginning_of_placeholder[:run_index],
+                    char_index: beginning_of_placeholder[:char_index],
+                  },
+                  end_of_placeholder: {
+                    run_index: end_of_placeholder[:run_index],
+                    char_index: end_of_placeholder[:char_index],
                   }
+                }
               end
             return placeholders
           end

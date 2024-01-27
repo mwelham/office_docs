@@ -171,7 +171,7 @@ class TemplateTest < Test::Unit::TestCase
       template = Word::Template.new(doc)
       template.render({
           'fields' => {
-            'a' => '١٦:٥٩:٠٠+٠٢٠٠'
+            'a' => '١٩٨٧/٠٦/١٩ ٢٠:٠٠:٠٠'
           }
         })
       template.word_document.save(filename)
