@@ -76,6 +76,19 @@ module Word
           def generate_identifier(start_or_end, position_run_index)
             start_or_end == START_OF_PLACEHOLDER ? "#{START_IDENTIFIER_PREFIX}-#{position_run_index}" : "#{END_IDENTIFIER_PREFIX}-#{position_run_index}"
           end
+
+          # Ex: run_texts = ["Nane:" , "{{", "field.name", "}}", "Age:", "{{", "field.age", "}}"]
+          # run_index is the start/end index of the placeholder in the run_texts array
+          # char_index is the index of the start/end of the string in the run_texts array
+          # (think of run_index and char_index as coordinates)
+          #
+          # Placeholder: {{ field.name }}
+          # Beginning of placeholder: {  - run_index: 1, char_index: 0  
+          # End of placeholder: } - run_index: 3, char_index: 1 
+          #
+          # Placeholder: {{ field.age }}
+          # Beginning of placeholder: {  - run_index: 5, char_index: 0
+          # End of placeholder: } - run_index: 7, char_index: 1
         
           def get_placeholder_positions(run_texts, position, passed_char, previous_run_hash, start_or_end)
             position_run_index = calculate_run_index(run_texts, position)
@@ -111,6 +124,8 @@ module Word
               previous_run_hash[identifier][hash_key.to_sym] << position_char_index
             else
               if start_or_end == END_OF_PLACEHOLDER
+                # If we are at the end of the placeholder, we want to grab the index of the last char of the placeholder
+                # ex: {{...}} - we want to grab the index of the last } in the placeholder
                 next_char = run_texts[position_run_index][position_char_index + 1]&.chr
                 position_char_index += 1 if next_char == passed_char
               end
