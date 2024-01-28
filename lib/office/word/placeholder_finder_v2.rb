@@ -2,15 +2,21 @@ module Word
     class PlaceholderFinderV2
       class << self
 
-        def get_placeholders(paragraphs)
-            placeholders = []
+        START_OF_PLACEHOLDER = 'START'  
+        START_IDENTIFIER_PREFIX = "S"
+        START_INDEXES_USED = "start_indexes_used"
+
+        END_IDENTIFIER_PREFIX = "E"
+        END_OF_PLACEHOLDER = 'END'
+        END_INDEXES_USED = "end_indexes_used" 
         
-                paragraphs.each_with_index do |p, i|
-                placeholders += get_placeholders_from_paragraph(p, i)
-            end
-            placeholders
-          
+        def get_placeholders(paragraphs)
+          placeholders = []
+          paragraphs.each_with_index do |p, i|
+            placeholders += get_placeholders_from_paragraph(p, i)
           end
+          placeholders
+        end
         
         def get_placeholders_from_paragraph(paragraph, paragraph_index)
           placeholders = []
@@ -21,8 +27,16 @@ module Word
 
           return [] if run_texts.empty? || run_texts.nil?
               text = run_texts.join('')
+
               check_brace_balance(text)
             
+              # This regex is used to find placeholders in the following format:
+              # {{...}} - variable placeholder
+              # {% if ... %} - liquid syntax placeholder
+              # {% endif %} - liquid syntax placeholder
+              # {% for ... %} - liquid syntax placeholder
+              # {% endfor %} - liquid syntax placeholder
+
               text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
                 placeholder_text = match[0]
                 
@@ -32,12 +46,13 @@ module Word
                 end_position = Regexp.last_match.end(0) - 1
                 end_char = text[end_position]
 
-                beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, "start")
-                end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, "end")
+                # This is used to get the char_index & run_index of the placeholder in the run_texts array
+                beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, START_OF_PLACEHOLDER)
+                end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, END_OF_PLACEHOLDER)
                 
                 placeholders << {
                   placeholder_text: placeholder_text,
-                  paragraph_object: paragraph,
+                  paragraph_object: paragraph, #TODO: Remove this to save memory, and create a method to get the paragraph object from the index
                   paragraph_index: paragraph_index,
                   beginning_of_placeholder: {
                     run_index: beginning_of_placeholder[:run_index],
@@ -54,15 +69,19 @@ module Word
 
           private
 
+          # The identifier is used to identify the start/end placeholder in the previous_run_hash
+          # due to nested placeholders, we store the used indexes in the previous_run_hash 
+          # and use them to skip over them when searching for the next placeholder start/end index
+          # E - end placeholder, S - start placeholder
           def generate_identifier(start_or_end, position_run_index)
-            start_or_end == "start" ? "S-#{position_run_index}" : "E-#{position_run_index}"
+            start_or_end == START_OF_PLACEHOLDER ? "#{START_IDENTIFIER_PREFIX}-#{position_run_index}" : "#{END_IDENTIFIER_PREFIX}-#{position_run_index}"
           end
         
           def get_placeholder_positions(run_texts, position, passed_char, previous_run_hash, start_or_end)
             position_run_index = calculate_run_index(run_texts, position)
             position_char_index = run_texts[position_run_index].index(passed_char)
             identifier = generate_identifier(start_or_end, position_run_index)
-            hash_key = start_or_end == "start" ? "used_start_indexes" : "used_end_indexes"
+            hash_key = start_or_end == START_OF_PLACEHOLDER ? START_INDEXES_USED : END_INDEXES_USED
           
             if previous_run_hash.key?(identifier)
               ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
@@ -86,7 +105,7 @@ module Word
           
               previous_run_hash[identifier][hash_key.to_sym] << position_char_index
             else
-              if start_or_end == "end"
+              if start_or_end == END_OF_PLACEHOLDER
                 next_char = run_texts[position_run_index][position_char_index + 1]&.chr
                 position_char_index += 1 if next_char == passed_char
               end
@@ -97,7 +116,8 @@ module Word
             { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
           end
           
-
+          # This method is used to check if placeholder braces are properly closed in the template
+          # in the following format: {{...}} is valid but {{...} and {{ ... are not valid. 
           def check_brace_balance(text)
             unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
             if unbalanced_occurrences.any?
@@ -105,6 +125,8 @@ module Word
             end
           end
 
+          # This method is used to calculate the run index of the placeholder
+          # Run index is the index of the placeholder in run_texts array
           def calculate_run_index(run_texts, position)
             current_position = 0
             run_texts.each_with_index do |text, run_index|
