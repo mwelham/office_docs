@@ -82,7 +82,10 @@ module Word
             position_char_index = run_texts[position_run_index].index(passed_char)
             identifier = generate_identifier(start_or_end, position_run_index)
             hash_key = start_or_end == START_OF_PLACEHOLDER ? START_INDEXES_USED : END_INDEXES_USED
-          
+            
+            # If the previous_run_hash has the identifier, it means that there are multiple placeholders in the same run, i.e same index of
+            # the runs array. We use the previous_run_hash to skip over the indexes that have already been used.
+            # we do this to ensure we get the correct start/end index of the placeholder 
             if previous_run_hash.key?(identifier)
               ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
               run_text = run_texts[position_run_index]
@@ -90,19 +93,21 @@ module Word
                 char = run_text[index]
                 next if ignore_indexes.include?(index)
           
+                # If the char is a { or %, we check if the next char is the same as the passed_char
+                # If it is and it's the end of the placeholder we found the correct index and use that. 
+                # ex: ending placeholder - {{...}} - passed_char is } and next_char is } - we want to use passed_char + 1 to get the correct ending index
                 next_char = run_texts[position_run_index][position_char_index + 1]&.chr
-          
                 if passed_char == next_char && (char == "}" || char == "%")
                   position_char_index = index + 1
                   break
                 end
-          
+                
                 if char == passed_char
                   position_char_index = index
                   break
                 end
               end
-          
+              # We add the index to the previous_run_hash so we can skip over it if we find another placeholder in the same run
               previous_run_hash[identifier][hash_key.to_sym] << position_char_index
             else
               if start_or_end == END_OF_PLACEHOLDER
