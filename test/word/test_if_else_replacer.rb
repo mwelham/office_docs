@@ -55,7 +55,6 @@ class IfElseReplacerTest < Test::Unit::TestCase
   :paragraph_index=>8,
   :beginning_of_placeholder=>{:run_index=>1, :char_index=>22},
   :end_of_placeholder=>{:run_index=>1, :char_index=>32}}]
-
     placeholders.each do |p|
       p.delete(:paragraph_object)
     end
