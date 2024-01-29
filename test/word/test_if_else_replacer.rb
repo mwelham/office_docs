@@ -59,7 +59,7 @@ class IfElseReplacerTest < Test::Unit::TestCase
     placeholders.each do |p|
       p.delete(:paragraph_object)
     end
-    
+     
     assert correct_placeholder_info == placeholders
   end
 

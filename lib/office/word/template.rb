@@ -17,7 +17,6 @@ require 'office/word/placeholder_finder'
 require 'office/word/placeholder_replacer'
 require 'office/word/for_loop_expander'
 require 'office/word/if_else_replacer'
-require 'office/word/placeholder_finder_v2'
 
 class InvalidTemplateError < StandardError
 end
