@@ -43,7 +43,7 @@ module Word
     end
 
     def get_placeholders
-      Word::PlaceholderFinderV2.get_placeholders(main_doc.paragraphs)
+      Word::PlaceholderFinder.get_placeholders(main_doc.paragraphs)
     end
 
     #

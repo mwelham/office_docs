@@ -5,4 +5,3 @@ gemspec
 
 gem 'simplecov'
 gem 'rake'
-gem 'ruby-prof'

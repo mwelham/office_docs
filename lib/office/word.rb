@@ -5,7 +5,6 @@ require 'office/constants'
 require 'office/errors'
 require 'office/logger'
 require 'office/word/template'
-require 'ruby-prof'
 
 module Office
   class WordDocument < Package
@@ -274,14 +273,6 @@ module Office
 
       paragraph.node.remove
       @paragraphs.delete_at(p_index)
-    end
-
-    def get_paragraph(index)
-      begin
-        @paragraphs[index]
-      rescue e
-        raise ArgumentError.new("Cannot get paragraph at index #{index} from container with only #{paragraphs.length} paragraphs")
-      end
     end
 
     def insert_new_paragraph_object_after_paragraph(target_paragraph_object, new_paragraph_object)

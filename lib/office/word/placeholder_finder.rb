@@ -1,134 +1,164 @@
 module Word
   class PlaceholderFinder
     class << self
-      #
-      #
-      # =>
-      # => Getting placeholders
-      # =>
-      #
-      #
 
+      START_OF_PLACEHOLDER = 'START'  
+      START_IDENTIFIER_PREFIX = "S"
+      START_INDEXES_USED = "start_indexes_used"
+
+      END_IDENTIFIER_PREFIX = "E"
+      END_OF_PLACEHOLDER = 'END'
+      END_INDEXES_USED = "end_indexes_used" 
+      
       def get_placeholders(paragraphs)
+        start_time = Time.now
         placeholders = []
         paragraphs.each_with_index do |p, i|
           placeholders += get_placeholders_from_paragraph(p, i)
         end
-        byebug
+        end_time = Time.now
+        puts "Total Time to get placeholders: #{end_time - start_time}"
         placeholders
       end
-
+      
       def get_placeholders_from_paragraph(paragraph, paragraph_index)
         placeholders = []
-        loop_through_placeholders_in_paragraph(paragraph, paragraph_index) do |placeholder|
-          placeholders << placeholder
-          next_step = {run_index: placeholder[:end_of_placeholder][:run_index], char_index: placeholder[:end_of_placeholder][:char_index] + 1}
-        end
-        placeholders
-      end
+        previous_run_hash = {}
 
-      #
-      #
-      # =>
-      # => Magical placeholder looping stuff
-      # =>
-      #
-      #
-
-
-      def loop_through_placeholders_in_paragraph(paragraph, paragraph_index)
         runs = paragraph.runs
         run_texts = runs.map(&:text).dup
 
-        next_run_index = 0
-        run_texts.each_with_index do |run_text, i|
-          next if i < next_run_index
-          text = run_text
-          next if text.nil?
+        return [] if run_texts.empty? || run_texts.nil?
+            text = run_texts.join('')
 
-          next_char_index = 0
-          text.each_char.with_index do |char, j|
-            next if j < next_char_index
-            next_char = next_char(run_texts, i, j)[:char]
-            if(char == '{' && (next_char == '{' || next_char == '%'))
-              beginning_of_placeholder = {run_index: i, char_index: j}
-              end_of_placeholder = get_end_of_placeholder(run_texts, i, j)
-              placeholder_text = get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
+            check_brace_balance(text)
+          
+            # This regex is used to find placeholders in the following format:
+            # {{...}} - variable placeholder
+            # {% if ... %} - liquid syntax placeholder
+            # {% endif %} - liquid syntax placeholder
+            # {% for ... %} - liquid syntax placeholder
+            # {% endfor %} - liquid syntax placeholder
 
-              placeholder = {placeholder_text: placeholder_text, paragraph_object: {}, paragraph_index: paragraph_index, beginning_of_placeholder: beginning_of_placeholder, end_of_placeholder: end_of_placeholder}
+            text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
+              placeholder_text = match[0]
+              
+              start_position = Regexp.last_match.begin(0)
+              start_char = text[start_position]
 
-              next_step = block_given? ? yield(placeholder) : {}
-              if next_step.is_a? Hash
-                # This is a bit dodge - even if we increment the run index it will loop through
-                # the rest of the chars from the char_index...
-                # It doesn't matter because placeholders inside placeholders is not a thing..e but still dodge
-                next_run_index = next_step[:run_index] if !next_step[:run_index].nil?
-                next_char_index = next_step[:char_index] if !next_step[:char_index].nil?
+              end_position = Regexp.last_match.end(0) - 1
+              end_char = text[end_position]
+
+              # This is used to get the char_index & run_index of the placeholder in the run_texts array
+              beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, START_OF_PLACEHOLDER)
+              end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, END_OF_PLACEHOLDER)
+              
+              placeholders << {
+                placeholder_text: placeholder_text,
+                paragraph_object: paragraph, #TODO: Remove this to save memory, and create a method to get the paragraph object from the index
+                paragraph_index: paragraph_index,
+                beginning_of_placeholder: {
+                  run_index: beginning_of_placeholder[:run_index],
+                  char_index: beginning_of_placeholder[:char_index],
+                },
+                end_of_placeholder: {
+                  run_index: end_of_placeholder[:run_index],
+                  char_index: end_of_placeholder[:char_index],
+                }
+              }
+            end
+          return placeholders
+        end
+
+        private
+
+        # The identifier is used to identify the start/end placeholder in the previous_run_hash
+        # due to nested placeholders, we store the used indexes in the previous_run_hash 
+        # and use them to skip over them when searching for the next placeholder start/end index
+        # E - end placeholder, S - start placeholder
+        def generate_identifier(start_or_end, position_run_index)
+          start_or_end == START_OF_PLACEHOLDER ? "#{START_IDENTIFIER_PREFIX}-#{position_run_index}" : "#{END_IDENTIFIER_PREFIX}-#{position_run_index}"
+        end
+
+        # Ex: run_texts = ["Nane:" , "{{", "field.name", "}}", "Age:", "{{", "field.age", "}}"]
+        # run_index is the start/end index of the placeholder in the run_texts array
+        # char_index is the index of the start/end of the string in the run_texts array
+        # (think of run_index and char_index as coordinates)
+        #
+        # Placeholder: {{ field.name }}
+        # Beginning of placeholder: {  - run_index: 1, char_index: 0  
+        # End of placeholder: } - run_index: 3, char_index: 1 
+        #
+        # Placeholder: {{ field.age }}
+        # Beginning of placeholder: {  - run_index: 5, char_index: 0
+        # End of placeholder: } - run_index: 7, char_index: 1
+      
+        def get_placeholder_positions(run_texts, position, passed_char, previous_run_hash, start_or_end)
+          position_run_index = calculate_run_index(run_texts, position)
+          position_char_index = run_texts[position_run_index].index(passed_char)
+          identifier = generate_identifier(start_or_end, position_run_index)
+          hash_key = start_or_end == START_OF_PLACEHOLDER ? START_INDEXES_USED : END_INDEXES_USED
+          
+          # If the previous_run_hash has the identifier, it means that there are multiple placeholders in the same run, i.e same index of
+          # the runs array. We use the previous_run_hash to skip over the indexes that have already been used.
+          # we do this to ensure we get the correct start/end index of the placeholder 
+          if previous_run_hash.key?(identifier)
+            ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
+            run_text = run_texts[position_run_index]
+            run_text.length.times do |index|
+              char = run_text[index]
+              next if ignore_indexes.include?(index)
+        
+              # If the char is a { or %, we check if the next char is the same as the passed_char
+              # If it is and it's the end of the placeholder we found the correct index and use that. 
+              # ex: ending placeholder - {{...}} - passed_char is } and next_char is } - we want to use passed_char + 1 to get the correct ending index
+              next_char = run_texts[position_run_index][position_char_index + 1]&.chr
+              if passed_char == next_char && (char == "}" || char == "%")
+                position_char_index = index + 1
+                break
+              end
+              
+              if char == passed_char
+                position_char_index = index
+                break
               end
             end
-          end
-        end
-      end
-
-      def get_end_of_placeholder(run_texts, current_run_index, start_of_placeholder)
-        placeholder_text = ""
-        start_char = start_of_placeholder
-        run_texts[current_run_index..-1].each_with_index do |run_text, i|
-          text = run_text
-          if !text.nil? && text.length > 0
-            text[start_char..-1].each_char.with_index do |char, j|
-              the_next_char = next_char(run_texts, current_run_index + i, start_char + j)
-              if((char == '%' || char == '}') && the_next_char[:char] == '}')
-                return {run_index: the_next_char[:run_index], char_index: the_next_char[:char_index]}
-              else
-                placeholder_text += char
-              end
+            # We add the index to the previous_run_hash so we can skip over it if we find another placeholder in the same run
+            previous_run_hash[identifier][hash_key.to_sym] << position_char_index
+          else
+            if start_or_end == END_OF_PLACEHOLDER
+              # If we are at the end of the placeholder, we want to grab the index of the last char of the placeholder
+              # ex: {{...}} - we want to grab the index of the last } in the placeholder
+              next_char = run_texts[position_run_index][position_char_index + 1]&.chr
+              position_char_index += 1 if next_char == passed_char
             end
+            
+            previous_run_hash[identifier] = { hash_key.to_sym => [position_char_index] }
           end
-          start_char = 0
+        
+          { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
         end
-
-        raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{placeholder_text}\".")
-      end
-
-      def next_char(run_texts, current_run_index, current_char_index)
-        current_run_text = run_texts[current_run_index]
-        blank = {run_index: nil, char_index: nil, char: nil}
-        return blank if current_run_text.nil?
-
-        text = current_run_text || ""
-        if text.length - 1 > current_char_index #still chars left at the end
-          return {run_index: current_run_index, char_index: current_char_index + 1, char: text[current_char_index + 1]}
-        else
-          run_texts[current_run_index+1..-1].each_with_index do |run_text, i|
-            next if run_text.nil? || run_text.length == 0
-            return {run_index: current_run_index+1+i, char_index: 0, char: run_text[0]}
-          end
-          return blank
-        end
-      end
-
-      def get_placeholder_text(run_texts, beginning_of_placeholder, end_of_placeholder)
-        result = ""
-        first_run_index = beginning_of_placeholder[:run_index]
-        last_run_index = end_of_placeholder[:run_index]
-        if first_run_index == last_run_index
-          result = run_texts[first_run_index][beginning_of_placeholder[:char_index]..end_of_placeholder[:char_index]]
-        else
-          (first_run_index..last_run_index).each do |run_i|
-            text = run_texts[run_i]
-            next if text.nil? || text.length == 0
-            if run_i == first_run_index
-              result += text[beginning_of_placeholder[:char_index]..-1]
-            elsif run_i == last_run_index
-              result += text[0..end_of_placeholder[:char_index]]
-            else
-              result += text
-            end
+        
+        # This method is used to check if placeholder braces are properly closed in the template
+        # in the following format: {{...}} is valid but {{...} and {{ ... are not valid. 
+        def check_brace_balance(text)
+          unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
+          if unbalanced_occurrences.any?
+            raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{unbalanced_occurrences.first}\".")
           end
         end
-        result
-      end
+
+        # This method is used to calculate the run index of the placeholder
+        # Run index is the index of the placeholder in run_texts array
+        def calculate_run_index(run_texts, position)
+          current_position = 0
+          run_texts.each_with_index do |text, run_index|
+            text = text || ""
+            return run_index if current_position + text.length > position
+            current_position += text.length
+          end
+            run_texts.size - 1
+        end
     end
   end
 end

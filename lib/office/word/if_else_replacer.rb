@@ -30,7 +30,7 @@ module Word
     def replace_all_if_else(container)
       # Get placeholders in paragraphs
       paragraphs = container.paragraphs
-      self.placeholders = Word::PlaceholderFinderV2.get_placeholders(paragraphs)
+      self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
       while there_are_if_else_placeholders?(placeholders)
         i = 0
         while i < placeholders.length
@@ -40,7 +40,7 @@ module Word
             raise "Missing endif for if placeholder: #{start_placeholder[:placeholder_text]}" if end_index.nil?
             replace_if_else(i, end_index)
             paragraphs = resync_container(container)
-            self.placeholders = Word::PlaceholderFinderV2.get_placeholders(paragraphs)
+            self.placeholders = Word::PlaceholderFinder.get_placeholders(paragraphs)
             break
           else
             i += 1
