@@ -80,14 +80,15 @@ module Word
 
     def render_section(container, data, options = {})
       container.paragraphs.each_with_index do |paragraph, paragraph_index|
-        Word::PlaceholderFinder.get_placeholders_from_paragraph(paragraph, paragraph_index) do |placeholder|
-          replacer = Word::PlaceholderReplacer.new(placeholder, word_document)
-          replacement = replacer.replace_in_paragraph(paragraph, data, options)
-          next_step = {}
-          next_step[:run_index] = replacement[:next_run] if replacement[:next_run]
-          next_step[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
-          next_step
-        end
+        placeholders = Word::PlaceholderFinder.get_placeholders_from_paragraph(paragraph, paragraph_index)
+          placeholders.each do |placeholder|
+            replacer = Word::PlaceholderReplacer.new(placeholder, word_document)
+            replacement = replacer.replace_in_paragraph(paragraph, data, options)
+            next_step = {}
+            next_step[:run_index] = replacement[:next_run] if replacement[:next_run]
+            next_step[:char_index] = replacement[:next_char] + 1 if replacement[:next_char]
+            next_step
+          end
       end
     end
 

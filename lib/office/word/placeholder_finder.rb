@@ -21,51 +21,49 @@ module Word
       def get_placeholders_from_paragraph(paragraph, paragraph_index)
         placeholders = []
         previous_run_hash = {}
-
         runs = paragraph.runs
         run_texts = runs.map(&:text).dup
-
+        
         return [] if run_texts.empty? || run_texts.nil?
-            text = run_texts.join('')
-
-            check_brace_balance(text)
+        text = run_texts.join('')
+        check_brace_balance(text)
           
-            # This regex is used to find placeholders in the following format:
-            # {{...}} - variable placeholder
-            # {% if ... %} - liquid syntax placeholder
-            # {% endif %} - liquid syntax placeholder
-            # {% for ... %} - liquid syntax placeholder
-            # {% endfor %} - liquid syntax placeholder
+        # This regex is used to find placeholders in the following format:
+        # {{...}} - variable placeholder
+        # {% if ... %} - liquid syntax placeholder
+        # {% endif %} - liquid syntax placeholder
+        # {% for ... %} - liquid syntax placeholder
+        # {% endfor %} - liquid syntax placeholder
 
-            text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
-              placeholder_text = match[0]
-              
-              start_position = Regexp.last_match.begin(0)
-              start_char = text[start_position]
+        text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
+          placeholder_text = match[0]
+          
+          start_position = Regexp.last_match.begin(0)
+          start_char = text[start_position]
 
-              end_position = Regexp.last_match.end(0) - 1
-              end_char = text[end_position]
+          end_position = Regexp.last_match.end(0) - 1
+          end_char = text[end_position]
 
-              # This is used to get the char_index & run_index of the placeholder in the run_texts array
-              beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, START_OF_PLACEHOLDER)
-              end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, END_OF_PLACEHOLDER)
-              
-              placeholders << {
-                placeholder_text: placeholder_text,
-                paragraph_object: paragraph, #TODO: Remove this to save memory, and create a method to get the paragraph object from the index
-                paragraph_index: paragraph_index,
-                beginning_of_placeholder: {
-                  run_index: beginning_of_placeholder[:run_index],
-                  char_index: beginning_of_placeholder[:char_index],
-                },
-                end_of_placeholder: {
-                  run_index: end_of_placeholder[:run_index],
-                  char_index: end_of_placeholder[:char_index],
-                }
-              }
-            end
-          return placeholders
+          # This is used to get the char_index & run_index of the placeholder in the run_texts array
+          beginning_of_placeholder = get_placeholder_positions(run_texts, start_position, start_char, previous_run_hash, START_OF_PLACEHOLDER)
+          end_of_placeholder = get_placeholder_positions(run_texts, end_position, end_char, previous_run_hash, END_OF_PLACEHOLDER)
+          
+          placeholders << {
+            placeholder_text: placeholder_text,
+            paragraph_object: paragraph, #TODO: Remove this to save memory, and create a method to get the paragraph object from the index
+            paragraph_index: paragraph_index,
+            beginning_of_placeholder: {
+              run_index: beginning_of_placeholder[:run_index],
+              char_index: beginning_of_placeholder[:char_index],
+            },
+            end_of_placeholder: {
+              run_index: end_of_placeholder[:run_index],
+              char_index: end_of_placeholder[:char_index],
+            }
+          }
         end
+      return placeholders
+      end
 
         private
 
@@ -156,6 +154,6 @@ module Word
           end
             run_texts.size - 1
         end
-    end
+      end
   end
 end
