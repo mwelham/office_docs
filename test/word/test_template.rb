@@ -163,28 +163,28 @@ class TemplateTest < Test::Unit::TestCase
     end
   end
 
-  # def test_parse_arabic_datetime
-  #   Dir.mktmpdir do |dir|
-  #     filename = File.join dir, 'test_arabic_date_time.docx'
+  def test_parse_arabic_datetime
+    Dir.mktmpdir do |dir|
+      filename = File.join dir, 'test_arabic_date_time.docx'
 
-  #     doc = Office::WordDocument.new(TEST_ARABIC_DATE_TIME)
-  #     template = Word::Template.new(doc)
-  #     template.render({
-  #         'fields' => {
-  #           'a' => '١٩٨٧/٠٦/١٩ ٢٠:٠٠:٠٠'
-  #         }
-  #       })
-  #     template.word_document.save(filename)
+      doc = Office::WordDocument.new(TEST_ARABIC_DATE_TIME)
+      template = Word::Template.new(doc)
+      template.render({
+          'fields' => {
+            'a' => '١٩٨٧/٠٦/١٩ ٢٠:٠٠:٠٠'
+          }
+        })
+      template.word_document.save(filename)
 
-  #     assert File.file?(filename)
-  #     assert File.stat(filename).size > 0
+      assert File.file?(filename)
+      assert File.stat(filename).size > 0
 
-  #     correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
-  #     our_render = Office::WordDocument.new(filename)
+      correct = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'correct_render', 'test_arabic_date_time.docx'))
+      our_render = Office::WordDocument.new(filename)
 
-  #     assert docs_are_equivalent?(correct, our_render)
-  #   end
-  # end
+      assert docs_are_equivalent?(correct, our_render)
+    end
+  end
 
   def test_image_resizing
     doc = Office::WordDocument.new(File.join(File.dirname(__FILE__), '..', 'content', 'image_resize_noresample_test.docx'))
