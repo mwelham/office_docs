@@ -11,13 +11,10 @@ module Word
       END_INDEXES_USED = "end_indexes_used" 
       
       def get_placeholders(paragraphs)
-        start_time = Time.now
         placeholders = []
         paragraphs.each_with_index do |p, i|
           placeholders += get_placeholders_from_paragraph(p, i)
         end
-        end_time = Time.now
-        puts "Total Time to get placeholders: #{end_time - start_time}"
         placeholders
       end
       
