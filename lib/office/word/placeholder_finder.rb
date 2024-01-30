@@ -104,8 +104,8 @@ module Word
             ignore_indexes = previous_run_hash[identifier] || []
             run_text = run_texts[position_run_index]
             run_text.length.times do |index|
-              char = run_text[index]
               next if ignore_indexes.include?(index)
+              char = run_text[index]
 
               # If the char is a { or %, we check if the next char is the same as the passed_char
               # If it is and it's the end of the placeholder we found the correct index and use that. 
@@ -122,8 +122,15 @@ module Word
               if char == passed_char
                 position_char_index = index
                 previous_run_hash[identifier] << index
+                # if we are at the start of the placeholder, we want to store the index of the next char { or % t since it's used. 
+                if start_or_end == START_OF_PLACEHOLDER
+                  previous_run_hash[identifier] << (index + 1)
+                end
+
                 break
               end
+              # don't check this index again
+              previous_run_hash[identifier] << index
             end
             # We add the index to the previous_run_hash so we can skip over it if we find another placeholder in the same run
            
