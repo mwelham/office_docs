@@ -98,28 +98,32 @@ module Word
           # the runs array. We use the previous_run_hash to skip over the indexes that have already been used.
           # we do this to ensure we get the correct start/end index of the placeholder 
           if previous_run_hash.key?(identifier)
-            ignore_indexes = previous_run_hash[identifier][hash_key.to_sym]
+            ignore_indexes = previous_run_hash[identifier] || []
             run_text = run_texts[position_run_index]
             run_text.length.times do |index|
               char = run_text[index]
               next if ignore_indexes.include?(index)
-        
+
               # If the char is a { or %, we check if the next char is the same as the passed_char
               # If it is and it's the end of the placeholder we found the correct index and use that. 
               # ex: ending placeholder - {{...}} - passed_char is } and next_char is } - we want to use passed_char + 1 to get the correct ending index
-              next_char = run_texts[position_run_index][position_char_index + 1]&.chr
-              if passed_char == next_char && (char == "}" || char == "%")
+              next_char = run_texts[position_run_index][index + 1]&.chr 
+              
+              if passed_char == next_char && (char == "}" || char == "%") && start_or_end == END_OF_PLACEHOLDER && !ignore_indexes.include?(index + 1)
                 position_char_index = index + 1
+                previous_run_hash[identifier] << index
+                previous_run_hash[identifier] << position_char_index
                 break
               end
               
               if char == passed_char
                 position_char_index = index
+                previous_run_hash[identifier] << index
                 break
               end
             end
             # We add the index to the previous_run_hash so we can skip over it if we find another placeholder in the same run
-            previous_run_hash[identifier][hash_key.to_sym] << position_char_index
+           
           else
             if start_or_end == END_OF_PLACEHOLDER
               # If we are at the end of the placeholder, we want to grab the index of the last char of the placeholder
@@ -128,7 +132,8 @@ module Word
               position_char_index += 1 if next_char == passed_char
             end
             
-            previous_run_hash[identifier] = { hash_key.to_sym => [position_char_index] }
+            previous_run_hash[identifier] = [position_char_index] 
+            previous_run_hash[identifier] << (position_char_index + 1)
           end
         
           { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }
