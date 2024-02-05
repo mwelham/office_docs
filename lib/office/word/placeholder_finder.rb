@@ -4,11 +4,9 @@ module Word
 
       START_OF_PLACEHOLDER = 'START'  
       START_IDENTIFIER_PREFIX = "S"
-      START_INDEXES_USED = "start_indexes_used"
 
       END_IDENTIFIER_PREFIX = "E"
       END_OF_PLACEHOLDER = 'END'
-      END_INDEXES_USED = "end_indexes_used" 
       
         # This regex is used to find placeholders in the following format:
         # {{...}} - variable placeholder
