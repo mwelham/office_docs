@@ -10,6 +10,17 @@ module Word
       END_OF_PLACEHOLDER = 'END'
       END_INDEXES_USED = "end_indexes_used" 
       
+        # This regex is used to find placeholders in the following format:
+        # {{...}} - variable placeholder
+        # {% if ... %} - liquid syntax placeholder
+        # {% endif %} - liquid syntax placeholder
+        # {% for ... %} - liquid syntax placeholder
+        # {% endfor %} - liquid syntax placeholder
+
+      PLACEHOLDER_REGEX = /(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/
+
+      UNBALANCED_PLACEHOLDER_BRACES_REGEX = /{{[^{}]*[^{}]*$/
+      
       def get_placeholders(paragraphs)
         start_time = Time.now
         placeholders = []
@@ -25,20 +36,13 @@ module Word
         placeholders = []
         previous_run_hash = {}
         runs = paragraph.runs
-        run_texts = runs.map(&:text).dup
+        run_texts = runs.map(&:text)
         
         return [] if run_texts.empty? || run_texts.nil?
         text = run_texts.join('')
         check_brace_balance(text)
           
-        # This regex is used to find placeholders in the following format:
-        # {{...}} - variable placeholder
-        # {% if ... %} - liquid syntax placeholder
-        # {% endif %} - liquid syntax placeholder
-        # {% for ... %} - liquid syntax placeholder
-        # {% endfor %} - liquid syntax placeholder
-
-        text.scan(/(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/) do |match|
+        text.scan(PLACEHOLDER_REGEX) do |match|
           placeholder_text = match[0]
           
           start_position = Regexp.last_match.begin(0)
@@ -95,7 +99,6 @@ module Word
           position_run_index = calculate_run_index(run_texts, position)
           position_char_index = run_texts[position_run_index].index(passed_char)
           identifier = generate_identifier(start_or_end, position_run_index)
-          hash_key = start_or_end == START_OF_PLACEHOLDER ? START_INDEXES_USED : END_INDEXES_USED
           
           # If the previous_run_hash has the identifier, it means that there are multiple placeholders in the same run, i.e same index of
           # the runs array. We use the previous_run_hash to skip over the indexes that have already been used.
@@ -104,6 +107,7 @@ module Word
             ignore_indexes = previous_run_hash[identifier] || []
             run_text = run_texts[position_run_index]
             run_text.length.times do |index|
+              # Skip if we already visited this index
               next if ignore_indexes.include?(index)
               char = run_text[index]
 
@@ -152,7 +156,7 @@ module Word
         # This method is used to check if placeholder braces are properly closed in the template
         # in the following format: {{...}} is valid but {{...} and {{ ... are not valid. 
         def check_brace_balance(text)
-          unbalanced_occurrences = text.scan(/{{[^{}]*[^{}]*$/)
+          unbalanced_occurrences = text.scan(UNBALANCED_PLACEHOLDER_BRACES_REGEX)
           if unbalanced_occurrences.any?
             raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{unbalanced_occurrences.first}\".")
           end
