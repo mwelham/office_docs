@@ -16,7 +16,6 @@ module Word
         # {% endfor %} - liquid syntax placeholder
 
       PLACEHOLDER_REGEX = /(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/
-
       UNBALANCED_PLACEHOLDER_BRACES_REGEX = /{{[^{}]*[^{}]*$/
       
       def get_placeholders(paragraphs)
