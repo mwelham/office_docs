@@ -38,10 +38,8 @@ module Word
         return [] if run_texts.empty? || run_texts.nil?
         text = run_texts.join('')
         check_brace_balance(text)
-          
         text.scan(PLACEHOLDER_REGEX) do |match|
           placeholder_text = match[0]
-          
           start_position = Regexp.last_match.begin(0)
           start_char = text[start_position]
 
@@ -142,9 +140,9 @@ module Word
               next_char = run_texts[position_run_index][position_char_index + 1]&.chr
               position_char_index += 1 if next_char == passed_char
             end
-            
             previous_run_hash[identifier] = Set.new([position_char_index])
             previous_run_hash[identifier] << (position_char_index + 1)
+            previous_run_hash[identifier] << (position_char_index - 1)
           end
         
           { char_index: position_char_index, run_index: position_run_index, previous_run_hash: previous_run_hash }

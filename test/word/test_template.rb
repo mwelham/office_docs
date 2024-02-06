@@ -11,6 +11,7 @@ class TemplateTest < Test::Unit::TestCase
   BROKEN_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'broken_replacement_test.docx')
   BIG_TEST_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'really_big_template.docx')
   MENICON_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'menicon_template.docx')
+  NESTED_PLACEHOLDERS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'nested_placeholders.docx')
   TEST_QUOTE_MARKS_DOC_PATH = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'quote_mark_in_template_options.docx')
 
   TEMPLATE_ALL_OPTIONS = File.join(File.dirname(__FILE__), '..', 'content', 'template', 'placeholders', 'Template_Test_Form.docx')
@@ -48,6 +49,53 @@ class TemplateTest < Test::Unit::TestCase
       assert target[:beginning_of_placeholder] == placeholder_info[:beginning_of_placeholder]
       assert target[:end_of_placeholder] == placeholder_info[:end_of_placeholder]
     end
+  end
+
+  def test_get_nested_placeholders
+    doc = Office::WordDocument.new(NESTED_PLACEHOLDERS)
+    template = Word::Template.new(doc)
+
+    good_placeholders=  [{:placeholder_text=>"{{fields.CLIENT.Client_First_Name}}",
+      :paragraph_index=>2,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>34}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_Last_Name}}",
+      :paragraph_index=>2,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>37},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>70}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_Add1}}",
+      :paragraph_index=>3,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>28}},
+     {:placeholder_text=>"{% if fields.CLIENT.Client_Add2 %}",
+      :paragraph_index=>4,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>0},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>33}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_Add2}}",
+      :paragraph_index=>4,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>34},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>62}},
+     {:placeholder_text=>"{% endif %}",
+      :paragraph_index=>4,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>63},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>73}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_City}}",
+      :paragraph_index=>5,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>2},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>30}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_State}}",
+      :paragraph_index=>5,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>33},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>62}},
+     {:placeholder_text=>"{{fields.CLIENT.Client_Zip}}",
+      :paragraph_index=>5,
+      :beginning_of_placeholder=>{:run_index=>0, :char_index=>64},
+      :end_of_placeholder=>{:run_index=>0, :char_index=>91}}]
+
+    placeholders = template.get_placeholders
+    placeholders.map {|placeholder| placeholder.delete(:paragraph_object)}
+    assert placeholders == good_placeholders
+
   end
 
   def test_broken_template
