@@ -113,7 +113,7 @@ module Word
               # ex: ending placeholder - {{...}} - passed_char is } and next_char is } - we want to use passed_char + 1 to get the correct ending index
               next_char = run_texts[position_run_index][index + 1]&.chr 
               
-              if passed_char == next_char && (char == "}" || char == "%") && start_or_end == END_OF_PLACEHOLDER && !ignore_indexes.include?(index + 1)
+              if start_or_end == END_OF_PLACEHOLDER && passed_char == next_char && (char == "}" || char == "%")  && !ignore_indexes.include?(index + 1)
                 position_char_index = index + 1
                 previous_run_hash[identifier] << index
                 previous_run_hash[identifier] << position_char_index
@@ -143,7 +143,7 @@ module Word
               position_char_index += 1 if next_char == passed_char
             end
             
-            previous_run_hash[identifier] = [position_char_index] 
+            previous_run_hash[identifier] = Set.new([position_char_index])
             previous_run_hash[identifier] << (position_char_index + 1)
           end
         
