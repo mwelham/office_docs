@@ -16,8 +16,11 @@ module Word
         # {% endfor %} - liquid syntax placeholder
 
       PLACEHOLDER_REGEX = /(\{\{[^}]*\}\}|\{%[^%]*%\}|\{%[^}]*\}\}|{%\s*(if|endif|for|endfor)[^%]*%\})/
+      # Matches {{... without a closing }} tag
       UNBALANCED_PLACEHOLDER_BRACES_REGEX = /{{[^{}]*[^{}]*$/
-      
+      # Matches {% ... without a closing %} tag
+      UNBALANCED_LUQID_PLACEHOLDER_REGEX =  /\{%[^\%]*%(?!\})/
+
       def get_placeholders(paragraphs)
         placeholders = []
         paragraphs.each_with_index do |p, i|
@@ -148,7 +151,7 @@ module Word
         # This method is used to check if placeholder braces are properly closed in the template
         # in the following format: {{...}} is valid but {{...} and {{ ... are not valid. 
         def check_brace_balance(text)
-          unbalanced_occurrences = text.scan(UNBALANCED_PLACEHOLDER_BRACES_REGEX)
+          unbalanced_occurrences = text.scan(UNBALANCED_PLACEHOLDER_BRACES_REGEX) + text.scan(UNBALANCED_LUQID_PLACEHOLDER_REGEX)
           if unbalanced_occurrences.any?
             raise InvalidTemplateError.new("Template invalid - end of placeholder }} missing for \"#{unbalanced_occurrences.first}\".")
           end
